@@ -24,3 +24,12 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+/* Prevent PDF canvas stretching */
+.react-pdf__Page canvas {
+  height: auto !important;
+  max-width: 100% !important;
+}
+.react-pdf__Page__svg {
+  height: auto !important;
+  max-width: 100% !important;
+}

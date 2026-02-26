@@ -12,6 +12,15 @@ import CommentsPanel, { type Comment } from './CommentsPanel';
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
+import { Group, Panel, Separator } from "react-resizable-panels";
+
+function ResizeHandle() {
+  return (
+    <Separator className="w-2 relative group">
+      <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] bg-gray-200 group-hover:bg-gray-300" />
+    </Separator>
+  );
+}
 
 type Poster = {
   id: string;
@@ -175,7 +184,26 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
   useEffect(() => {
     setCommentTargetPage(pageNumber);
   }, [pageNumber]);
+//add arrow controls for desktop slide viewer
+useEffect(() => {
+  function onKeyDown(e: KeyboardEvent) {
+    // don’t hijack typing
+    const t = e.target as HTMLElement | null;
+    const tag = t?.tagName?.toLowerCase();
+    if (tag === "input" || tag === "textarea" || (t as any)?.isContentEditable) return;
 
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      setPageNumber((p) => Math.max(1, p - 1));
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      setPageNumber((p) => Math.min(numPages || p, p + 1));
+    }
+  }
+
+  window.addEventListener("keydown", onKeyDown, { passive: false });
+  return () => window.removeEventListener("keydown", onKeyDown as any);
+}, [numPages, setPageNumber]);
   // Prevent iOS Safari viewport zoom ONLY inside the zoom surface
   useEffect(() => {
     const el = zoomSurfaceRef.current;
@@ -728,119 +756,96 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
           }}
         />
 
-      {/**************** DESKTOP ***********/}
-{/* DESKTOP */}
-<div className="hidden lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-3 lg:px-4 lg:py-4 lg:h-[calc(100vh-76px)] xl:gap-4">
-  {/* LEFT (wide): slide on top, thumbnails grid below */}
-  <div className="min-w-0 h-full grid grid-rows-[auto_minmax(0,1fr)] gap-3">
-    {/* Top: slide viewer */}
-    <div
-  ref={centerMeasure.ref}
-  className="min-w-0 rounded-lg border bg-white overflow-hidden"
-  style={{ maxHeight: 'calc(100vh - 76px - 240px - 12px)' }} // leave ~240px + gap for grid
->
-      <div className="h-full min-h-0 overflow-x-auto overflow-y-auto" style={{ touchAction: 'none' }}>
-        <div className="p-3 border-b flex items-center justify-between">
-          <div className="text-sm text-gray-700">
-            Slide <span className="font-semibold text-gray-700">{pageNumber}</span> of{' '}
-            <span className="font-semibold text-gray-700">{numPages || '…'}</span>
-          </div>
+{/**************** DESKTOP ***********/}
+{/* DESKTOP (resizable panels) */}
+<div className="hidden lg:block lg:px-4 lg:py-4 lg:h-[calc(100vh-76px)]">
+  <Group orientation="horizontal" className="h-full w-full">
+    {/* LEFT (wide): slide on top, thumbnails grid below */}
+    <Panel defaultSize="70%" minSize="45%" maxSize="80%" className="min-w-0 h-full">
+      <div className="min-w-0 h-full grid grid-rows-[auto_minmax(0,1fr)] gap-3">
+        {/* Top: slide viewer */}
+        <div
+          ref={centerMeasure.ref}
+          className="min-w-0 rounded-lg border bg-white overflow-hidden"
+          style={{ maxHeight: 'calc(100vh - 76px - 240px - 12px)' }} // leave ~240px + gap for grid
+        >
+          <div className="h-full min-h-0 overflow-x-auto overflow-y-auto" style={{ touchAction: 'none' }}>
+            
 
-          <div className="flex items-center gap-2">
-            <button
-              disabled={pageNumber <= 1}
-              onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
-              className="px-3 py-2 bg-blue-600 text-white rounded text-sm disabled:bg-gray-300"
-            >
-              Prev
-            </button>
-            <button
-              disabled={numPages === 0 || pageNumber >= numPages}
-              onClick={() => setPageNumber((p) => Math.min(numPages, p + 1))}
-              className="px-3 py-2 bg-blue-600 text-white rounded text-sm disabled:bg-gray-300"
-            >
-              Next
-            </button>
+            <div className="p-3">
+              <div className="mx-auto w-full">
+                <div className="w-full flex justify-center">
+                  <Page
+                    pageNumber={pageNumber}
+                    width={centerPageWidth}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                    className="mx-auto"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="p-3">
-          <div className="mx-auto w-full">
-            <div className="w-full flex justify-center">
-              <Page
-                pageNumber={pageNumber}
-                width={centerPageWidth}
-                renderTextLayer={false}
-                renderAnnotationLayer={false}
-                className="mx-auto"
-              />
+        {/* Bottom: thumbnails grid (no header/buttons) */}
+        <div className="rounded-lg border bg-white overflow-hidden min-h-0">
+          {numPages > 0 ? (
+            <div className="h-full overflow-y-auto p-3" style={{ scrollbarGutter: 'stable' }}>
+              <div className="grid grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
+                {Array.from({ length: numPages }).map((_, idx) => {
+                  const p = idx + 1;
+                  const active = p === pageNumber;
+
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPageNumber(p)}
+                      className={[
+                        'rounded-lg border bg-white hover:bg-gray-50 overflow-hidden text-left',
+                        active ? 'border-blue-600 ring-1 ring-blue-200' : 'border-gray-200',
+                      ].join(' ')}
+                    >
+                      <div className="p-2">
+                        <div className="flex justify-center items-center">
+                          <Page pageNumber={p} width={150} renderTextLayer={false} renderAnnotationLayer={false} />
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600 text-center">Slide {p}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="p-4 text-sm text-gray-700">Loading…</div>
+          )}
         </div>
       </div>
-    </div>
+    </Panel>
 
-    {/* Bottom: thumbnails grid (no header/buttons) */}
-    <div className="rounded-lg border bg-white overflow-hidden min-h-0">
-      {numPages > 0 ? (
-        <div className="h-full overflow-y-auto p-3" style={{ scrollbarGutter: 'stable' }}>
-          <div className="grid grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
-            {Array.from({ length: numPages }).map((_, idx) => {
-              const p = idx + 1;
-              const active = p === pageNumber;
+    {/* RESIZE HANDLE */}
+    <Separator className="w-2 relative group cursor-col-resize">
+      <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] bg-gray-200 group-hover:bg-gray-300" />
+    </Separator>
 
-              return (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPageNumber(p)}
-                  className={[
-                    'rounded-lg border bg-white hover:bg-gray-50 overflow-hidden text-left',
-                    active ? 'border-blue-600 ring-1 ring-blue-200' : 'border-gray-200',
-                  ].join(' ')}
-                >
-                  <div className="p-2">
-                    <div className="flex justify-center items-center">
-                      <Page pageNumber={p} width={150} renderTextLayer={false} renderAnnotationLayer={false} />
-                    </div>
-                    <div className="mt-2 text-xs text-gray-600 text-center">Slide {p}</div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ) : (
-        <div className="p-4 text-sm text-gray-700">Loading…</div>
-      )}
-    </div>
-  </div>
-
-  {/* RIGHT (narrow): comments only */}
-  <div className="min-w-0 h-full rounded-lg border overflow-hidden bg-white">
-    <CommentsPanel
-      page={pageNumber}
-      numPages={numPages || 0}
-      loading={loadingComments}
-      comments={pageComments}
-      onOpenAdd={openCommentComposer}
-      onDelete={handleDeleteComment}
-    />
-  </div>
+    {/* RIGHT (narrow): comments only */}
+    <Panel defaultSize="30%" minSize="20%" maxSize="55%" className="min-w-0 h-full">
+      <div className="min-w-0 h-full rounded-lg border overflow-hidden bg-white">
+        <CommentsPanel
+          page={pageNumber}
+          numPages={numPages || 0}
+          loading={loadingComments}
+          comments={pageComments}
+          onOpenAdd={openCommentComposer}
+          onDelete={handleDeleteComment}
+        />
+      </div>
+    </Panel>
+  </Group>
 </div>
-
-          {/* Delete */}
-          <div className="border-t mt-12 pt-6 col-span-3">
-            <div className="max-w-6xl mx-auto px-4 flex justify-end">
-              <button
-                onClick={handleDelete}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition"
-              >
-                Delete Presentation
-              </button>
-            </div>
-          </div>
-        </div>
+</div>
 
     </Document>
   );
