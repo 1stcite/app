@@ -737,7 +737,7 @@ useEffect(() => {
   {/* Portrait footer hint */}
   {!isLandscape && (
     <div className="text-center text-xs text-gray-700">
-      {mobileZoomed ? 'Drag to move • Pinch to zoom • Fit to reset' : 'Swipe to change slides'}
+      {mobileZoomed ? 'Drag to move • Pinch to zoom • Fit to reset' : 'Use arrow keys or swipe to change slides'}
     </div>
   )}
 </div>
