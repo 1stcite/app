@@ -151,7 +151,8 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
     const t = e.touches[0];
     swipeStart.current = { x: t.clientX, y: t.clientY, t: Date.now() };
   }
-
+  // set require log in 
+  const [requireLogin, setRequireLogin] = useState<boolean>(true);
   function onSwipeEnd(e: React.TouchEvent) {
     if (mobileZoomed) return;
     const start = swipeStart.current;
@@ -184,26 +185,26 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
   useEffect(() => {
     setCommentTargetPage(pageNumber);
   }, [pageNumber]);
-//add arrow controls for desktop slide viewer
-useEffect(() => {
-  function onKeyDown(e: KeyboardEvent) {
-    // don’t hijack typing
-    const t = e.target as HTMLElement | null;
-    const tag = t?.tagName?.toLowerCase();
-    if (tag === "input" || tag === "textarea" || (t as any)?.isContentEditable) return;
+  //add arrow controls for desktop slide viewer
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      // don’t hijack typing
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || (t as any)?.isContentEditable) return;
 
-    if (e.key === "ArrowLeft") {
-      e.preventDefault();
-      setPageNumber((p) => Math.max(1, p - 1));
-    } else if (e.key === "ArrowRight") {
-      e.preventDefault();
-      setPageNumber((p) => Math.min(numPages || p, p + 1));
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setPageNumber((p) => Math.max(1, p - 1));
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setPageNumber((p) => Math.min(numPages || p, p + 1));
+      }
     }
-  }
 
-  window.addEventListener("keydown", onKeyDown, { passive: false });
-  return () => window.removeEventListener("keydown", onKeyDown as any);
-}, [numPages, setPageNumber]);
+    window.addEventListener("keydown", onKeyDown, { passive: false });
+    return () => window.removeEventListener("keydown", onKeyDown as any);
+  }, [numPages, setPageNumber]);
   // Prevent iOS Safari viewport zoom ONLY inside the zoom surface
   useEffect(() => {
     const el = zoomSurfaceRef.current;
@@ -241,9 +242,21 @@ useEffect(() => {
   useEffect(() => {
     fetchPoster();
     fetchComments();
+    fetchConfig();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [posterId]);
-
+  
+  async function fetchConfig() {
+    try {
+      const res = await fetch('/api/config', { cache: 'no-store' });
+      if (!res.ok) return;
+      const j = await res.json();
+      // support either shape: { requireLogin } or { requireLogin: {..} }
+      setRequireLogin(Boolean(j?.requireLogin ?? j?.config?.requireLogin));
+    } catch {
+      // default stays true
+    }
+  }
   async function fetchPoster() {
     try {
       setPoster(null);
@@ -325,7 +338,9 @@ useEffect(() => {
     setPageNumber((prev) => (prev < 1 ? 1 : prev > numPages ? numPages : prev));
   }
 
-  async function addComment(targetPage: number, text: string) {
+  type VisibilityType = 'note' | 'question' | 'public';
+
+  async function addComment(targetPage: number, text: string, visibilityType: VisibilityType) {
     const trimmed = text.trim();
     if (!trimmed) return;
 
@@ -336,9 +351,13 @@ useEffect(() => {
         posterId,
         page: targetPage,
         text: trimmed,
-        author: 'Anonymous',
       }),
     });
+
+    if (res.status === 401) {
+      alert('Please log in to comment.');
+      return;
+    }
 
     if (!res.ok) {
       alert('Failed to save comment');
@@ -348,7 +367,7 @@ useEffect(() => {
     const saved = await res.json();
     setComments((prev) => [...prev, { ...saved, timestamp: new Date(saved.timestamp) }]);
   }
- 
+
   //Set up isMobileLandscape indicator variable
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -502,9 +521,10 @@ useEffect(() => {
   }
 
   const openCommentComposer = () => {
+    if (!requireLogin) return; // passwords off => no commenting
     resetTransformRef.current?.();
     setMobileZoomed(false);
-
+  
     setComposerMode('add');
     setComposerPage(pageNumber);
     setComposerInitialText('');
@@ -563,14 +583,15 @@ useEffect(() => {
                 >
                   Fit
                 </button>
-
-                <button
-                  type="button"
-                  onClick={openCommentComposer}
-                  className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm font-medium"
-                >
-                  Comment
-                </button>
+                {requireLogin && (
+  <button
+    type="button"
+    onClick={openCommentComposer}
+    className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm font-medium"
+  >
+    Comment
+  </button>
+)}
               </div>
             </div>
           )}
@@ -675,177 +696,194 @@ useEffect(() => {
                 >
                   Next
                 </button>
-
-                <button
-                  type="button"
-                  onClick={openCommentComposer}
-                  className="px-3 py-2 rounded-lg bg-blue-600 text-white shadow text-sm font-medium"
-                >
-                  Comment
-                </button>
+                {requireLogin && (
+  <button
+    type="button"
+    onClick={openCommentComposer}
+    className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm font-medium"
+  >
+    Comment
+  </button>
+)}
               </div>
             </div>
           )}
-  {/* Portrait comments */}
-  {!isLandscape && (
-    <div className="bg-white rounded-lg border">
-      <div className="flex items-center justify-between px-3 py-2 border-b">
-        <div className="text-sm font-semibold text-gray-800">
-          Comments <span className="text-gray-500 font-normal">({pageComments.length})</span>
-        </div>
-
-        <button
-          type="button"
-          onClick={openCommentComposer}
-          className="px-2 py-1.5 rounded bg-blue-600 text-white text-sm"
-        >
-          Add
-        </button>
-      </div>
-
-      <div className="max-h-[35dvh] overflow-y-auto px-3 py-2">
-        {loadingComments ? (
-          <div className="text-sm text-gray-600">Loading…</div>
-        ) : pageComments.length === 0 ? (
-          <div className="text-sm text-gray-600">No comments yet.</div>
-        ) : (
-          <div className="space-y-2">
-            {pageComments.map((c) => (
-              <div key={c._id || c.id} className="rounded border border-gray-200 bg-gray-50 p-2">
-                <div className="text-xs text-gray-500 flex items-center justify-between">
-                  <span>{c.author || 'Anonymous'}</span>
-                  <span>
-                    {c.timestamp instanceof Date
-                      ? c.timestamp.toLocaleString()
-                      : new Date(c.timestamp as any).toLocaleString()}
-                  </span>
+          {/* Portrait comments */}
+          {!isLandscape && (
+            <div className="bg-white rounded-lg border">
+              <div className="flex items-center justify-between px-3 py-2 border-b">
+                <div className="text-sm font-semibold text-gray-800">
+                  Comments <span className="text-gray-500 font-normal">({pageComments.length})</span>
                 </div>
-                <div className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{c.text}</div>
-                <div className="mt-2 flex justify-end">
-                  <button type="button" className="text-xs text-red-700" onClick={() => handleDeleteComment(c)}>
-                    Delete
-                  </button>
-                </div>
+                {requireLogin && (
+  <button
+    type="button"
+    onClick={openCommentComposer}
+    className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm font-medium"
+  >
+    Comment
+  </button>
+)}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )}
 
-  {/* Portrait footer hint */}
-  {!isLandscape && (
-    <div className="text-center text-xs text-gray-700">
-      {mobileZoomed ? 'Drag to move • Pinch to zoom • Fit to reset' : 'Use arrow keys or swipe to change slides'}
-    </div>
-  )}
-</div>
+              <div className="max-h-[35dvh] overflow-y-auto px-3 py-2">
+                {loadingComments ? (
+                  <div className="text-sm text-gray-600">Loading…</div>
+                ) : pageComments.length === 0 ? (
+                  <div className="text-sm text-gray-600">No comments yet.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {pageComments.map((c) => (
+                      <div key={c._id || c.id} className="rounded border border-gray-200 bg-gray-50 p-2">
+                        <div className="text-xs text-gray-500 flex items-center justify-between">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="truncate">{c.author || 'Attendee'}</span>
+
+                            <span className="text-[10px] px-1.5 py-0.5 rounded border bg-white text-gray-700">
+                              {((c as any).visibilityType ?? 'public') === 'note'
+                                ? 'Note'
+                                : ((c as any).visibilityType ?? 'public') === 'question'
+                                  ? 'Question'
+                                  : 'Public'}
+                            </span>
+                          </div>
+                          <span>
+                            {c.timestamp instanceof Date
+                              ? c.timestamp.toLocaleString()
+                              : new Date(c.timestamp as any).toLocaleString()}
+                          </span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded border bg-white text-gray-700">
+                            {(c as any).visibilityType ?? 'public'}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{c.text}</div>
+                        <div className="mt-2 flex justify-end">
+                          <button type="button" className="text-xs text-red-700" onClick={() => handleDeleteComment(c)}>
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Portrait footer hint */}
+          {!isLandscape && (
+            <div className="text-center text-xs text-gray-700">
+              {mobileZoomed ? 'Drag to move • Pinch to zoom • Fit to reset' : 'Use arrow keys or swipe to change slides'}
+            </div>
+          )}
+        </div>
 
         {/* Modal composer */}
-        <CommentComposerModal
-          open={composerOpen}
-          mode={composerMode}
-          page={composerPage}
-          numPages={numPages}
-          initialText={composerInitialText}
-          onClose={() => setComposerOpen(false)}
-          onSubmit={async (text) => {
-            await addComment(composerPage, text);
-            setComposerOpen(false);
-          }}
-        />
+      {requireLogin && (
+  <CommentComposerModal
+    open={composerOpen}
+    mode={composerMode}
+    page={composerPage}
+    numPages={numPages}
+    initialText={composerInitialText}
+    onClose={() => setComposerOpen(false)}
+    onSubmit={async ({ text, visibilityType }) => {
+      await addComment(composerPage, text, visibilityType);
+      setComposerOpen(false);
+    }}
+  />
+)}
 
-{/**************** DESKTOP ***********/}
-{/* DESKTOP (resizable panels) */}
-<div className="hidden lg:block lg:px-4 lg:py-4 lg:h-[calc(100vh-76px)]">
-  <Group orientation="horizontal" className="h-full w-full">
-    {/* LEFT (wide): slide on top, thumbnails grid below */}
-    <Panel defaultSize="70%" minSize="45%" maxSize="80%" className="min-w-0 h-full">
-      <div className="min-w-0 h-full grid grid-rows-[auto_minmax(0,1fr)] gap-3">
-        {/* Top: slide viewer */}
-        <div
-          ref={centerMeasure.ref}
-          className="min-w-0 rounded-lg border bg-white overflow-hidden"
-          style={{ maxHeight: 'calc(100vh - 76px - 240px - 12px)' }} // leave ~240px + gap for grid
-        >
-          <div className="h-full min-h-0 overflow-x-auto overflow-y-auto" style={{ touchAction: 'none' }}>
-            
+        {/**************** DESKTOP ***********/}
+        {/* DESKTOP (resizable panels) */}
+        <div className="hidden lg:block lg:px-4 lg:py-4 lg:h-[calc(100vh-76px)]">
+          <Group orientation="horizontal" className="h-full w-full">
+            {/* LEFT (wide): slide on top, thumbnails grid below */}
+            <Panel defaultSize="70%" minSize="45%" maxSize="80%" className="min-w-0 h-full">
+              <div className="min-w-0 h-full grid grid-rows-[auto_minmax(0,1fr)] gap-3">
+                {/* Top: slide viewer */}
+                <div
+                  ref={centerMeasure.ref}
+                  className="min-w-0 rounded-lg border bg-white overflow-hidden"
+                  style={{ maxHeight: 'calc(100vh - 76px - 240px - 12px)' }} // leave ~240px + gap for grid
+                >
+                  <div className="h-full min-h-0 overflow-x-auto overflow-y-auto" style={{ touchAction: 'none' }}>
 
-            <div className="p-3">
-              <div className="mx-auto w-full">
-                <div className="w-full flex justify-center">
-                  <Page
-                    pageNumber={pageNumber}
-                    width={centerPageWidth}
-                    renderTextLayer={false}
-                    renderAnnotationLayer={false}
-                    className="mx-auto"
-                  />
+
+                    <div className="p-3">
+                      <div className="mx-auto w-full">
+                        <div className="w-full flex justify-center">
+                          <Page
+                            pageNumber={pageNumber}
+                            width={centerPageWidth}
+                            renderTextLayer={false}
+                            renderAnnotationLayer={false}
+                            className="mx-auto"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom: thumbnails grid (no header/buttons) */}
+                <div className="rounded-lg border bg-white overflow-hidden min-h-0">
+                  {numPages > 0 ? (
+                    <div className="h-full overflow-y-auto p-3" style={{ scrollbarGutter: 'stable' }}>
+                      <div className="grid grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
+                        {Array.from({ length: numPages }).map((_, idx) => {
+                          const p = idx + 1;
+                          const active = p === pageNumber;
+
+                          return (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => setPageNumber(p)}
+                              className={[
+                                'rounded-lg border bg-white hover:bg-gray-50 overflow-hidden text-left',
+                                active ? 'border-blue-600 ring-1 ring-blue-200' : 'border-gray-200',
+                              ].join(' ')}
+                            >
+                              <div className="p-2">
+                                <div className="flex justify-center items-center">
+                                  <Page pageNumber={p} width={150} renderTextLayer={false} renderAnnotationLayer={false} />
+                                </div>
+                                <div className="mt-2 text-xs text-gray-600 text-center">Slide {p}</div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 text-sm text-gray-700">Loading…</div>
+                  )}
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
+            </Panel>
 
-        {/* Bottom: thumbnails grid (no header/buttons) */}
-        <div className="rounded-lg border bg-white overflow-hidden min-h-0">
-          {numPages > 0 ? (
-            <div className="h-full overflow-y-auto p-3" style={{ scrollbarGutter: 'stable' }}>
-              <div className="grid grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
-                {Array.from({ length: numPages }).map((_, idx) => {
-                  const p = idx + 1;
-                  const active = p === pageNumber;
+            {/* RESIZE HANDLE */}
+            <Separator className="w-2 relative group cursor-col-resize">
+              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] bg-gray-200 group-hover:bg-gray-300" />
+            </Separator>
 
-                  return (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setPageNumber(p)}
-                      className={[
-                        'rounded-lg border bg-white hover:bg-gray-50 overflow-hidden text-left',
-                        active ? 'border-blue-600 ring-1 ring-blue-200' : 'border-gray-200',
-                      ].join(' ')}
-                    >
-                      <div className="p-2">
-                        <div className="flex justify-center items-center">
-                          <Page pageNumber={p} width={150} renderTextLayer={false} renderAnnotationLayer={false} />
-                        </div>
-                        <div className="mt-2 text-xs text-gray-600 text-center">Slide {p}</div>
-                      </div>
-                    </button>
-                  );
-                })}
+            {/* RIGHT (narrow): comments only */}
+            <Panel defaultSize="30%" minSize="20%" maxSize="55%" className="min-w-0 h-full">
+              <div className="min-w-0 h-full rounded-lg border overflow-hidden bg-white">
+                <CommentsPanel
+                  page={pageNumber}
+                  numPages={numPages || 0}
+                  loading={loadingComments}
+                  comments={pageComments}
+                  onOpenAdd={openCommentComposer}
+                  onDelete={handleDeleteComment}
+                />
               </div>
-            </div>
-          ) : (
-            <div className="p-4 text-sm text-gray-700">Loading…</div>
-          )}
+            </Panel>
+          </Group>
         </div>
       </div>
-    </Panel>
-
-    {/* RESIZE HANDLE */}
-    <Separator className="w-2 relative group cursor-col-resize">
-      <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] bg-gray-200 group-hover:bg-gray-300" />
-    </Separator>
-
-    {/* RIGHT (narrow): comments only */}
-    <Panel defaultSize="30%" minSize="20%" maxSize="55%" className="min-w-0 h-full">
-      <div className="min-w-0 h-full rounded-lg border overflow-hidden bg-white">
-        <CommentsPanel
-          page={pageNumber}
-          numPages={numPages || 0}
-          loading={loadingComments}
-          comments={pageComments}
-          onOpenAdd={openCommentComposer}
-          onDelete={handleDeleteComment}
-        />
-      </div>
-    </Panel>
-  </Group>
-</div>
-</div>
 
     </Document>
   );

@@ -2,6 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 
+type VisibilityType = 'note' | 'question' | 'public';
+
 export default function CommentComposerModal({
   open,
   page,
@@ -17,41 +19,38 @@ export default function CommentComposerModal({
   mode: 'add' | 'edit';
   initialText?: string;
   onClose: () => void;
-  onSubmit: (text: string) => Promise<void> | void;
+  onSubmit: (payload: { text: string; visibilityType: VisibilityType }) => Promise<void> | void;
 }) {
   const [draft, setDraft] = useState(initialText ?? '');
+  const [visibilityType, setVisibilityType] = useState<VisibilityType>('public');
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Reset draft when opening, page changes, or switching add/edit
   useEffect(() => {
     if (!open) return;
     setDraft(initialText ?? '');
-    // focus after render
+    if (mode === 'add') setVisibilityType('public');
     setTimeout(() => textareaRef.current?.focus(), 0);
   }, [open, page, mode, initialText]);
 
-  // basic escape-to-close
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
-        if (draft.trim()) onSubmit(draft.trim());
+        if (draft.trim()) onSubmit({ text: draft.trim(), visibilityType });
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, draft, onClose, onSubmit]);
+  }, [open, draft, visibilityType, onClose, onSubmit]);
 
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-[100]">
-      {/* backdrop */}
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      {/* panel */}
       <div className="absolute inset-x-0 top-10 mx-auto w-[min(720px,calc(100vw-24px))] rounded-xl bg-white shadow-xl border overflow-hidden">
         <div className="px-4 py-3 border-b flex items-center justify-between">
           <div className="text-sm font-semibold">
@@ -63,6 +62,20 @@ export default function CommentComposerModal({
         </div>
 
         <div className="p-4">
+          {/* Visibility */}
+          <div className="mb-3 flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-700">Visibility</label>
+            <select
+              value={visibilityType}
+              onChange={(e) => setVisibilityType(e.target.value as VisibilityType)}
+              className="text-sm border rounded px-2 py-1"
+            >
+              <option value="note">Note (only me)</option>
+              <option value="question">Question (me + presenter)</option>
+              <option value="public">Public (everyone)</option>
+            </select>
+          </div>
+
           <textarea
             ref={textareaRef}
             value={draft}
@@ -78,7 +91,7 @@ export default function CommentComposerModal({
             </div>
 
             <button
-              onClick={() => onSubmit(draft.trim())}
+              onClick={() => onSubmit({ text: draft.trim(), visibilityType })}
               disabled={!draft.trim()}
               className="px-4 py-2 bg-green-600 text-white rounded disabled:bg-gray-300"
             >

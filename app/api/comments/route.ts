@@ -1,107 +1,134 @@
-import { NextRequest, NextResponse } from 'next/server';
-import clientPromise from '@/app/lib/mongodb';
-import { ObjectId } from 'mongodb';
-// GET /api/comments?posterId=sample
-export async function GET(request: NextRequest) {
+// app/api/comments/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import clientPromise from "@/app/lib/mongodb";
+import { ObjectId } from "mongodb";
+import { getSessionUser } from "@/app/lib/auth";
+
+async function getRequireLogin(): Promise<boolean> {
+  // matches your middleware behavior: fetch Mongo-backed config
+  const client = await clientPromise;
+  const db = client.db();
+
+  // If you have a dedicated config collection, use it.
+  // If your /api/config already reads from somewhere else, mirror that here.
+  const cfg = await db.collection("config").findOne({ _id: "app" });
+  return Boolean(cfg?.requireLogin);
+}
+
+export async function GET(req: NextRequest) {
   try {
-    const posterId = request.nextUrl.searchParams.get('posterId');
-    
+    const posterId = req.nextUrl.searchParams.get("posterId");
     if (!posterId) {
-      return NextResponse.json(
-        { error: 'posterId is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "posterId is required" }, { status: 400 });
+    }
+
+    const requireLogin = await getRequireLogin();
+    const user = await getSessionUser();
+
+    // If requireLogin is ON, we require auth for even reading comments
+    if (requireLogin && !user) {
+      return NextResponse.json({ error: "Login required" }, { status: 401 });
     }
 
     const client = await clientPromise;
-    const db = client.db(); // uses the DB from the connection string
-    
+    const db = client.db();
+
+    // Passwords OFF and not logged in => show only public comments.
+    // (Right now you don't have visibility types yet; this matches your current schema by assuming all are public)
+    // When you add visibility_type, change this filter accordingly.
+    const filter: any = { posterId };
+
     const comments = await db
-      .collection('comments')
-      .find({ posterId })
+      .collection("comments")
+      .find(filter)
       .sort({ timestamp: -1 })
       .toArray();
-    
+
     return NextResponse.json(comments);
-  } catch (error) {
-    console.error('Error fetching comments:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch comments' },
-      { status: 500 }
-    );
+  } catch (e) {
+    console.error("GET /api/comments error:", e);
+    return NextResponse.json({ error: "Failed to fetch comments" }, { status: 500 });
   }
 }
 
-// POST /api/comments
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
-    const { posterId, page, text, author } = body;
+    const requireLogin = await getRequireLogin();
+    const user = await getSessionUser();
 
-    if (!posterId || !text || page === undefined) {
+    // Your policy: passwords OFF => browsing allowed, commenting requires login
+    if (!user) {
       return NextResponse.json(
-        { error: 'posterId, page, and text are required' },
-        { status: 400 }
+        { error: requireLogin ? "Login required" : "Login required to comment" },
+        { status: 401 }
       );
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const posterId = String(body?.posterId || "");
+    const page = body?.page;
+    const text = String(body?.text || "").trim();
+
+    if (!posterId || page === undefined || !text) {
+      return NextResponse.json({ error: "posterId, page, and text are required" }, { status: 400 });
     }
 
     const client = await clientPromise;
     const db = client.db();
-    
+
     const comment = {
       posterId,
-      page,
+      page: Number(page),
       text,
-      author: author || 'Anonymous',
+      author: user.displayName,      // 🔥 server authoritative
+      userId: user._id,              // start tying to user now
       timestamp: new Date(),
+      // later: visibility_type, slide_id, etc.
     };
 
-    const result = await db.collection('comments').insertOne(comment);
-    
-    return NextResponse.json({
-      ...comment,
-      _id: result.insertedId,
-    });
-  } catch (error) {
-    console.error('Error saving comment:', error);
-    return NextResponse.json(
-      { error: 'Failed to save comment' },
-      { status: 500 }
-    );
+    const result = await db.collection("comments").insertOne(comment);
+
+    return NextResponse.json({ ...comment, _id: result.insertedId });
+  } catch (e) {
+    console.error("POST /api/comments error:", e);
+    return NextResponse.json({ error: "Failed to save comment" }, { status: 500 });
   }
 }
-// DELETE /api/comments?id=...
-export async function DELETE(request: NextRequest) {
-  try {
-    const id = request.nextUrl.searchParams.get('id');
 
-    if (!id) {
+export async function DELETE(req: NextRequest) {
+  try {
+    const requireLogin = await getRequireLogin();
+    const user = await getSessionUser();
+
+    // Your policy: must be logged in to delete
+    if (!user) {
       return NextResponse.json(
-        { error: 'Comment id is required' },
-        { status: 400 }
+        { error: requireLogin ? "Login required" : "Login required to delete" },
+        { status: 401 }
       );
+    }
+
+    const id = req.nextUrl.searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ error: "Comment id is required" }, { status: 400 });
     }
 
     const client = await clientPromise;
     const db = client.db();
 
-    const result = await db
-      .collection('comments')
-      .deleteOne({ _id: new ObjectId(id) });
+    // Simple version: allow delete if author matches OR you can add admin later
+    const result = await db.collection("comments").deleteOne({
+      _id: new ObjectId(id),
+      userId: user._id,
+    });
 
     if (result.deletedCount === 0) {
-      return NextResponse.json(
-        { error: 'Comment not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Comment not found (or not yours)" }, { status: 404 });
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting comment:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete comment' },
-      { status: 500 }
-    );
+  } catch (e) {
+    console.error("DELETE /api/comments error:", e);
+    return NextResponse.json({ error: "Failed to delete comment" }, { status: 500 });
   }
 }
