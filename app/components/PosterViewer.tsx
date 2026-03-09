@@ -113,7 +113,12 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(true);
   const [commentTargetPage, setCommentTargetPage] = useState<number>(1);
-
+  const commentCounts = comments.reduce<Record<number, number>>((acc, c) => {
+    const p = Number(c.page);
+    if (!Number.isFinite(p)) return acc;
+    acc[p] = (acc[p] || 0) + 1;
+    return acc;
+  }, {});
   // Comment input
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerMode, setComposerMode] = useState<'add' | 'edit'>('add');
@@ -245,7 +250,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
     fetchConfig();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [posterId]);
-  
+
   async function fetchConfig() {
     try {
       const res = await fetch('/api/config', { cache: 'no-store' });
@@ -524,7 +529,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
     if (!requireLogin) return; // passwords off => no commenting
     resetTransformRef.current?.();
     setMobileZoomed(false);
-  
+
     setComposerMode('add');
     setComposerPage(pageNumber);
     setComposerInitialText('');
@@ -584,14 +589,14 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                   Fit
                 </button>
                 {requireLogin && (
-  <button
-    type="button"
-    onClick={openCommentComposer}
-    className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm font-medium"
-  >
-    Comment
-  </button>
-)}
+                  <button
+                    type="button"
+                    onClick={openCommentComposer}
+                    className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm font-medium"
+                  >
+                    Comment
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -697,14 +702,14 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                   Next
                 </button>
                 {requireLogin && (
-  <button
-    type="button"
-    onClick={openCommentComposer}
-    className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm font-medium"
-  >
-    Comment
-  </button>
-)}
+                  <button
+                    type="button"
+                    onClick={openCommentComposer}
+                    className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm font-medium"
+                  >
+                    Comment
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -716,14 +721,14 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                   Comments <span className="text-gray-500 font-normal">({pageComments.length})</span>
                 </div>
                 {requireLogin && (
-  <button
-    type="button"
-    onClick={openCommentComposer}
-    className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm font-medium"
-  >
-    Comment
-  </button>
-)}
+                  <button
+                    type="button"
+                    onClick={openCommentComposer}
+                    className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm font-medium"
+                  >
+                    Comment
+                  </button>
+                )}
               </div>
 
               <div className="max-h-[35dvh] overflow-y-auto px-3 py-2">
@@ -779,20 +784,20 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
         </div>
 
         {/* Modal composer */}
-      {requireLogin && (
-  <CommentComposerModal
-    open={composerOpen}
-    mode={composerMode}
-    page={composerPage}
-    numPages={numPages}
-    initialText={composerInitialText}
-    onClose={() => setComposerOpen(false)}
-    onSubmit={async ({ text, visibilityType }) => {
-      await addComment(composerPage, text, visibilityType);
-      setComposerOpen(false);
-    }}
-  />
-)}
+        {requireLogin && (
+          <CommentComposerModal
+            open={composerOpen}
+            mode={composerMode}
+            page={composerPage}
+            numPages={numPages}
+            initialText={composerInitialText}
+            onClose={() => setComposerOpen(false)}
+            onSubmit={async ({ text, visibilityType }) => {
+              await addComment(composerPage, text, visibilityType);
+              setComposerOpen(false);
+            }}
+          />
+        )}
 
         {/**************** DESKTOP ***********/}
         {/* DESKTOP (resizable panels) */}
@@ -812,7 +817,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
 
                     <div className="p-3">
                       <div className="mx-auto w-full">
-                        <div className="w-full flex justify-center">
+                        <div className="w-full flex justify-left">
                           <Page
                             pageNumber={pageNumber}
                             width={centerPageWidth}
@@ -841,24 +846,43 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                               type="button"
                               onClick={() => setPageNumber(p)}
                               className={[
-                                'rounded-lg border bg-white hover:bg-gray-50 overflow-hidden text-left',
+                                'relative rounded-lg border bg-white hover:bg-gray-50 overflow-hidden text-left',
                                 active ? 'border-blue-600 ring-1 ring-blue-200' : 'border-gray-200',
                               ].join(' ')}
                             >
+                        {commentCounts[p] > 0 && (
+  <div className="absolute bottom-3 right-3 flex items-center gap-1 text-gray-900 text-xs font-medium">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-3.5 w-3.5"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+    >
+      <path d="M18 10c0 3.866-3.582 7-8 7a8.84 8.84 0 01-3.716-.78L2 17l1.02-3.06A6.73 6.73 0 012 10c0-3.866 3.582-7 8-7s8 3.134 8 7z" />
+    </svg>
+    {commentCounts[p]}
+  </div>
+)}
+
                               <div className="p-2">
                                 <div className="flex justify-center items-center">
-                                  <Page pageNumber={p} width={150} renderTextLayer={false} renderAnnotationLayer={false} />
+                                  <Page
+                                    pageNumber={p}
+                                    width={150}
+                                    renderTextLayer={false}
+                                    renderAnnotationLayer={false}
+                                  />
                                 </div>
-                                <div className="mt-2 text-xs text-gray-600 text-center">Slide {p}</div>
+                                <div className="mt-2 text-xs text-gray-600 text-left">
+                                  Slide {p}
+                                </div>
                               </div>
                             </button>
                           );
                         })}
                       </div>
                     </div>
-                  ) : (
-                    <div className="p-4 text-sm text-gray-700">Loading…</div>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </Panel>

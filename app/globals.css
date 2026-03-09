@@ -33,3 +33,23 @@ body {
   height: auto !important;
   max-width: 100% !important;
 }
+
+/* Ensure form inputs always use readable text */
+input,
+textarea,
+select {
+  color: #111827;   /* Tailwind gray-900 */
+  background-color: #ffffff;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af; /* Tailwind gray-400 */
+}
+
+/*add focus styling*/
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+}

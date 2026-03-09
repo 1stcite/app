@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/app/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { getSessionUser } from "@/app/lib/auth";
+const allowedVisibility = new Set(["public", "question", "note"]);
 
 async function getRequireLogin(): Promise<boolean> {
   // matches your middleware behavior: fetch Mongo-backed config
@@ -100,7 +101,6 @@ export async function DELETE(req: NextRequest) {
     const requireLogin = await getRequireLogin();
     const user = await getSessionUser();
 
-    // Your policy: must be logged in to delete
     if (!user) {
       return NextResponse.json(
         { error: requireLogin ? "Login required" : "Login required to delete" },
@@ -116,7 +116,6 @@ export async function DELETE(req: NextRequest) {
     const client = await clientPromise;
     const db = client.db();
 
-    // Simple version: allow delete if author matches OR you can add admin later
     const result = await db.collection("comments").deleteOne({
       _id: new ObjectId(id),
       userId: user._id,
