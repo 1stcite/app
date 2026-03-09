@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+'use client';
+
+import type { VisibilityType, CommentSubmitPayload } from '@/app/types/comments';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -343,7 +346,6 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
     setPageNumber((prev) => (prev < 1 ? 1 : prev > numPages ? numPages : prev));
   }
 
-  type VisibilityType = 'note' | 'question' | 'public';
 
   async function addComment(targetPage: number, text: string, visibilityType: VisibilityType) {
     const trimmed = text.trim();

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { List } from 'react-window';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
-
+import type { CommentSubmitPayload, VisibilityType } from "@/app/types/comments";
 import CommentComposerModal from './CommentComposerModal';
 import CommentsPanel, { type Comment } from './CommentsPanel';
 
@@ -255,29 +255,22 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
     setPageNumber((prev) => (prev < 1 ? 1 : prev > numPages ? numPages : prev));
   }
 
-  async function addComment(targetPage: number, text: string) {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-
-    const res = await fetch('/api/comments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+  const addComment = async (
+    page: number,
+    text: string,
+    visibilityType: "note" | "question" | "public"
+  ) => {
+    await fetch("/api/comments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         posterId,
-        page: targetPage,
-        text: trimmed,
-        author: 'Anonymous',
+        page,
+        text,
+        visibilityType,
       }),
     });
-
-    if (!res.ok) {
-      alert('Failed to save comment');
-      return;
-    }
-
-    const saved = await res.json();
-    setComments((prev) => [...prev, { ...saved, timestamp: new Date(saved.timestamp) }]);
-  }
+  };
 
   // Desktop center width
   const centerPageWidth = useMemo(() => {
@@ -565,8 +558,8 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
           numPages={numPages}
           initialText={composerInitialText}
           onClose={() => setComposerOpen(false)}
-          onSubmit={async (text) => {
-            await addComment(composerPage, text);
+          onSubmit={async (payload: CommentSubmitPayload) => {
+            await addComment(composerPage, payload.text, payload.visibilityType);
             setComposerOpen(false);
           }}
         />

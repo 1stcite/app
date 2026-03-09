@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 
-type VisibilityType = 'note' | 'question' | 'public';
+import type { CommentSubmitPayload, VisibilityType } from "@/app/types/comments";
 
 
 export default function CommentComposerModal({
@@ -20,7 +20,7 @@ export default function CommentComposerModal({
   mode: 'add' | 'edit';
   initialText?: string;
   onClose: () => void;
-  onSubmit: (payload: { text: string; visibilityType: VisibilityType }) => Promise<void> | void;
+  onSubmit: (payload: CommentSubmitPayload) => Promise<void> | void;
 }) {
   
   const [draft, setDraft] = useState(initialText ?? '');
