@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/app/lib/mongodb";
-
+import { getSessionUser } from "@/app/lib/auth";
 const MARKER = "NEW_JSON_ONLY_CODE_2026_02_06";
 
 export async function GET() {
@@ -65,7 +65,15 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    //login required for user ID
+    const user = await getSessionUser();
 
+    if (!user) {
+      return NextResponse.json(
+        { error: "Login required", marker: MARKER },
+        { status: 401 }
+      );
+    }
     const id = Date.now().toString();
 
     const client = await clientPromise;
@@ -81,6 +89,7 @@ export async function POST(request: NextRequest) {
       title,
       author: author || "Anonymous",
       fileUrl,
+      presenterUserId: user._id.toString(),
       uploadedAt: new Date(),
     };
 

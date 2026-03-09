@@ -20,7 +20,7 @@ export default function CommentComposerModal({
   mode: 'add' | 'edit';
   initialText?: string;
   onClose: () => void;
-  onSubmit: (payload: CommentSubmitPayload) => Promise<void> | void;
+  onSubmit: (payload: { text: string; visibilityType: VisibilityType }) => Promise<void> | void;
 }) {
   
   const [draft, setDraft] = useState(initialText ?? '');

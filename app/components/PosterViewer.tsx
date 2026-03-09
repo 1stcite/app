@@ -358,6 +358,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
         posterId,
         page: targetPage,
         text: trimmed,
+        visibilityType,
       }),
     });
 
