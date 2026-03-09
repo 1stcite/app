@@ -6,13 +6,13 @@ import { getSessionUser } from "@/app/lib/auth";
 const allowedVisibility = new Set(["public", "question", "note"]);
 
 async function getRequireLogin(): Promise<boolean> {
-  // matches your middleware behavior: fetch Mongo-backed config
   const client = await clientPromise;
   const db = client.db();
 
-  // If you have a dedicated config collection, use it.
-  // If your /api/config already reads from somewhere else, mirror that here.
-  const cfg = await db.collection("config").findOne({ _id: "app" });
+  const cfg = await db
+    .collection<{ _id: string; requireLogin?: boolean }>("config")
+    .findOne({ _id: "app" });
+
   return Boolean(cfg?.requireLogin);
 }
 
