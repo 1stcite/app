@@ -98,20 +98,20 @@ export default function HomePage() {
       <div className="flex items-center justify-between mb-8">
   <div className="flex items-center gap-4">
     <h1 className="text-3xl md:text-4xl font-bold text-gray-500">
-      Selected Talks
+      Conference
     </h1>
 
     <div className="flex gap-2">
       <Link
         href="/"
-        className="px-3 py-1.5 rounded border border-gray-300 bg-white text-sm hover:bg-gray-50"
+        className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50"
       >
         Conference
       </Link>
 
       <Link
         href="/selected"
-        className="px-3 py-1.5 rounded border border-gray-300 bg-white text-sm hover:bg-gray-50"
+        className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50"
       >
         Selected Talks
       </Link>

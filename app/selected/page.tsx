@@ -98,20 +98,20 @@ export default function HomePage() {
       <div className="flex items-center justify-between mb-8">
   <div className="flex items-center gap-4">
     <h1 className="text-3xl md:text-4xl font-bold text-gray-500">
-      Conference Agenda
+      Selected
     </h1>
 
     <div className="flex gap-2">
       <Link
         href="/"
-        className="px-3 py-1.5 rounded border border-gray-300 bg-white text-sm hover:bg-gray-50"
+        className="px-3 py-1.5 rounded border text-gray-700 border-gray-300 bg-white text-sm hover:bg-gray-50"
       >
         Conference
       </Link>
 
       <Link
         href="/selected"
-        className="px-3 py-1.5 rounded border border-gray-300 bg-white text-sm hover:bg-gray-50"
+        className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50"
       >
         Selected Talks
       </Link>
@@ -135,8 +135,7 @@ export default function HomePage() {
           <>
             {starredPosters.length > 0 && (
               <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-800 mb-3">My Library</h2>
-
+                
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {starredPosters.map((poster) => {
                     const isStarred = starredPosterIds.includes(poster.id);
