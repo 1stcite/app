@@ -184,6 +184,8 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
       setPageNumber(prev);
     }
   }
+  //isStarred determines if use has starred a poster
+  const [isStarred, setIsStarred] = useState(false);
   useEffect(() => {
     // Always snap back to fit whenever slide changes or orientation changes
     resetTransformRef.current?.();
@@ -230,7 +232,34 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
       el.removeEventListener('touchmove', blockPageZoom as any);
     };
   }, []);
+//handles starred posters
+useEffect(() => {
+  let cancelled = false;
 
+  async function loadStarStatus() {
+    try {
+      const res = await fetch("/api/stars", { cache: "no-store" });
+      if (!res.ok) return;
+
+      const stars = await res.json();
+      if (cancelled) return;
+
+      const starred = Array.isArray(stars)
+        ? stars.some((s) => s.posterId === posterId)
+        : false;
+
+      setIsStarred(starred);
+    } catch (e) {
+      console.error("Failed to load star status:", e);
+    }
+  }
+
+  if (posterId) loadStarStatus();
+
+  return () => {
+    cancelled = true;
+  };
+}, [posterId]);
   // pdf.js worker
   useEffect(() => {
     pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -281,6 +310,22 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
       setError(err instanceof Error ? err.message : String(err));
     }
   }
+  async function toggleStar(posterId: string, starred: boolean) {
+    if (starred) {
+      await fetch(`/api/stars?posterId=${posterId}`, {
+        method: "DELETE",
+      });
+      setIsStarred(false);
+    } else {
+      await fetch("/api/stars", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ posterId }),
+      });
+      setIsStarred(true);
+    }
+  }
+
 
   async function fetchComments() {
     try {
@@ -564,7 +609,13 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
             </div>
           </div>
         )}
-
+<button
+  onClick={() => toggleStar(posterId, isStarred)}
+  className="px-3 py-1.5 rounded-md border border-gray-300 bg-white text-sm text-gray-900 hover:bg-gray-50"
+  title={isStarred ? "Remove star" : "Star this presentation"}
+>
+  {isStarred ? "★ Starred" : "☆ Star"}
+</button>
         {/* ************MOBILE (2-mode: portrait + landscape-fullscreen) ************ */}
         <div
           className={

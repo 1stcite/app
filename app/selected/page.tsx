@@ -98,7 +98,7 @@ export default function HomePage() {
       <div className="flex items-center justify-between mb-8">
   <div className="flex items-center gap-4">
     <h1 className="text-3xl md:text-4xl font-bold text-gray-500">
-      Selected Talks
+      Conference Agenda
     </h1>
 
     <div className="flex gap-2">
@@ -133,40 +133,47 @@ export default function HomePage() {
           </div>
         ) : (
           <>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {posters.map((poster) => {
-                const isStarred = starredPosterIds.includes(poster.id);
+            {starredPosters.length > 0 && (
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold text-gray-800 mb-3">My Library</h2>
 
-                return (
-                  <div
-                    key={poster._id}
-                    className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-5 border border-gray-200"
-                  >
-                    <Link href={`/view/${poster.id}`} className="block">
-                      <div className="text-base font-semibold text-gray-900 leading-snug line-clamp-2">
-                        {poster.title}
-                      </div>
-                    </Link>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {starredPosters.map((poster) => {
+                    const isStarred = starredPosterIds.includes(poster.id);
 
-                    <div className="mt-2 flex items-center justify-between">
-                      {poster.author ? (
-                        <div className="text-sm text-gray-600">by {firstAuthor(poster.author)}</div>
-                      ) : (
-                        <div />
-                      )}
-
-                      <button
-                        onClick={() => toggleLibraryStar(poster.id)}
-                        className="text-sm text-gray-600 px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
+                    return (
+                      <div
+                        key={`starred-${poster._id}`}
+                        className="bg-yellow-50 rounded-lg shadow-sm hover:shadow-md transition-shadow p-5 border border-yellow-200"
                       >
-                        {isStarred ? "★" : "☆"}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                        <Link href={`/view/${poster.id}`} className="block">
+                          <div className="text-base font-semibold text-gray-900 leading-snug line-clamp-2">
+                            {poster.title}
+                          </div>
+                        </Link>
+
+                        <div className="mt-2 flex items-center justify-between">
+                          {poster.author ? (
+                            <div className="text-sm text-gray-600">by {firstAuthor(poster.author)}</div>
+                          ) : (
+                            <div />
+                          )}
+
+                          <button
+                            onClick={() => toggleLibraryStar(poster.id)}
+                            className="text-sm text-gray-600 px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
+                          >
+                            {isStarred ? "★" : "☆"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            
           </>
         )}
       </div>
