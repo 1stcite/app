@@ -9,6 +9,7 @@ export type Comment = {
   page: number;
   text: string;
   author?: string;
+  userId?: string;
   timestamp: Date;
 };
 
@@ -22,8 +23,9 @@ type CommentsPanelProps = {
   numPages: number;
   loading: boolean;
   comments: Comment[];
+  sessionUserId?: string;
   onOpenAdd: () => void;
-  onDelete: (c: Comment) => void; // <-- NEW
+  onDelete: (c: Comment) => void;
 };
 
 export default function CommentsPanel({
@@ -32,6 +34,7 @@ export default function CommentsPanel({
   numPages,
   loading,
   comments,
+  sessionUserId,
   onOpenAdd,
   onDelete,
 }: CommentsPanelProps) {
@@ -54,9 +57,9 @@ export default function CommentsPanel({
 
       {/* SCROLL AREA (the ONLY scrolling region) */}
       <div
-  className="flex-1 min-h-0 overflow-y-auto px-3 py-2"
-  style={{ scrollbarGutter: 'stable', overflowAnchor: 'none' }}
->
+        className="flex-1 min-h-0 overflow-y-auto px-3 py-2"
+        style={{ scrollbarGutter: 'stable', overflowAnchor: 'none' }}
+      >
         {loading ? (
           <div className="text-sm text-gray-600">Loading…</div>
         ) : comments.length === 0 ? (
@@ -70,11 +73,17 @@ export default function CommentsPanel({
                   <span>{(c.timestamp instanceof Date ? c.timestamp : new Date(c.timestamp as any)).toLocaleString()}</span>
                 </div>
                 <div className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{c.text}</div>
-                <div className="mt-2 flex justify-end">
-                  <button type="button" className="text-xs text-red-700" onClick={() => onDelete(c)}>
-                    Delete
-                  </button>
-                </div>
+                {sessionUserId && String(c.userId) === String(sessionUserId) && (
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="button"
+                      className="text-xs text-red-700"
+                      onClick={() => onDelete(c)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

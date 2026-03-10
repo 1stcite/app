@@ -102,24 +102,18 @@ export default function HomePage() {
     </h1>
 
     <div className="flex gap-2">
-      <Link
-        href="/"
-        className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50"
-      >
-        Conference
-      </Link>
 
       <Link
         href="/selected"
         className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50"
       >
-        Selected Talks
+        Selected
       </Link>
     </div>
   </div>
 
   <Link href="/" className="shrink-0">
-    <img src="/presentrxiv-logo.png" alt="PresentrXiv" className="h-10 w-auto" />
+    <img src="/1stcite-logo.png" alt="PresentrXiv" className="h-10 w-auto" />
   </Link>
 </div>
 

@@ -401,7 +401,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
             </div>
 
             <Link href="/" className="shrink-0">
-              <img src="/presentrxiv-logo.png" alt="PresentrXiv" className="h-10 w-auto" />
+              <img src="/1stcite-logo.png" alt="1stCite" className="h-10 w-auto" />
             </Link>
           </div>
         </div>

@@ -69,7 +69,10 @@ export async function GET(req: NextRequest) {
       return false;
     });
 
-    return NextResponse.json(visibleComments);
+    return NextResponse.json({
+      comments: visibleComments,
+      sessionUserId,
+    });
   } catch (e) {
     console.error("GET /api/comments error:", e);
     return NextResponse.json({ error: "Failed to fetch comments" }, { status: 500 });

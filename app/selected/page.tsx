@@ -17,7 +17,7 @@ function firstAuthor(author: string) {
   // handle "A, B, C" or "A; B; C"
   return a.split(/[,;]+/)[0].trim();
 }
-
+//FETCH POSTERS
 export default function HomePage() {
   const [posters, setPosters] = useState<Poster[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +92,7 @@ export default function HomePage() {
   const unstarredPosters = posters.filter(
     (poster) => !starredPosterIds.includes(poster.id)
   );
+  //PRINT HEADER
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto p-4 md:p-8 max-w-6xl">
@@ -109,17 +110,12 @@ export default function HomePage() {
         Conference
       </Link>
 
-      <Link
-        href="/selected"
-        className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50"
-      >
-        Selected Talks
-      </Link>
+
     </div>
   </div>
 
   <Link href="/" className="shrink-0">
-    <img src="/presentrxiv-logo.png" alt="PresentrXiv" className="h-10 w-auto" />
+    <img src="/1stcite-logo.png" alt="1stCite" className="h-10 w-auto" />
   </Link>
 </div>
 

@@ -128,7 +128,8 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
   const [composerPage, setComposerPage] = useState<number>(1);
   const [editCommentId, setEditCommentId] = useState<string | null>(null);
   const [composerInitialText, setComposerInitialText] = useState<string>('');
-
+//session User ID
+const [sessionUserId, setSessionUserId] = useState<string | undefined>(undefined);
   // Responsive
   const [isLandscape, setIsLandscape] = useState(false);
 
@@ -332,9 +333,13 @@ useEffect(() => {
       setLoadingComments(true);
       const res = await fetch(`/api/comments?posterId=${posterId}`);
       if (!res.ok) return;
+  
       const data = await res.json();
+  
+      setSessionUserId(data?.sessionUserId ? String(data.sessionUserId) : undefined);
+  
       setComments(
-        (data || []).map((c: any) => ({
+        ((data?.comments || []) as any[]).map((c: any) => ({
           ...c,
           timestamp: new Date(c.timestamp),
         }))
@@ -604,7 +609,7 @@ useEffect(() => {
               </div>
 
               <Link href="/" className="shrink-0">
-                <img src="/presentrxiv-logo.png" alt="PresentrXiv" className="h-10 w-auto" />
+                <img src="/1stcite-logo.png" alt="1stCite" className="h-10 w-auto" />
               </Link>
             </div>
           </div>
@@ -954,6 +959,7 @@ useEffect(() => {
                   numPages={numPages || 0}
                   loading={loadingComments}
                   comments={pageComments}
+                  sessionUserId={sessionUserId}
                   onOpenAdd={openCommentComposer}
                   onDelete={handleDeleteComment}
                 />
