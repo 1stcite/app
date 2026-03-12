@@ -98,7 +98,7 @@ export default function HomePage() {
       <div className="flex items-center justify-between mb-8">
   <div className="flex items-center gap-4">
     <h1 className="text-3xl md:text-4xl font-bold text-gray-500">
-      Conference
+     Day 2 11:00-12:15
     </h1>
 
     <div className="flex gap-2">
@@ -113,7 +113,7 @@ export default function HomePage() {
   </div>
 
   <Link href="/" className="shrink-0">
-    <img src="/1stcite-logo.png" alt="PresentrXiv" className="h-10 w-auto" />
+    <img src="/LSW-logo.png" alt="1stCite" className="h-10 w-auto" />
   </Link>
 </div>
 
