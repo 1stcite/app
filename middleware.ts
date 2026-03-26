@@ -1,12 +1,14 @@
 // middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { SESSION_COOKIE } from "@/app/lib/auth";
+
+// Defined inline — importing from app/lib/auth pulls in mongodb,
+// which is a Node.js module that crashes the Edge runtime.
+const SESSION_COOKIE = "px_session";
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Always allow static + api
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
@@ -18,7 +20,6 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Always allow login page
   if (pathname.startsWith("/login")) {
     return NextResponse.next();
   }
@@ -26,7 +27,6 @@ export async function middleware(req: NextRequest) {
   const isProtected = pathname === "/" || pathname.startsWith("/view/");
   if (!isProtected) return NextResponse.next();
 
-  // Fetch requireLogin config
   let requireLogin = false;
   try {
     const url = req.nextUrl.clone();
