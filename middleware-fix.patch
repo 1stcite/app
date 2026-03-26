@@ -1,0 +1,2054 @@
+From ab38b82722fe1d5f41d7e948fa9b9022a9f80831 Mon Sep 17 00:00:00 2001
+From: 1stCite Refactor <refactor@1stcite.dev>
+Date: Thu, 26 Mar 2026 20:34:14 +0000
+Subject: [PATCH 1/2] Phase 2 streamline: db/config/hooks/components
+
+- Add app/lib/db.ts: getDb() always returns client.db('dc')
+- Add app/lib/config.ts: shared getRequireLogin() - fixes _id vs key mismatch
+- Add app/lib/usePosters.ts: shared data-fetching hook
+- Add app/components/PosterCard.tsx: extracted card component
+- Update auth.ts and all API routes to use getDb()
+- Remove all debug markers, routeMarker, timings from routes
+- Rename proxy.ts -> middleware.ts, fix export name (was silently dead)
+- Slim page.tsx: 168 -> 55 lines
+- Slim selected/page.tsx: 176 -> 65 lines
+- Delete dead files: PDFviewer.tsx, starred/page.tsx, posters/upload/route.ts, redeploy.txt
+---
+ app/api/comments/route.ts       |  55 +--
+ app/api/config/route.ts         |  14 +-
+ app/api/posters/[id]/route.ts   |  75 ++--
+ app/api/posters/route.ts        |  91 +----
+ app/api/posters/upload/route.ts |  26 --
+ app/api/stars/route.ts          |  59 ++-
+ app/components/PDFviewer.tsx    | 663 --------------------------------
+ app/components/PosterCard.tsx   |  54 +++
+ app/lib/auth.ts                 |  28 +-
+ app/lib/config.ts               |  13 +
+ app/lib/db.ts                   |   7 +
+ app/lib/usePosters.ts           |  76 ++++
+ app/page.tsx                    | 180 ++-------
+ app/selected/page.tsx           | 198 ++--------
+ app/starred/page.tsx            |  50 ---
+ proxy.ts => middleware.ts       |   4 +-
+ redeploy.txt                    |   0
+ 17 files changed, 318 insertions(+), 1275 deletions(-)
+ delete mode 100644 app/api/posters/upload/route.ts
+ delete mode 100644 app/components/PDFviewer.tsx
+ create mode 100644 app/components/PosterCard.tsx
+ create mode 100644 app/lib/config.ts
+ create mode 100644 app/lib/db.ts
+ create mode 100644 app/lib/usePosters.ts
+ delete mode 100644 app/starred/page.tsx
+ rename proxy.ts => middleware.ts (95%)
+ delete mode 100644 redeploy.txt
+
+diff --git a/app/api/comments/route.ts b/app/api/comments/route.ts
+index 4d11a77..cb992d1 100644
+--- a/app/api/comments/route.ts
++++ b/app/api/comments/route.ts
+@@ -1,22 +1,11 @@
+-// app/api/comments/route.ts
+ import { NextRequest, NextResponse } from "next/server";
+-import clientPromise from "@/app/lib/mongodb";
++import { getDb } from "@/app/lib/db";
++import { getRequireLogin } from "@/app/lib/config";
+ import { ObjectId } from "mongodb";
+ import { getSessionUser } from "@/app/lib/auth";
+ 
+ const allowedVisibility = new Set(["public", "question", "note"]);
+ 
+-async function getRequireLogin(): Promise<boolean> {
+-  const client = await clientPromise;
+-  const db = client.db();
+-
+-  const cfg = await db
+-    .collection<{ _id: string; requireLogin?: boolean }>("config")
+-    .findOne({ _id: "app" });
+-
+-  return Boolean(cfg?.requireLogin);
+-}
+-
+ export async function GET(req: NextRequest) {
+   try {
+     const posterId = req.nextUrl.searchParams.get("posterId");
+@@ -31,9 +20,7 @@ export async function GET(req: NextRequest) {
+       return NextResponse.json({ error: "Login required" }, { status: 401 });
+     }
+ 
+-    const client = await clientPromise;
+-    const db = client.db();
+-
++    const db = await getDb();
+     const sessionUserId = user ? String(user._id) : undefined;
+ 
+     const poster = await db
+@@ -52,27 +39,17 @@ export async function GET(req: NextRequest) {
+ 
+     const visibleComments = comments.filter((comment) => {
+       const visibility = comment.visibilityType ?? "public";
+-
+       if (visibility === "public") return true;
+       if (!sessionUserId) return false;
+-
+       const ownerId = String(comment.userId);
+-
+-      if (visibility === "note") {
+-        return ownerId === sessionUserId;
+-      }
+-
++      if (visibility === "note") return ownerId === sessionUserId;
+       if (visibility === "question") {
+         return ownerId === sessionUserId || presenterUserId === sessionUserId;
+       }
+-
+       return false;
+     });
+ 
+-    return NextResponse.json({
+-      comments: visibleComments,
+-      sessionUserId,
+-    });
++    return NextResponse.json({ comments: visibleComments, sessionUserId });
+   } catch (e) {
+     console.error("GET /api/comments error:", e);
+     return NextResponse.json({ error: "Failed to fetch comments" }, { status: 500 });
+@@ -108,8 +85,7 @@ export async function POST(req: NextRequest) {
+       );
+     }
+ 
+-    const client = await clientPromise;
+-    const db = client.db();
++    const db = await getDb();
+ 
+     const comment = {
+       posterId,
+@@ -118,12 +94,10 @@ export async function POST(req: NextRequest) {
+       author: user.displayName,
+       userId: user._id,
+       visibilityType,
+-      routeMarker: "COMMENTS_POST_V2_TEST",
+       timestamp: new Date(),
+     };
+ 
+     const result = await db.collection("comments").insertOne(comment);
+-
+     return NextResponse.json({ ...comment, _id: result.insertedId });
+   } catch (e) {
+     console.error("POST /api/comments error:", e);
+@@ -133,14 +107,9 @@ export async function POST(req: NextRequest) {
+ 
+ export async function DELETE(req: NextRequest) {
+   try {
+-    const requireLogin = await getRequireLogin();
+     const user = await getSessionUser();
+-
+     if (!user) {
+-      return NextResponse.json(
+-        { error: requireLogin ? "Login required" : "Login required to delete" },
+-        { status: 401 }
+-      );
++      return NextResponse.json({ error: "Login required" }, { status: 401 });
+     }
+ 
+     const id = req.nextUrl.searchParams.get("id");
+@@ -148,8 +117,7 @@ export async function DELETE(req: NextRequest) {
+       return NextResponse.json({ error: "Comment id is required" }, { status: 400 });
+     }
+ 
+-    const client = await clientPromise;
+-    const db = client.db();
++    const db = await getDb();
+ 
+     const result = await db.collection("comments").deleteOne({
+       _id: new ObjectId(id),
+@@ -157,7 +125,10 @@ export async function DELETE(req: NextRequest) {
+     });
+ 
+     if (result.deletedCount === 0) {
+-      return NextResponse.json({ error: "Comment not found (or not yours)" }, { status: 404 });
++      return NextResponse.json(
++        { error: "Comment not found (or not yours)" },
++        { status: 404 }
++      );
+     }
+ 
+     return NextResponse.json({ success: true });
+@@ -165,4 +136,4 @@ export async function DELETE(req: NextRequest) {
+     console.error("DELETE /api/comments error:", e);
+     return NextResponse.json({ error: "Failed to delete comment" }, { status: 500 });
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/app/api/config/route.ts b/app/api/config/route.ts
+index f8b9ccf..cb89a82 100644
+--- a/app/api/config/route.ts
++++ b/app/api/config/route.ts
+@@ -1,12 +1,9 @@
+ import { NextResponse } from "next/server";
+-import clientPromise  from "@/app/lib/mongodb"; 
++import { getDb } from "@/app/lib/db";
++import { getRequireLogin } from "@/app/lib/config";
+ 
+ export async function GET() {
+-  const client = await clientPromise;
+-  const db = client.db();
+-  const cfg = await db.collection("config").findOne({ key: "demo" });
+-
+-  const requireLogin = Boolean(cfg?.requireLogin);
++  const requireLogin = await getRequireLogin();
+   return NextResponse.json({ requireLogin });
+ }
+ 
+@@ -14,8 +11,7 @@ export async function POST(req: Request) {
+   const body = await req.json().catch(() => ({}));
+   const requireLogin = Boolean(body?.requireLogin);
+ 
+-  const client = await clientPromise;
+-  const db = client.db();
++  const db = await getDb();
+ 
+   await db.collection("config").updateOne(
+     { key: "demo" },
+@@ -24,4 +20,4 @@ export async function POST(req: Request) {
+   );
+ 
+   return NextResponse.json({ ok: true, requireLogin });
+-}
+\ No newline at end of file
++}
+diff --git a/app/api/posters/[id]/route.ts b/app/api/posters/[id]/route.ts
+index 24ef904..a546c90 100644
+--- a/app/api/posters/[id]/route.ts
++++ b/app/api/posters/[id]/route.ts
+@@ -1,73 +1,52 @@
+ import { NextRequest, NextResponse } from "next/server";
+-import clientPromise from "@/app/lib/mongodb";
++import { getDb } from "@/app/lib/db";
+ 
+-const MARKER = "POSTER_DELETE_V1_2026_02_06";
+-
+-export async function DELETE(
++export async function GET(
+   _req: NextRequest,
+   { params }: { params: Promise<{ id: string }> }
+ ) {
+   try {
+     const { id } = await params;
++    const db = await getDb();
+ 
+-    const client = await clientPromise;
+-    const db = client.db("dc");
++    const poster = await db
++      .collection("posters")
++      .findOne({ id, deletedAt: { $exists: false } });
+ 
+-    const result = await db.collection("posters").updateOne(
+-      { id, deletedAt: { $exists: false } },
+-      { $set: { deletedAt: new Date() } }
+-    );
+-
+-    if (result.matchedCount === 0) {
+-      return NextResponse.json(
+-        { error: "Poster not found (or already deleted)", marker: MARKER },
+-        { status: 404 }
+-      );
++    if (!poster) {
++      return NextResponse.json({ error: "Poster not found" }, { status: 404 });
+     }
+ 
+-    return NextResponse.json({ ok: true, marker: MARKER });
+-  } catch (error: any) {
+-    console.error("DELETE /api/posters/[id] failed:", error);
+-    return NextResponse.json(
+-      { error: "Failed to delete poster", marker: MARKER, details: error?.message },
+-      { status: 500 }
+-    );
++    return NextResponse.json(poster);
++  } catch (error) {
++    console.error("Error fetching poster:", error);
++    return NextResponse.json({ error: "Failed to fetch poster" }, { status: 500 });
+   }
+ }
+ 
+-export async function GET(
++export async function DELETE(
+   _req: NextRequest,
+   { params }: { params: Promise<{ id: string }> }
+ ) {
+   try {
+     const { id } = await params;
++    const db = await getDb();
+ 
+-    const client = await clientPromise;
+-    const db = client.db("dc");
+-
+-    const poster = await db.collection("posters").findOne({
+-      id,
+-      deletedAt: { $exists: false },
+-    });
++    const result = await db.collection("posters").updateOne(
++      { id, deletedAt: { $exists: false } },
++      { $set: { deletedAt: new Date() } }
++    );
+ 
+-    if (!poster) {
+-      return NextResponse.json({ error: "Poster not found", marker: MARKER }, { status: 404 });
++    if (result.matchedCount === 0) {
++      return NextResponse.json(
++        { error: "Poster not found (or already deleted)" },
++        { status: 404 }
++      );
+     }
+ 
+-    return NextResponse.json(poster);
+-  } catch (error: any) {
+-    console.error("Error fetching poster:", error);
+-    return NextResponse.json(
+-      {
+-        error: "Failed to fetch poster",
+-        marker: MARKER,
+-        details: {
+-          name: error?.name,
+-          message: error?.message,
+-          code: error?.code,
+-        },
+-      },
+-      { status: 500 }
+-    );
++    return NextResponse.json({ ok: true });
++  } catch (error) {
++    console.error("DELETE /api/posters/[id] failed:", error);
++    return NextResponse.json({ error: "Failed to delete poster" }, { status: 500 });
+   }
+ }
+diff --git a/app/api/posters/route.ts b/app/api/posters/route.ts
+index 0eea91b..c8a4bd4 100644
+--- a/app/api/posters/route.ts
++++ b/app/api/posters/route.ts
+@@ -1,49 +1,28 @@
+ import { NextRequest, NextResponse } from "next/server";
+-import clientPromise from "@/app/lib/mongodb";
++import { getDb } from "@/app/lib/db";
+ import { getSessionUser } from "@/app/lib/auth";
+-const MARKER = "NEW_JSON_ONLY_CODE_2026_02_06";
+ 
+ export async function GET() {
+   try {
+-    const client = await clientPromise;
+-    const db = client.db("dc");
+-
++    const db = await getDb();
+     const posters = await db
+       .collection("posters")
+       .find({ deletedAt: { $exists: false } })
+       .sort({ uploadedAt: -1 })
+       .toArray();
+-
+     return NextResponse.json(posters);
+-  } catch (error: any) {
++  } catch (error) {
+     console.error("Error fetching posters:", error);
+-    return NextResponse.json(
+-      {
+-        error: "Failed to fetch posters",
+-        marker: MARKER,
+-        details: {
+-          name: error?.name,
+-          message: error?.message,
+-          code: error?.code,
+-        },
+-      },
+-      { status: 500 }
+-    );
++    return NextResponse.json({ error: "Failed to fetch posters" }, { status: 500 });
+   }
+ }
+ 
+ export async function POST(request: NextRequest) {
+-  const t0 = Date.now();
+-
+   try {
+     const contentType = request.headers.get("content-type") || "";
+     if (contentType.includes("multipart/form-data")) {
+       return NextResponse.json(
+-        {
+-          error:
+-            "This endpoint no longer accepts file uploads. Upload the PDF first, then POST JSON metadata (title/author/fileUrl).",
+-          marker: MARKER,
+-        },
++        { error: "Upload the PDF first via /api/upload-blob, then POST JSON metadata." },
+         { status: 400 }
+       );
+     }
+@@ -51,38 +30,22 @@ export async function POST(request: NextRequest) {
+     const body = await request.json().catch(() => null);
+     const title = (body?.title ?? "").toString().trim();
+     const author = (body?.author ?? "").toString().trim();
+-
+-    // IMPORTANT: your client sends fileUrl
+     const fileUrl = (body?.fileUrl || body?.url || "").toString().trim();
+ 
+     if (!title || !fileUrl) {
+       return NextResponse.json(
+-        {
+-          error: "title and fileUrl (or url) are required",
+-          marker: MARKER,
+-          receivedKeys: body ? Object.keys(body) : null,
+-        },
++        { error: "title and fileUrl are required" },
+         { status: 400 }
+       );
+     }
+-    //login required for user ID
+-    const user = await getSessionUser();
+ 
++    const user = await getSessionUser();
+     if (!user) {
+-      return NextResponse.json(
+-        { error: "Login required", marker: MARKER },
+-        { status: 401 }
+-      );
++      return NextResponse.json({ error: "Login required" }, { status: 401 });
+     }
+-    const id = Date.now().toString();
+ 
+-    const client = await clientPromise;
+-    const db = client.db("dc");
+-
+-    // Connectivity test (helps diagnose 30s hangs)
+-    const tPing = Date.now();
+-    await db.command({ ping: 1 });
+-    const pingMs = Date.now() - tPing;
++    const db = await getDb();
++    const id = Date.now().toString();
+ 
+     const poster = {
+       id,
+@@ -93,38 +56,10 @@ export async function POST(request: NextRequest) {
+       uploadedAt: new Date(),
+     };
+ 
+-    const tIns = Date.now();
+     const result = await db.collection("posters").insertOne(poster);
+-    const insertMs = Date.now() - tIns;
+-
+-    return NextResponse.json(
+-      {
+-        ...poster,
+-        _id: result.insertedId,
+-        marker: MARKER,
+-        timings: { totalMs: Date.now() - t0, pingMs, insertMs },
+-      },
+-      { status: 201 }
+-    );
+-} catch (error: any) {
++    return NextResponse.json({ ...poster, _id: result.insertedId }, { status: 201 });
++  } catch (error) {
+     console.error("POST /api/posters failed:", error);
+-  
+-    return NextResponse.json(
+-      {
+-        error: "Failed to save poster metadata",
+-        marker: MARKER,
+-        DEBUG_POSTERS_ROUTE_VERSION: "POSTERS_CATCH_V3_2026_02_06_2235",
+-        details: {
+-          name: error?.name,
+-          message: error?.message,
+-          code: error?.code,
+-          codeName: error?.codeName,
+-          raw: String(error),
+-        },
+-      },
+-      { status: 500 }
+-    );
++    return NextResponse.json({ error: "Failed to save poster metadata" }, { status: 500 });
+   }
+-  
+-  
+ }
+diff --git a/app/api/posters/upload/route.ts b/app/api/posters/upload/route.ts
+deleted file mode 100644
+index 412009c..0000000
+--- a/app/api/posters/upload/route.ts
++++ /dev/null
+@@ -1,26 +0,0 @@
+-import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
+-import { NextResponse } from 'next/server';
+-
+-export async function POST(request: Request): Promise<NextResponse> {
+-  const body = (await request.json()) as HandleUploadBody;
+-
+-  try {
+-    const jsonResponse = await handleUpload({
+-      body,
+-      request,
+-      onBeforeGenerateToken: async () => {
+-        return {
+-          allowedContentTypes: ['application/pdf'],
+-          addRandomSuffix: true,
+-        };
+-      },
+-    });
+-
+-    return NextResponse.json(jsonResponse);
+-  } catch (error) {
+-    return NextResponse.json(
+-      { error: (error as Error).message },
+-      { status: 400 }
+-    );
+-  }
+-}
+diff --git a/app/api/stars/route.ts b/app/api/stars/route.ts
+index f5180c7..15a5b19 100644
+--- a/app/api/stars/route.ts
++++ b/app/api/stars/route.ts
+@@ -1,7 +1,28 @@
+ import { NextRequest, NextResponse } from "next/server";
+-import clientPromise from "@/app/lib/mongodb";
++import { getDb } from "@/app/lib/db";
+ import { getSessionUser } from "@/app/lib/auth";
+ 
++export async function GET() {
++  try {
++    const user = await getSessionUser();
++    if (!user) {
++      return NextResponse.json({ error: "Login required" }, { status: 401 });
++    }
++
++    const db = await getDb();
++    const stars = await db
++      .collection("stars")
++      .find({ userId: user._id })
++      .sort({ createdAt: -1 })
++      .toArray();
++
++    return NextResponse.json(stars);
++  } catch (e) {
++    console.error("GET /api/stars error:", e);
++    return NextResponse.json({ error: "Failed to fetch stars" }, { status: 500 });
++  }
++}
++
+ export async function POST(req: NextRequest) {
+   try {
+     const user = await getSessionUser();
+@@ -11,14 +32,11 @@ export async function POST(req: NextRequest) {
+ 
+     const body = await req.json();
+     const posterId = String(body?.posterId || "");
+-
+     if (!posterId) {
+       return NextResponse.json({ error: "posterId required" }, { status: 400 });
+     }
+ 
+-    const client = await clientPromise;
+-    const db = client.db();
+-
++    const db = await getDb();
+     await db.collection("stars").updateOne(
+       { userId: user._id, posterId },
+       { $set: { userId: user._id, posterId, createdAt: new Date() } },
+@@ -44,13 +62,8 @@ export async function DELETE(req: NextRequest) {
+       return NextResponse.json({ error: "posterId required" }, { status: 400 });
+     }
+ 
+-    const client = await clientPromise;
+-    const db = client.db();
+-
+-    await db.collection("stars").deleteOne({
+-      userId: user._id,
+-      posterId,
+-    });
++    const db = await getDb();
++    await db.collection("stars").deleteOne({ userId: user._id, posterId });
+ 
+     return NextResponse.json({ success: true });
+   } catch (e) {
+@@ -58,25 +71,3 @@ export async function DELETE(req: NextRequest) {
+     return NextResponse.json({ error: "Failed to unstar poster" }, { status: 500 });
+   }
+ }
+-export async function GET() {
+-    try {
+-      const user = await getSessionUser();
+-      if (!user) {
+-        return NextResponse.json({ error: "Login required" }, { status: 401 });
+-      }
+-  
+-      const client = await clientPromise;
+-      const db = client.db();
+-  
+-      const stars = await db
+-        .collection("stars")
+-        .find({ userId: user._id })
+-        .sort({ createdAt: -1 })
+-        .toArray();
+-  
+-      return NextResponse.json(stars);
+-    } catch (e) {
+-      console.error("GET /api/stars error:", e);
+-      return NextResponse.json({ error: "Failed to fetch stars" }, { status: 500 });
+-    }
+-  }
+\ No newline at end of file
+diff --git a/app/components/PDFviewer.tsx b/app/components/PDFviewer.tsx
+deleted file mode 100644
+index 3223cc8..0000000
+--- a/app/components/PDFviewer.tsx
++++ /dev/null
+@@ -1,663 +0,0 @@
+-'use client';
+-
+-import React, { useEffect, useMemo, useRef, useState } from 'react';
+-import Link from 'next/link';
+-import { useRouter } from 'next/navigation';
+-import { Document, Page, pdfjs } from 'react-pdf';
+-import { List } from 'react-window';
+-import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
+-import type { CommentSubmitPayload, VisibilityType } from "@/app/types/comments";
+-import CommentComposerModal from './CommentComposerModal';
+-import CommentsPanel, { type Comment } from './CommentsPanel';
+-
+-import 'react-pdf/dist/Page/AnnotationLayer.css';
+-import 'react-pdf/dist/Page/TextLayer.css';
+-
+-type Poster = {
+-  id: string;
+-  title?: string;
+-  author?: string;
+-  fileUrl?: string;
+-  filepath?: string;
+-};
+-
+-/**
+- * Measure any element using ResizeObserver.
+- * IMPORTANT: This must NOT call itself.
+- */
+-function useMeasure<T extends HTMLElement>() {
+-  const [node, setNode] = useState<T | null>(null);
+-  const [rect, setRect] = useState({ width: 0, height: 0 });
+-
+-  // Track last node to avoid state updates when React re-calls the ref with same element
+-  const lastNodeRef = useRef<T | null>(null);
+-
+-  const ref = React.useCallback((el: T | null) => {
+-    if (lastNodeRef.current === el) return;
+-    lastNodeRef.current = el;
+-    setNode(el);
+-  }, []);
+-
+-  useEffect(() => {
+-    if (!node) return;
+-
+-    const update = () => {
+-      const cr = node.getBoundingClientRect();
+-      setRect({ width: cr.width, height: cr.height });
+-    };
+-
+-    update();
+-    const ro = new ResizeObserver(update);
+-    ro.observe(node);
+-    return () => ro.disconnect();
+-  }, [node]);
+-
+-  return { ref, rect };
+-}
+-
+-//*************POSTERVIEWER FUNCTION *************************
+-export default function PosterViewer({ posterId }: { posterId: string }) {
+-  const router = useRouter();
+-
+-  // --- refs used by mobile zoom ---
+-  const zoomSurfaceRef = useRef<HTMLDivElement | null>(null);
+-  const resetTransformRef = useRef<null | (() => void)>(null);
+-
+-  // Poster metadata
+-  const [poster, setPoster] = useState<Poster | null>(null);
+-  const [error, setError] = useState('');
+-
+-  // PDF state
+-  const [numPages, setNumPages] = useState<number>(0);
+-  const [pageNumber, setPageNumber] = useState<number>(1);
+-
+-  // Comments
+-  const [comments, setComments] = useState<Comment[]>([]);
+-  const [loadingComments, setLoadingComments] = useState(true);
+-  const [commentTargetPage, setCommentTargetPage] = useState<number>(1);
+-
+-  // Comment input
+-  const [composerOpen, setComposerOpen] = useState(false);
+-  const [composerMode, setComposerMode] = useState<'add' | 'edit'>('add');
+-  const [composerPage, setComposerPage] = useState<number>(1);
+-  const [editCommentId, setEditCommentId] = useState<string | null>(null);
+-  const [composerInitialText, setComposerInitialText] = useState<string>('');
+-
+-  // Responsive
+-  const [isLandscape, setIsLandscape] = useState(false);
+-
+-  // Measurements (top-level hooks)
+-  const centerMeasure = useMeasure<HTMLDivElement>();
+-  const mobileMeasure = useMeasure<HTMLDivElement>();
+-
+-  // Mobile zoom state
+-  const [mobileZoomed, setMobileZoomed] = useState(false);
+-
+-  // Swipe-to-change-slide (only when not zoomed)
+-  const swipeStart = useRef<{ x: number; y: number; t: number } | null>(null);
+-
+-  function onSwipeStart(e: React.TouchEvent) {
+-    if (mobileZoomed) return;
+-    if (e.touches.length !== 1) return;
+-    const t = e.touches[0];
+-    swipeStart.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+-  }
+-
+-  function onSwipeEnd(e: React.TouchEvent) {
+-    if (mobileZoomed) return;
+-    const start = swipeStart.current;
+-    swipeStart.current = null;
+-    if (!start) return;
+-
+-    const t = e.changedTouches[0];
+-    const dx = t.clientX - start.x;
+-    const dy = t.clientY - start.y;
+-    const dt = Date.now() - start.t;
+-
+-    if (dt > 800) return;
+-    if (Math.abs(dx) < 60) return;
+-    if (Math.abs(dx) < Math.abs(dy) * 1.2) return;
+-
+-    if (dx < 0) {
+-      const next = Math.min(numPages || pageNumber, pageNumber + 1);
+-      setPageNumber(next);
+-    } else {
+-      const prev = Math.max(1, pageNumber - 1);
+-      setPageNumber(prev);
+-    }
+-  }
+-
+-  // Keep comment panel synced to current slide (mobile + desktop)
+-  useEffect(() => {
+-    setCommentTargetPage(pageNumber);
+-  }, [pageNumber]);
+-
+-  // Prevent iOS Safari viewport zoom ONLY inside the zoom surface
+-  useEffect(() => {
+-    const el = zoomSurfaceRef.current;
+-    if (!el) return;
+-
+-    const blockPageZoom = (e: TouchEvent) => {
+-      if (e.touches && e.touches.length > 1) {
+-        e.preventDefault();
+-      }
+-    };
+-
+-    el.addEventListener('touchstart', blockPageZoom, { passive: false });
+-    el.addEventListener('touchmove', blockPageZoom, { passive: false });
+-
+-    return () => {
+-      el.removeEventListener('touchstart', blockPageZoom as any);
+-      el.removeEventListener('touchmove', blockPageZoom as any);
+-    };
+-  }, []);
+-
+-  // pdf.js worker
+-  useEffect(() => {
+-    pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+-  }, []);
+-
+-  // Track orientation
+-  useEffect(() => {
+-    const update = () => {
+-      setIsLandscape(window.matchMedia('(orientation: landscape)').matches);
+-    };
+-    update();
+-    window.addEventListener('resize', update);
+-    return () => window.removeEventListener('resize', update);
+-  }, []);
+-
+-  // Load poster + comments
+-  useEffect(() => {
+-    fetchPoster();
+-    fetchComments();
+-    // eslint-disable-next-line react-hooks/exhaustive-deps
+-  }, [posterId]);
+-
+-  async function fetchPoster() {
+-    try {
+-      setPoster(null);
+-      setError('');
+-
+-      const res = await fetch(`/api/posters/${posterId}`);
+-      if (!res.ok) {
+-        setError(`Failed to load poster (${res.status})`);
+-        return;
+-      }
+-      const data = await res.json();
+-      setPoster(data);
+-    } catch (err) {
+-      setError(err instanceof Error ? err.message : String(err));
+-    }
+-  }
+-
+-  async function fetchComments() {
+-    try {
+-      setLoadingComments(true);
+-      const res = await fetch(`/api/comments?posterId=${posterId}`);
+-      if (!res.ok) return;
+-      const data = await res.json();
+-      setComments(
+-        (data || []).map((c: any) => ({
+-          ...c,
+-          timestamp: new Date(c.timestamp),
+-        }))
+-      );
+-    } catch (err) {
+-      console.error('Error fetching comments:', err);
+-    } finally {
+-      setLoadingComments(false);
+-    }
+-  }
+-
+-  async function handleDeleteComment(c: { _id?: string; id?: string }) {
+-    const id = c._id || c.id;
+-    if (!id) return;
+-    if (!confirm('Delete this comment?')) return;
+-
+-    try {
+-      const res = await fetch(`/api/comments?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+-      if (!res.ok) {
+-        alert('Failed to delete comment.');
+-        return;
+-      }
+-      await fetchComments();
+-    } catch (err) {
+-      console.error('Delete failed:', err);
+-      alert('Delete failed.');
+-    }
+-  }
+-
+-  async function handleDelete() {
+-    if (!confirm('Delete this presentation?')) return;
+-
+-    const res = await fetch(`/api/posters/${posterId}`, { method: 'DELETE' });
+-    const j = await res.json().catch(() => ({}));
+-
+-    if (!res.ok) {
+-      alert(j?.error ?? 'Delete failed');
+-      return;
+-    }
+-
+-    router.push('/');
+-    router.refresh();
+-  }
+-
+-  const pdfUrl = useMemo(() => poster?.fileUrl || poster?.filepath || '', [poster]);
+-
+-  const pageComments = useMemo(
+-    () => comments.filter((c) => c.page === commentTargetPage),
+-    [comments, commentTargetPage]
+-  );
+-
+-  function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
+-    setNumPages(numPages);
+-    setPageNumber((prev) => (prev < 1 ? 1 : prev > numPages ? numPages : prev));
+-  }
+-
+-  const addComment = async (
+-    page: number,
+-    text: string,
+-    visibilityType: "note" | "question" | "public"
+-  ) => {
+-    await fetch("/api/comments", {
+-      method: "POST",
+-      headers: { "Content-Type": "application/json" },
+-      body: JSON.stringify({
+-        posterId,
+-        page,
+-        text,
+-        visibilityType,
+-      }),
+-    });
+-  };
+-
+-  // Desktop center width
+-  const centerPageWidth = useMemo(() => {
+-    const w = centerMeasure.rect.width || 0;
+-    return Math.max(320, Math.floor(w - 48));
+-  }, [centerMeasure.rect.width]);
+-
+-  // Mobile width (measure the actual mobile viewer container)
+-  const mobileW = mobileMeasure.rect.width || 0;
+-  const mobilePageWidth = Math.max(320, Math.floor(mobileW - 16)); // container has p-2 => 16px total
+-
+-  // ---- Virtualized mini navigator (react-window v2) ----
+-  type NavRowExtraProps = {
+-    currentPage: number;
+-    onJump: (p: number) => void;
+-    thumbWidth: number;
+-  };
+-
+-  const MiniPdfNavigator = ({
+-    numPages,
+-    currentPage,
+-    onJump,
+-  }: {
+-    numPages: number;
+-    currentPage: number;
+-    onJump: (page: number) => void;
+-  }) => {
+-    const { ref, rect } = useMeasure<HTMLDivElement>();
+-
+-    const thumbWidth = Math.max(140, Math.floor(rect.width) - 16);
+-    const thumbHeight = Math.round(thumbWidth * 0.72);
+-    const rowHeight = thumbHeight + 44;
+-
+-    const NavRow = ({
+-      index,
+-      style,
+-      currentPage,
+-      onJump,
+-      thumbWidth,
+-    }: {
+-      index: number;
+-      style: React.CSSProperties;
+-    } & NavRowExtraProps) => {
+-      const page = index + 1;
+-      const isActive = page === currentPage;
+-
+-      return (
+-        <div style={style} className="px-2 py-2">
+-          <button
+-            onClick={() => onJump(page)}
+-            className={[
+-              'w-full rounded-lg border bg-white hover:bg-gray-50 overflow-hidden',
+-              isActive ? 'border-blue-600 ring-1 ring-blue-200' : 'border-gray-200',
+-            ].join(' ')}
+-          >
+-            <div className="p-2">
+-              <div className="flex justify-center items-center" style={{ height: thumbHeight }}>
+-                <Page
+-                  pageNumber={page}
+-                  width={thumbWidth}
+-                  renderTextLayer={false}
+-                  renderAnnotationLayer={false}
+-                />
+-              </div>
+-              <div className="mt-2 text-xs text-gray-600 text-center">Slide {page}</div>
+-            </div>
+-          </button>
+-        </div>
+-      );
+-    };
+-
+-    return (
+-      <div className="h-full flex flex-col bg-gray-50">
+-        <div className="p-3 border-b bg-white">
+-          <div className="text-sm font-semibold text-gray-700">Slides</div>
+-          <div className="text-xs text-gray-700">Click a slide to jump</div>
+-        </div>
+-
+-        <div ref={ref} className="flex-1">
+-          {rect.height > 0 && rect.width > 0 && numPages > 0 ? (
+-            <List<NavRowExtraProps>
+-              rowComponent={NavRow}
+-              rowCount={numPages}
+-              rowHeight={rowHeight}
+-              rowProps={{ currentPage, onJump, thumbWidth }}
+-              overscanCount={3}
+-              defaultHeight={400}
+-              style={{ height: rect.height, width: rect.width }}
+-            />
+-          ) : (
+-            <div className="p-4 text-sm text-gray-700">Loading…</div>
+-          )}
+-        </div>
+-      </div>
+-    );
+-  };
+-
+-  // ---------------- Render ----------------
+-  if (!poster) {
+-    return (
+-      <div className="min-h-[100dvh] bg-gray-50 p-8">
+-        <Link href="/" className="text-blue-600">
+-          ← Back
+-        </Link>
+-        <div className="mt-6 bg-white p-6 rounded shadow">
+-          <p>Loading presentation…</p>
+-          {error && <p className="text-red-600 mt-3">{error}</p>}
+-        </div>
+-      </div>
+-    );
+-  }
+-
+-  return (
+-    <Document file={pdfUrl} onLoadSuccess={onDocumentLoadSuccess}>
+-      <div className="min-h-[100dvh] bg-gray-50">
+-        {/* Top bar */}
+-        <div className="sticky top-0 z-40 bg-white border-b">
+-          <div className="mx-auto max-w-6xl px-3 py-2 flex items-center justify-between gap-3">
+-            <div className="flex items-center gap-3 min-w-0 flex-1">
+-              <Link href="/" className="text-blue-600 text-sm whitespace-nowrap">
+-                ← Back
+-              </Link>
+-
+-              <div className="min-w-0">
+-                <div className="truncate text-base font-semibold text-gray-900">{poster.title || 'Untitled'}</div>
+-                <div className="truncate text-xs text-gray-700">{poster.author ? `by ${poster.author}` : ''}</div>
+-              </div>
+-            </div>
+-
+-            <Link href="/" className="shrink-0">
+-              <img src="/1stcite-logo.png" alt="1stCite" className="h-10 w-auto" />
+-            </Link>
+-          </div>
+-        </div>
+-
+-        {/* MOBILE */}
+-        <div className="block lg:hidden px-3 py-4 space-y-3">
+-          <div className="flex items-center justify-between w-full">
+-            <div className="text-sm font-medium text-gray-900">
+-              Slide {pageNumber} / {numPages || '?'}
+-            </div>
+-
+-            <div className="flex items-center gap-2">
+-              <button
+-                type="button"
+-                onClick={() => {
+-                  resetTransformRef.current?.();
+-                  setMobileZoomed(false);
+-                }}
+-                className="px-2 py-1.5 rounded border bg-white text-sm text-gray-700"
+-              >
+-               FIT
+-              </button>
+-
+-              <button
+-                onClick={() => {
+-                  resetTransformRef.current?.();
+-                  setMobileZoomed(false);
+-
+-                  setComposerMode('add');
+-                  setComposerPage(pageNumber);
+-                  setComposerInitialText('');
+-                  setEditCommentId(null);
+-                  setComposerOpen(true);
+-                }}
+-                className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm font-medium"
+-              >
+-                Comment
+-              </button>
+-            </div>
+-          </div>
+-
+-          {/* ONE mobile viewer container. Measure THIS. */}
+-          <div
+-            ref={mobileMeasure.ref}
+-            className={`w-full bg-white rounded-lg border p-2 max-w-full overflow-hidden ${
+-              isLandscape ? 'h-[calc(100dvh-140px)]' : 'max-h-[55dvh]'
+-            }`}
+-            onTouchStart={onSwipeStart}
+-            onTouchEnd={onSwipeEnd}
+-          >
+-            <TransformWrapper
+-              minScale={1}
+-              maxScale={4}
+-              initialScale={1}
+-              wheel={{ disabled: true }}
+-              doubleClick={{ mode: 'reset' }}
+-              panning={{ disabled: !mobileZoomed, velocityDisabled: true }}
+-              onZoomStop={(ref: any) => setMobileZoomed((ref?.state?.scale ?? 1) > 1.02)}
+-              onPanningStop={(ref: any) => setMobileZoomed((ref?.state?.scale ?? 1) > 1.02)}
+-              onPinchingStop={(ref: any) => setMobileZoomed((ref?.state?.scale ?? 1) > 1.02)}
+-            >
+-              {({ resetTransform }) => {
+-                resetTransformRef.current = resetTransform;
+-
+-                return (
+-                  <TransformComponent wrapperStyle={{ width: '100%' }} contentStyle={{ width: '100%' }}>
+-                    <div
+-                      ref={zoomSurfaceRef}
+-                      style={{ touchAction: 'none' }}
+-                      className="w-full flex justify-center"
+-                    >
+-                      <Page
+-                        key={`${pageNumber}-${mobilePageWidth}`}
+-                        pageNumber={pageNumber}
+-                        width={mobilePageWidth}
+-                        renderTextLayer={false}
+-                        renderAnnotationLayer={false}
+-                      />
+-                    </div>
+-                  </TransformComponent>
+-                );
+-              }}
+-            </TransformWrapper>
+-          </div>
+-
+-          {/* Comments (portrait only) */}
+-          {!isLandscape && (
+-            <div className="bg-white rounded-lg border">
+-              <div className="flex items-center justify-between px-3 py-2 border-b">
+-                <div className="text-sm font-semibold text-gray-800">
+-                  Comments <span className="text-gray-500 font-normal">({pageComments.length})</span>
+-                </div>
+-
+-                <button
+-                  type="button"
+-                  onClick={() => {
+-                    setComposerMode('add');
+-                    setComposerPage(pageNumber);
+-                    setComposerInitialText('');
+-                    setEditCommentId(null);
+-                    setComposerOpen(true);
+-                  }}
+-                  className="px-2 py-1.5 rounded bg-blue-600 text-white text-sm"
+-                >
+-                  Add
+-                </button>
+-              </div>
+-
+-              <div className="max-h-[35dvh] overflow-y-auto px-3 py-2">
+-                {loadingComments ? (
+-                  <div className="text-sm text-gray-600">Loading…</div>
+-                ) : pageComments.length === 0 ? (
+-                  <div className="text-sm text-gray-600">No comments yet.</div>
+-                ) : (
+-                  <div className="space-y-2">
+-                    {pageComments.map((c) => (
+-                      <div key={c._id || c.id} className="rounded border border-gray-200 bg-gray-50 p-2">
+-                        <div className="text-xs text-gray-500 flex items-center justify-between">
+-                          <span>{c.author || 'Anonymous'}</span>
+-                          <span>
+-                            {c.timestamp instanceof Date
+-                              ? c.timestamp.toLocaleString()
+-                              : new Date(c.timestamp as any).toLocaleString()}
+-                          </span>
+-                        </div>
+-                        <div className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{c.text}</div>
+-                        <div className="mt-2 flex justify-end">
+-                          <button
+-                            type="button"
+-                            className="text-xs text-red-700"
+-                            onClick={() => handleDeleteComment(c)}
+-                          >
+-                            Delete
+-                          </button>
+-                        </div>
+-                      </div>
+-                    ))}
+-                  </div>
+-                )}
+-              </div>
+-            </div>
+-          )}
+-
+-          <div className="text-center text-xs text-gray-700">
+-            {mobileZoomed ? 'Drag to move • Pinch to zoom • Fit to reset' : 'Swipe to change slides'}
+-          </div>
+-        </div>
+-
+-        {/* Modal composer */}
+-        <CommentComposerModal
+-          open={composerOpen}
+-          mode={composerMode}
+-          page={composerPage}
+-          numPages={numPages}
+-          initialText={composerInitialText}
+-          onClose={() => setComposerOpen(false)}
+-          onSubmit={async (payload: CommentSubmitPayload) => {
+-            await addComment(composerPage, payload.text, payload.visibilityType);
+-            setComposerOpen(false);
+-          }}
+-        />
+-
+-        {/* DESKTOP */}
+-        <div
+-          className="
+-            hidden lg:grid
+-            lg:grid-cols-[clamp(190px,20vw,260px)_minmax(0,1fr)_clamp(240px,25vw,320px)]
+-            lg:gap-3
+-            lg:max-w-none lg:mx-auto lg:px-4 lg:py-4
+-            xl:grid-cols-[clamp(220px,20vw,280px)_minmax(0,1fr)_clamp(280px,25vw,340px)]
+-            xl:gap-4 xl:px-4
+-          "
+-        >
+-          {/* Left nav */}
+-          <div className="h-[calc(100vh-76px)] rounded-lg border overflow-hidden bg-white">
+-            {numPages > 0 ? (
+-              <MiniPdfNavigator numPages={numPages} currentPage={pageNumber} onJump={(p) => setPageNumber(p)} />
+-            ) : (
+-              <div className="p-4 text-sm text-gray-700">Loading…</div>
+-            )}
+-          </div>
+-
+-          {/* Center viewer */}
+-          <div ref={centerMeasure.ref} className="min-w-0 h-[calc(100vh-76px)] rounded-lg border bg-white">
+-            <div className="h-full overflow-x-auto overflow-y-auto" style={{ touchAction: 'none' }}>
+-              <div className="p-3 border-b flex items-center justify-between">
+-                <div className="text-sm text-gray-700">
+-                  Slide <span className="font-semibold text-gray-700">{pageNumber}</span> of{' '}
+-                  <span className="font-semibold text-gray-700">{numPages || '…'}</span>
+-                </div>
+-
+-                <div className="flex items-center gap-2">
+-                  <button
+-                    disabled={pageNumber <= 1}
+-                    onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
+-                    className="px-3 py-2 bg-blue-600 text-white rounded text-sm disabled:bg-gray-300"
+-                  >
+-                    Prev
+-                  </button>
+-                  <button
+-                    disabled={numPages === 0 || pageNumber >= numPages}
+-                    onClick={() => setPageNumber((p) => Math.min(numPages, p + 1))}
+-                    className="px-3 py-2 bg-blue-600 text-white rounded text-sm disabled:bg-gray-300"
+-                  >
+-                    Next
+-                  </button>
+-                </div>
+-              </div>
+-
+-              <div className="p-3">
+-                <div className="mx-auto w-full">
+-                  <div className="w-full flex justify-center">
+-                    <Page
+-                      pageNumber={pageNumber}
+-                      width={centerPageWidth}
+-                      renderTextLayer={false}
+-                      renderAnnotationLayer={false}
+-                      className="mx-auto"
+-                    />
+-                  </div>
+-                </div>
+-              </div>
+-            </div>
+-          </div>
+-
+-          {/* Right comments */}
+-          <div className="h-[calc(100vh-76px)] rounded-lg border overflow-hidden bg-white">
+-            <CommentsPanel
+-              page={pageNumber}
+-              numPages={numPages || 0}
+-              loading={loadingComments}
+-              comments={pageComments}
+-              onOpenAdd={() => {
+-                setComposerMode('add');
+-                setComposerPage(pageNumber);
+-                setComposerInitialText('');
+-                setEditCommentId(null);
+-                setComposerOpen(true);
+-              }}
+-              onDelete={handleDeleteComment}
+-            />
+-          </div>
+-
+-          {/* Delete */}
+-          <div className="border-t mt-12 pt-6 col-span-3">
+-            <div className="max-w-6xl mx-auto px-4 flex justify-end">
+-              <button
+-                onClick={handleDelete}
+-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition"
+-              >
+-                Delete Presentation
+-              </button>
+-            </div>
+-          </div>
+-        </div>
+-      </div>
+-    </Document>
+-  );
+-}
+diff --git a/app/components/PosterCard.tsx b/app/components/PosterCard.tsx
+new file mode 100644
+index 0000000..7e58d0f
+--- /dev/null
++++ b/app/components/PosterCard.tsx
+@@ -0,0 +1,54 @@
++"use client";
++
++import Link from "next/link";
++import type { Poster } from "@/app/lib/usePosters";
++
++function firstAuthor(author: string) {
++  const a = String(author || "").trim();
++  if (!a) return "";
++  return a.split(/[,;]+/)[0].trim();
++}
++
++type PosterCardProps = {
++  poster: Poster;
++  isStarred: boolean;
++  onToggleStar: (posterId: string) => void;
++  variant?: "default" | "starred";
++};
++
++export default function PosterCard({
++  poster,
++  isStarred,
++  onToggleStar,
++  variant = "default",
++}: PosterCardProps) {
++  const bg =
++    variant === "starred"
++      ? "bg-yellow-50 border-yellow-200"
++      : "bg-white border-gray-200";
++
++  return (
++    <div className={`rounded-lg shadow-sm hover:shadow-md transition-shadow p-5 border ${bg}`}>
++      <Link href={`/view/${poster.id}`} className="block">
++        <div className="text-base font-semibold text-gray-900 leading-snug line-clamp-2">
++          {poster.title}
++        </div>
++      </Link>
++
++      <div className="mt-2 flex items-center justify-between">
++        {poster.author ? (
++          <div className="text-sm text-gray-600">by {firstAuthor(poster.author)}</div>
++        ) : (
++          <div />
++        )}
++        <button
++          onClick={() => onToggleStar(poster.id)}
++          className="text-sm text-gray-600 px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
++          aria-label={isStarred ? "Remove from selected" : "Add to selected"}
++        >
++          {isStarred ? "★" : "☆"}
++        </button>
++      </div>
++    </div>
++  );
++}
+diff --git a/app/lib/auth.ts b/app/lib/auth.ts
+index 2e8ea19..97b581a 100644
+--- a/app/lib/auth.ts
++++ b/app/lib/auth.ts
+@@ -1,5 +1,5 @@
+ import { cookies } from "next/headers";
+-import clientPromise from "@/app/lib/mongodb";
++import { getDb } from "@/app/lib/db";
+ import { ObjectId } from "mongodb";
+ import { randomBytes } from "crypto";
+ 
+@@ -14,8 +14,7 @@ export async function createSession(displayName: string) {
+   const name = String(displayName || "").trim();
+   if (!name) throw new Error("Display name required");
+ 
+-  const client = await clientPromise;
+-  const db = client.db();
++  const db = await getDb();
+   const now = new Date();
+ 
+   const userRes = await db.collection("users").insertOne({
+@@ -38,12 +37,11 @@ export async function createSession(displayName: string) {
+ }
+ 
+ export async function getSessionUser(): Promise<AuthedUser | null> {
+-    const cookieStore = await cookies();
+-    const token = cookieStore.get(SESSION_COOKIE)?.value;
++  const cookieStore = await cookies();
++  const token = cookieStore.get(SESSION_COOKIE)?.value;
+   if (!token) return null;
+ 
+-  const client = await clientPromise;
+-  const db = client.db();
++  const db = await getDb();
+   const now = new Date();
+ 
+   const session = await db.collection("sessions").findOne({
+@@ -54,10 +52,9 @@ export async function getSessionUser(): Promise<AuthedUser | null> {
+ 
+   if (!session) return null;
+ 
+-  const user = await db.collection("users").findOne(
+-    { _id: session.userId },
+-    { projection: { displayName: 1 } }
+-  );
++  const user = await db
++    .collection("users")
++    .findOne({ _id: session.userId }, { projection: { displayName: 1 } });
+ 
+   if (!user) return null;
+ 
+@@ -70,15 +67,14 @@ export async function getSessionUser(): Promise<AuthedUser | null> {
+ }
+ 
+ export async function revokeSession() {
+-    const cookieStore = await cookies();
+-    const token = cookieStore.get(SESSION_COOKIE)?.value;
++  const cookieStore = await cookies();
++  const token = cookieStore.get(SESSION_COOKIE)?.value;
+   if (!token) return;
+ 
+-  const client = await clientPromise;
+-  const db = client.db();
++  const db = await getDb();
+ 
+   await db.collection("sessions").updateOne(
+     { token, revokedAt: { $exists: false } },
+     { $set: { revokedAt: new Date() } }
+   );
+-}
+\ No newline at end of file
++}
+diff --git a/app/lib/config.ts b/app/lib/config.ts
+new file mode 100644
+index 0000000..7e2783c
+--- /dev/null
++++ b/app/lib/config.ts
+@@ -0,0 +1,13 @@
++import { getDb } from "@/app/lib/db";
++
++/**
++ * Returns the current requireLogin setting from the config collection.
++ * Single source of truth — all routes and middleware use this.
++ */
++export async function getRequireLogin(): Promise<boolean> {
++  const db = await getDb();
++  const cfg = await db
++    .collection<{ key: string; requireLogin?: boolean }>("config")
++    .findOne({ key: "demo" });
++  return Boolean(cfg?.requireLogin);
++}
+diff --git a/app/lib/db.ts b/app/lib/db.ts
+new file mode 100644
+index 0000000..2703d19
+--- /dev/null
++++ b/app/lib/db.ts
+@@ -0,0 +1,7 @@
++import clientPromise from "@/app/lib/mongodb";
++import type { Db } from "mongodb";
++
++export async function getDb(): Promise<Db> {
++  const client = await clientPromise;
++  return client.db("dc");
++}
+diff --git a/app/lib/usePosters.ts b/app/lib/usePosters.ts
+new file mode 100644
+index 0000000..0e4ab69
+--- /dev/null
++++ b/app/lib/usePosters.ts
+@@ -0,0 +1,76 @@
++"use client";
++
++import { useEffect, useState } from "react";
++
++export type Poster = {
++  _id: string;
++  id: string;
++  title: string;
++  author: string;
++  uploadedAt: string;
++};
++
++export function usePosters() {
++  const [posters, setPosters] = useState<Poster[]>([]);
++  const [loading, setLoading] = useState(true);
++  const [starredPosterIds, setStarredPosterIds] = useState<string[]>([]);
++
++  useEffect(() => {
++    fetchPosters();
++    fetchStars();
++    const onFocus = () => fetchStars();
++    window.addEventListener("focus", onFocus);
++    return () => window.removeEventListener("focus", onFocus);
++  }, []);
++
++  async function fetchPosters() {
++    try {
++      const res = await fetch("/api/posters");
++      if (res.ok) setPosters(await res.json());
++    } catch (e) {
++      console.error("Error fetching posters:", e);
++    } finally {
++      setLoading(false);
++    }
++  }
++
++  async function fetchStars() {
++    try {
++      const res = await fetch("/api/stars");
++      if (res.ok) {
++        const data = await res.json();
++        setStarredPosterIds(data.map((s: { posterId: string }) => s.posterId));
++      }
++    } catch (e) {
++      console.error("Error fetching stars:", e);
++    }
++  }
++
++  async function toggleStar(posterId: string) {
++    const isStarred = starredPosterIds.includes(posterId);
++    try {
++      const res = await fetch(
++        isStarred ? `/api/stars?posterId=${encodeURIComponent(posterId)}` : "/api/stars",
++        {
++          method: isStarred ? "DELETE" : "POST",
++          headers: isStarred ? undefined : { "Content-Type": "application/json" },
++          body: isStarred ? undefined : JSON.stringify({ posterId }),
++        }
++      );
++      if (!res.ok) {
++        console.error("Failed to toggle star", res.status, await res.text());
++        return;
++      }
++      setStarredPosterIds((prev) =>
++        isStarred ? prev.filter((id) => id !== posterId) : [...prev, posterId]
++      );
++    } catch (e) {
++      console.error("Error toggling star:", e);
++    }
++  }
++
++  const starredPosters = posters.filter((p) => starredPosterIds.includes(p.id));
++  const unstarredPosters = posters.filter((p) => !starredPosterIds.includes(p.id));
++
++  return { posters, loading, starredPosterIds, starredPosters, unstarredPosters, toggleStar };
++}
+diff --git a/app/page.tsx b/app/page.tsx
+index 2f77e2a..91b83df 100644
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -1,121 +1,31 @@
+-'use client';
++"use client";
+ 
+-import { useEffect, useState } from 'react';
+-import Link from 'next/link';
+-
+-type Poster = {
+-  _id: string;
+-  id: string;
+-  title: string;
+-  author: string;
+-  uploadedAt: string;
+-};
+-
+-function firstAuthor(author: string) {
+-  const a = String(author || '').trim();
+-  if (!a) return '';
+-  // handle "A, B, C" or "A; B; C"
+-  return a.split(/[,;]+/)[0].trim();
+-}
++import Link from "next/link";
++import { usePosters } from "@/app/lib/usePosters";
++import PosterCard from "@/app/components/PosterCard";
+ 
+ export default function HomePage() {
+-  const [posters, setPosters] = useState<Poster[]>([]);
+-  const [loading, setLoading] = useState(true);
+-  const [starredPosterIds, setStarredPosterIds] = useState<string[]>([]);
+-  useEffect(() => {
+-    fetchPosters();
+-    fetchStars();
+-
+-    const onFocus = () => {
+-      fetchStars();
+-    };
+-
+-    window.addEventListener("focus", onFocus);
+-    return () => window.removeEventListener("focus", onFocus);
+-  }, []);
++  const { posters, loading, starredPosterIds, toggleStar } = usePosters();
+ 
+-  async function fetchPosters() {
+-    try {
+-      const response = await fetch('/api/posters');
+-      if (response.ok) {
+-        const data = await response.json();
+-        setPosters(data);
+-      }
+-    } catch (error) {
+-      console.error('Error fetching posters:', error);
+-    } finally {
+-      setLoading(false);
+-    }
+-  }
+-  async function fetchStars() {
+-    try {
+-      const response = await fetch('/api/stars');
+-      if (response.ok) {
+-        const data = await response.json();
+-        setStarredPosterIds(data.map((s: any) => s.posterId));
+-      }
+-    } catch (error) {
+-      console.error('Error fetching stars:', error);
+-    }
+-  }
+-  async function toggleLibraryStar(posterId: string) {
+-    const alreadyStarred = starredPosterIds.includes(posterId);
+-
+-    try {
+-      const res = await fetch(
+-        alreadyStarred
+-          ? `/api/stars?posterId=${encodeURIComponent(posterId)}`
+-          : `/api/stars`,
+-        {
+-          method: alreadyStarred ? "DELETE" : "POST",
+-          headers: alreadyStarred ? undefined : { "Content-Type": "application/json" },
+-          body: alreadyStarred ? undefined : JSON.stringify({ posterId }),
+-        }
+-      );
+-
+-      if (!res.ok) {
+-        const text = await res.text();
+-        console.error("Failed to toggle library star", res.status, text);
+-        return;
+-      }
+-
+-      setStarredPosterIds((prev) =>
+-        alreadyStarred ? prev.filter((id) => id !== posterId) : [...prev, posterId]
+-      );
+-    } catch (error) {
+-      console.error("Error toggling star:", error);
+-    }
+-  }
+-  const starredPosters = posters.filter((poster) =>
+-    starredPosterIds.includes(poster.id)
+-  );
+-  const unstarredPosters = posters.filter(
+-    (poster) => !starredPosterIds.includes(poster.id)
+-  );
+   return (
+     <div className="min-h-screen bg-gray-50">
+       <div className="container mx-auto p-4 md:p-8 max-w-6xl">
+-      <div className="flex items-center justify-between mb-8">
+-  <div className="flex items-center gap-4">
+-    <h1 className="text-3xl md:text-4xl font-bold text-gray-500">
+-     Day 2 11:00-12:15
+-    </h1>
+-
+-    <div className="flex gap-2">
+-
+-      <Link
+-        href="/selected"
+-        className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50"
+-      >
+-        Selected
+-      </Link>
+-    </div>
+-  </div>
+-
+-  <Link href="/" className="shrink-0">
+-    <img src="/LSW-logo.png" alt="1stCite" className="h-10 w-auto" />
+-  </Link>
+-</div>
++        <div className="flex items-center justify-between mb-8">
++          <div className="flex items-center gap-4">
++            <h1 className="text-3xl md:text-4xl font-bold text-gray-500">
++              Day 2 11:00–12:15
++            </h1>
++            <Link
++              href="/selected"
++              className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50"
++            >
++              Selected
++            </Link>
++          </div>
++          <Link href="/" className="shrink-0">
++            <img src="/LSW-logo.png" alt="1stCite" className="h-10 w-auto" />
++          </Link>
++        </div>
+ 
+         {loading ? (
+           <div className="text-center py-12">
+@@ -126,44 +36,18 @@ export default function HomePage() {
+             <p className="text-xl text-gray-600">No presentations yet</p>
+           </div>
+         ) : (
+-          <>
+-            
+-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+-              {posters.map((poster) => {
+-                const isStarred = starredPosterIds.includes(poster.id);
+-
+-                return (
+-                  <div
+-                    key={poster._id}
+-                    className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-5 border border-gray-200"
+-                  >
+-                    <Link href={`/view/${poster.id}`} className="block">
+-                      <div className="text-base font-semibold text-gray-900 leading-snug line-clamp-2">
+-                        {poster.title}
+-                      </div>
+-                    </Link>
+-
+-                    <div className="mt-2 flex items-center justify-between">
+-                      {poster.author ? (
+-                        <div className="text-sm text-gray-600">by {firstAuthor(poster.author)}</div>
+-                      ) : (
+-                        <div />
+-                      )}
+-
+-                      <button
+-                        onClick={() => toggleLibraryStar(poster.id)}
+-                        className="text-sm text-gray-600 px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
+-                      >
+-                        {isStarred ? "★" : "☆"}
+-                      </button>
+-                    </div>
+-                  </div>
+-                );
+-              })}
+-            </div>
+-          </>
++          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
++            {posters.map((poster) => (
++              <PosterCard
++                key={poster._id}
++                poster={poster}
++                isStarred={starredPosterIds.includes(poster.id)}
++                onToggleStar={toggleStar}
++              />
++            ))}
++          </div>
+         )}
+       </div>
+     </div>
+   );
+-}
+\ No newline at end of file
++}
+diff --git a/app/selected/page.tsx b/app/selected/page.tsx
+index 628e1d9..fb4af8f 100644
+--- a/app/selected/page.tsx
++++ b/app/selected/page.tsx
+@@ -1,177 +1,57 @@
+-'use client';
++"use client";
+ 
+-import { useEffect, useState } from 'react';
+-import Link from 'next/link';
++import Link from "next/link";
++import { usePosters } from "@/app/lib/usePosters";
++import PosterCard from "@/app/components/PosterCard";
+ 
+-type Poster = {
+-  _id: string;
+-  id: string;
+-  title: string;
+-  author: string;
+-  uploadedAt: string;
+-};
++export default function SelectedPage() {
++  const { loading, starredPosterIds, starredPosters, toggleStar } = usePosters();
+ 
+-function firstAuthor(author: string) {
+-  const a = String(author || '').trim();
+-  if (!a) return '';
+-  // handle "A, B, C" or "A; B; C"
+-  return a.split(/[,;]+/)[0].trim();
+-}
+-//FETCH POSTERS
+-export default function HomePage() {
+-  const [posters, setPosters] = useState<Poster[]>([]);
+-  const [loading, setLoading] = useState(true);
+-  const [starredPosterIds, setStarredPosterIds] = useState<string[]>([]);
+-  useEffect(() => {
+-    fetchPosters();
+-    fetchStars();
+-
+-    const onFocus = () => {
+-      fetchStars();
+-    };
+-
+-    window.addEventListener("focus", onFocus);
+-    return () => window.removeEventListener("focus", onFocus);
+-  }, []);
+-
+-  async function fetchPosters() {
+-    try {
+-      const response = await fetch('/api/posters');
+-      if (response.ok) {
+-        const data = await response.json();
+-        setPosters(data);
+-      }
+-    } catch (error) {
+-      console.error('Error fetching posters:', error);
+-    } finally {
+-      setLoading(false);
+-    }
+-  }
+-  async function fetchStars() {
+-    try {
+-      const response = await fetch('/api/stars');
+-      if (response.ok) {
+-        const data = await response.json();
+-        setStarredPosterIds(data.map((s: any) => s.posterId));
+-      }
+-    } catch (error) {
+-      console.error('Error fetching stars:', error);
+-    }
+-  }
+-  async function toggleLibraryStar(posterId: string) {
+-    const alreadyStarred = starredPosterIds.includes(posterId);
+-
+-    try {
+-      const res = await fetch(
+-        alreadyStarred
+-          ? `/api/stars?posterId=${encodeURIComponent(posterId)}`
+-          : `/api/stars`,
+-        {
+-          method: alreadyStarred ? "DELETE" : "POST",
+-          headers: alreadyStarred ? undefined : { "Content-Type": "application/json" },
+-          body: alreadyStarred ? undefined : JSON.stringify({ posterId }),
+-        }
+-      );
+-
+-      if (!res.ok) {
+-        const text = await res.text();
+-        console.error("Failed to toggle library star", res.status, text);
+-        return;
+-      }
+-
+-      setStarredPosterIds((prev) =>
+-        alreadyStarred ? prev.filter((id) => id !== posterId) : [...prev, posterId]
+-      );
+-    } catch (error) {
+-      console.error("Error toggling star:", error);
+-    }
+-  }
+-  const starredPosters = posters.filter((poster) =>
+-    starredPosterIds.includes(poster.id)
+-  );
+-  const unstarredPosters = posters.filter(
+-    (poster) => !starredPosterIds.includes(poster.id)
+-  );
+-  //PRINT HEADER
+   return (
+     <div className="min-h-screen bg-gray-50">
+       <div className="container mx-auto p-4 md:p-8 max-w-6xl">
+-      <div className="flex items-center justify-between mb-8">
+-  <div className="flex items-center gap-4">
+-    <h1 className="text-3xl md:text-4xl font-bold text-gray-500">
+-      Selected
+-    </h1>
+-
+-    <div className="flex gap-2">
+-      <Link
+-        href="/"
+-        className="px-3 py-1.5 rounded border text-gray-700 border-gray-300 bg-white text-sm hover:bg-gray-50"
+-      >
+-        Conference
+-      </Link>
+-
+-
+-    </div>
+-  </div>
+-
+-  <Link href="/" className="shrink-0">
+-    <img src="/1stcite-logo.png" alt="1stCite" className="h-10 w-auto" />
+-  </Link>
+-</div>
++        <div className="flex items-center justify-between mb-8">
++          <div className="flex items-center gap-4">
++            <h1 className="text-3xl md:text-4xl font-bold text-gray-500">Selected</h1>
++            <Link
++              href="/"
++              className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50"
++            >
++              Conference
++            </Link>
++          </div>
++          <Link href="/" className="shrink-0">
++            <img src="/1stcite-logo.png" alt="1stCite" className="h-10 w-auto" />
++          </Link>
++        </div>
+ 
+         {loading ? (
+           <div className="text-center py-12">
+             <p className="text-gray-600">Loading presentations...</p>
+           </div>
+-        ) : posters.length === 0 ? (
++        ) : starredPosters.length === 0 ? (
+           <div className="text-center py-12 bg-white rounded-lg shadow">
+-            <p className="text-xl text-gray-600">No presentations yet</p>
++            <p className="text-xl text-gray-600">No selected presentations yet</p>
++            <p className="text-sm text-gray-400 mt-2">
++              Star presentations from the{" "}
++              <Link href="/" className="underline">conference view</Link>{" "}
++              to save them here.
++            </p>
+           </div>
+         ) : (
+-          <>
+-            {starredPosters.length > 0 && (
+-              <div className="mb-8">
+-                
+-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+-                  {starredPosters.map((poster) => {
+-                    const isStarred = starredPosterIds.includes(poster.id);
+-
+-                    return (
+-                      <div
+-                        key={`starred-${poster._id}`}
+-                        className="bg-yellow-50 rounded-lg shadow-sm hover:shadow-md transition-shadow p-5 border border-yellow-200"
+-                      >
+-                        <Link href={`/view/${poster.id}`} className="block">
+-                          <div className="text-base font-semibold text-gray-900 leading-snug line-clamp-2">
+-                            {poster.title}
+-                          </div>
+-                        </Link>
+-
+-                        <div className="mt-2 flex items-center justify-between">
+-                          {poster.author ? (
+-                            <div className="text-sm text-gray-600">by {firstAuthor(poster.author)}</div>
+-                          ) : (
+-                            <div />
+-                          )}
+-
+-                          <button
+-                            onClick={() => toggleLibraryStar(poster.id)}
+-                            className="text-sm text-gray-600 px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
+-                          >
+-                            {isStarred ? "★" : "☆"}
+-                          </button>
+-                        </div>
+-                      </div>
+-                    );
+-                  })}
+-                </div>
+-              </div>
+-            )}
+-
+-            
+-          </>
++          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
++            {starredPosters.map((poster) => (
++              <PosterCard
++                key={poster._id}
++                poster={poster}
++                isStarred={starredPosterIds.includes(poster.id)}
++                onToggleStar={toggleStar}
++                variant="starred"
++              />
++            ))}
++          </div>
+         )}
+       </div>
+     </div>
+   );
+-}
+\ No newline at end of file
++}
+diff --git a/app/starred/page.tsx b/app/starred/page.tsx
+deleted file mode 100644
+index 9fad8b2..0000000
+--- a/app/starred/page.tsx
++++ /dev/null
+@@ -1,50 +0,0 @@
+-'use client';
+-
+-import { useEffect, useState } from "react";
+-
+-export default function StarredPage() {
+-  const [posters, setPosters] = useState([]);
+-
+-  useEffect(() => {
+-    async function loadStarred() {
+-      const res = await fetch("/api/stars");
+-      if (!res.ok) return;
+-
+-      const stars = await res.json();
+-
+-      const posterIds = stars.map((s: any) => s.posterId);
+-
+-      const postersRes = await fetch("/api/posters");
+-      if (!postersRes.ok) return;
+-
+-      const allPosters = await postersRes.json();
+-
+-      const starredPosters = allPosters.filter((p: any) =>
+-        posterIds.includes(p.id)
+-      );
+-
+-      setPosters(starredPosters);
+-    }
+-
+-    loadStarred();
+-  }, []);
+-
+-  return (
+-    <div className="p-6">
+-      <h1 className="text-xl font-semibold mb-4">My Starred Presentations</h1>
+-
+-      <div className="space-y-3">
+-        {posters.map((p: any) => (
+-          <a
+-            key={p.id}
+-            href={`/poster/${p.id}`}
+-            className="block border rounded-lg p-4 hover:bg-gray-50"
+-          >
+-            <div className="font-medium">{p.title}</div>
+-            <div className="text-sm text-gray-600">{p.author}</div>
+-          </a>
+-        ))}
+-      </div>
+-    </div>
+-  );
+-}
+\ No newline at end of file
+diff --git a/proxy.ts b/middleware.ts
+similarity index 95%
+rename from proxy.ts
+rename to middleware.ts
+index d9bae5f..291cce6 100644
+--- a/proxy.ts
++++ b/middleware.ts
+@@ -1,9 +1,9 @@
+-// proxy.ts
++// middleware.ts
+ import { NextResponse } from "next/server";
+ import type { NextRequest } from "next/server";
+ import { SESSION_COOKIE } from "@/app/lib/auth";
+ 
+-export async function proxy(req: NextRequest) {
++export async function middleware(req: NextRequest) {
+   const { pathname } = req.nextUrl;
+ 
+   // Always allow static + api
+diff --git a/redeploy.txt b/redeploy.txt
+deleted file mode 100644
+index e69de29..0000000
+-- 
+2.43.0
+
+
+From 4fa09efaf48ea28da29bd8757a76fa4ef6443d2a Mon Sep 17 00:00:00 2001
+From: 1stCite Refactor <refactor@1stcite.dev>
+Date: Thu, 26 Mar 2026 21:07:37 +0000
+Subject: [PATCH 2/2] fix: remove mongodb import chain from middleware (Edge
+ runtime crash)
+
+---
+ middleware.ts | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/middleware.ts b/middleware.ts
+index 291cce6..fd9e233 100644
+--- a/middleware.ts
++++ b/middleware.ts
+@@ -1,7 +1,10 @@
+ // middleware.ts
+ import { NextResponse } from "next/server";
+ import type { NextRequest } from "next/server";
+-import { SESSION_COOKIE } from "@/app/lib/auth";
++
++// Defined inline to avoid importing from app/lib/auth, which pulls in
++// mongodb (a Node.js module) and crashes the Edge runtime.
++const SESSION_COOKIE = "px_session";
+ 
+ export async function middleware(req: NextRequest) {
+   const { pathname } = req.nextUrl;
+@@ -54,4 +57,4 @@ export async function middleware(req: NextRequest) {
+ 
+ export const config = {
+   matcher: ["/", "/view/:path*"],
+-};
+\ No newline at end of file
++};
+-- 
+2.43.0
+
