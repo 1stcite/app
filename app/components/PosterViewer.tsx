@@ -614,13 +614,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
             </div>
           </div>
         )}
-        <button
-          onClick={() => toggleStar(posterId, isStarred)}
-          className="px-3 py-1.5 rounded-md border border-gray-300 bg-white text-sm text-gray-900 hover:bg-gray-50"
-          title={isStarred ? "Remove star" : "Star this presentation"}
-        >
-          {isStarred ? "★ Starred" : "☆ Star"}
-        </button>
+
         {/* ************MOBILE (2-mode: portrait + landscape-fullscreen) ************ */}
         <div
           className={
@@ -630,36 +624,18 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
           }
         >
           {/* Portrait header row */}
-          {!isMobileLandscape && (
-            <div className="flex items-center justify-between w-full">
-              <div className="text-sm font-medium text-gray-900">
-                Slide {pageNumber} / {numPages || '?'}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetTransformRef.current?.();
-                    setMobileZoomed(false);
-                  }}
-                  className="px-2 py-1.5 rounded border bg-white text-sm text-gray-700"
-                >
-                  Fit
-                </button>
-                {requireLogin && (
-                  <button
-                    type="button"
-                    onClick={openCommentComposer}
-                    className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm font-medium"
-                  >
-                    Comment
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
+          <div className="flex items-center gap-3 w-full">
+  <div className="text-sm font-medium text-gray-900">
+    Slide {pageNumber} / {numPages || '?'}
+  </div>
+  <button
+    onClick={() => toggleStar(posterId, isStarred)}
+    className="px-3 py-1.5 rounded-md border border-gray-300 bg-white text-sm text-gray-900 hover:bg-gray-50"
+    title={isStarred ? "Remove star" : "Star this presentation"}
+  >
+    {isStarred ? "★ Starred" : "☆ Star"}
+  </button>
+</div>
           {/* Viewer container */}
           <div
             ref={mobileMeasure.ref}
