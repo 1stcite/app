@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
 import { getSessionUser } from "@/app/lib/auth";
+import { extractPdfText } from "@/app/lib/extractPdfText";
 
 export async function GET() {
   try {
@@ -57,6 +58,22 @@ export async function POST(request: NextRequest) {
     };
 
     const result = await db.collection("posters").insertOne(poster);
+
+    // Kick off PDF text extraction in the background — don't await so the upload
+    // response is fast. textContent will be populated within seconds.
+    extractPdfText(fileUrl).then(async (textContent) => {
+      if (!textContent) return;
+      try {
+        const dbForUpdate = await getDb();
+        await dbForUpdate.collection("posters").updateOne(
+          { id },
+          { $set: { textContent, textIndexedAt: new Date() } }
+        );
+      } catch (e) {
+        console.error("Failed to store textContent for poster", id, e);
+      }
+    });
+
     return NextResponse.json({ ...poster, _id: result.insertedId }, { status: 201 });
   } catch (error) {
     console.error("POST /api/posters failed:", error);
