@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import clientPromise from "@/app/lib/mongodb";
+import { getDb } from "@/app/lib/db";
 import { ObjectId } from "mongodb";
 import { randomBytes } from "crypto";
 
@@ -14,8 +14,7 @@ export async function createSession(displayName: string) {
   const name = String(displayName || "").trim();
   if (!name) throw new Error("Display name required");
 
-  const client = await clientPromise;
-  const db = client.db();
+  const db = await getDb();
   const now = new Date();
 
   const userRes = await db.collection("users").insertOne({
@@ -38,12 +37,11 @@ export async function createSession(displayName: string) {
 }
 
 export async function getSessionUser(): Promise<AuthedUser | null> {
-    const cookieStore = await cookies();
-    const token = cookieStore.get(SESSION_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
-  const client = await clientPromise;
-  const db = client.db();
+  const db = await getDb();
   const now = new Date();
 
   const session = await db.collection("sessions").findOne({
@@ -54,10 +52,9 @@ export async function getSessionUser(): Promise<AuthedUser | null> {
 
   if (!session) return null;
 
-  const user = await db.collection("users").findOne(
-    { _id: session.userId },
-    { projection: { displayName: 1 } }
-  );
+  const user = await db
+    .collection("users")
+    .findOne({ _id: session.userId }, { projection: { displayName: 1 } });
 
   if (!user) return null;
 
@@ -70,12 +67,11 @@ export async function getSessionUser(): Promise<AuthedUser | null> {
 }
 
 export async function revokeSession() {
-    const cookieStore = await cookies();
-    const token = cookieStore.get(SESSION_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return;
 
-  const client = await clientPromise;
-  const db = client.db();
+  const db = await getDb();
 
   await db.collection("sessions").updateOne(
     { token, revokedAt: { $exists: false } },

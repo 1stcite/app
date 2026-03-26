@@ -1,21 +1,10 @@
-// app/api/comments/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import clientPromise from "@/app/lib/mongodb";
+import { getDb } from "@/app/lib/db";
+import { getRequireLogin } from "@/app/lib/config";
 import { ObjectId } from "mongodb";
 import { getSessionUser } from "@/app/lib/auth";
 
 const allowedVisibility = new Set(["public", "question", "note"]);
-
-async function getRequireLogin(): Promise<boolean> {
-  const client = await clientPromise;
-  const db = client.db();
-
-  const cfg = await db
-    .collection<{ _id: string; requireLogin?: boolean }>("config")
-    .findOne({ _id: "app" });
-
-  return Boolean(cfg?.requireLogin);
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -31,9 +20,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Login required" }, { status: 401 });
     }
 
-    const client = await clientPromise;
-    const db = client.db();
-
+    const db = await getDb();
     const sessionUserId = user ? String(user._id) : undefined;
 
     const poster = await db
@@ -52,27 +39,17 @@ export async function GET(req: NextRequest) {
 
     const visibleComments = comments.filter((comment) => {
       const visibility = comment.visibilityType ?? "public";
-
       if (visibility === "public") return true;
       if (!sessionUserId) return false;
-
       const ownerId = String(comment.userId);
-
-      if (visibility === "note") {
-        return ownerId === sessionUserId;
-      }
-
+      if (visibility === "note") return ownerId === sessionUserId;
       if (visibility === "question") {
         return ownerId === sessionUserId || presenterUserId === sessionUserId;
       }
-
       return false;
     });
 
-    return NextResponse.json({
-      comments: visibleComments,
-      sessionUserId,
-    });
+    return NextResponse.json({ comments: visibleComments, sessionUserId });
   } catch (e) {
     console.error("GET /api/comments error:", e);
     return NextResponse.json({ error: "Failed to fetch comments" }, { status: 500 });
@@ -108,8 +85,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db();
+    const db = await getDb();
 
     const comment = {
       posterId,
@@ -118,12 +94,10 @@ export async function POST(req: NextRequest) {
       author: user.displayName,
       userId: user._id,
       visibilityType,
-      routeMarker: "COMMENTS_POST_V2_TEST",
       timestamp: new Date(),
     };
 
     const result = await db.collection("comments").insertOne(comment);
-
     return NextResponse.json({ ...comment, _id: result.insertedId });
   } catch (e) {
     console.error("POST /api/comments error:", e);
@@ -133,14 +107,9 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const requireLogin = await getRequireLogin();
     const user = await getSessionUser();
-
     if (!user) {
-      return NextResponse.json(
-        { error: requireLogin ? "Login required" : "Login required to delete" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Login required" }, { status: 401 });
     }
 
     const id = req.nextUrl.searchParams.get("id");
@@ -148,8 +117,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Comment id is required" }, { status: 400 });
     }
 
-    const client = await clientPromise;
-    const db = client.db();
+    const db = await getDb();
 
     const result = await db.collection("comments").deleteOne({
       _id: new ObjectId(id),
@@ -157,7 +125,10 @@ export async function DELETE(req: NextRequest) {
     });
 
     if (result.deletedCount === 0) {
-      return NextResponse.json({ error: "Comment not found (or not yours)" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Comment not found (or not yours)" },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json({ success: true });
