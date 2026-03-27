@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
 
     const siteId = process.env.NEXT_PUBLIC_SITE_ID;
     const filter: Record<string, any> = { deletedAt: { $exists: false } };
-    if (siteId) filter.source = siteId;
+    // presentrxiv is the repository — search across all conferences
+    if (siteId && siteId !== "presentrxiv") filter.source = siteId;
 
     const posters = await db
       .collection("posters")
