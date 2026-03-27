@@ -8,6 +8,7 @@ export type Poster = {
   title: string;
   author: string;
   uploadedAt: string;
+  source?: string;
 };
 
 export function usePosters() {

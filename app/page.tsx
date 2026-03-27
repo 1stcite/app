@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePosters } from "@/app/lib/usePosters";
 import PosterCard from "@/app/components/PosterCard";
@@ -9,19 +9,44 @@ function normalize(s: string) {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+const SITE_ID = process.env.NEXT_PUBLIC_SITE_ID ?? "";
+
+const LOGO =
+  SITE_ID === "presentrxiv" ? "/presentrxiv-logo.png" :
+  SITE_ID === "1stcite-demo" ? "/LSW-logo.png" :
+  "/1stcite-logo.png";
+
+const LOGO_ALT =
+  SITE_ID === "presentrxiv" ? "PresentrXiv" :
+  SITE_ID === "1stcite-demo" ? "LSW Demo" :
+  "1stCite";
+
+// Only show conference filter on presentrxiv
+const IS_REPO = SITE_ID === "presentrxiv";
+
 export default function HomePage() {
   const { posters, loading, starredPosterIds, toggleStar } = usePosters();
   const [query, setQuery] = useState("");
+  const [conference, setConference] = useState("");
+  const [conferences, setConferences] = useState<string[]>([]);
 
-  const filtered = query.trim()
-    ? posters.filter((p) => {
-        const q = normalize(query);
-        return (
-          normalize(p.title || "").includes(q) ||
-          normalize(p.author || "").includes(q)
-        );
-      })
-    : posters;
+  useEffect(() => {
+    if (!IS_REPO) return;
+    fetch("/api/conferences")
+      .then((r) => r.json())
+      .then(setConferences)
+      .catch(() => {});
+  }, []);
+
+  const filtered = posters.filter((p) => {
+    const q = normalize(query);
+    const matchesQuery =
+      !q ||
+      normalize(p.title || "").includes(q) ||
+      normalize(p.author || "").includes(q);
+    const matchesConference = !conference || p.source === conference;
+    return matchesQuery && matchesConference;
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -41,27 +66,40 @@ export default function HomePage() {
             </Link>
           </div>
           <Link href="/" className="shrink-0">
-            <img src="/LSW-logo.png" alt="1stCite" className="h-10 w-auto" />
+            <img src={LOGO} alt={LOGO_ALT} className="h-10 w-auto" />
           </Link>
         </div>
 
-        {/* Search bar */}
-        <div className="mb-6">
+        {/* Search + conference filter */}
+        <div className="mb-6 flex flex-wrap gap-3">
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by title or author…"
-            className="w-full max-w-xl px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="flex-1 min-w-[200px] max-w-xl px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
-          {query.trim() && (
-            <p className="mt-2 text-sm text-gray-500">
-              {filtered.length === 0
-                ? "No presentations match your search."
-                : `${filtered.length} of ${posters.length} presentation${posters.length !== 1 ? "s" : ""}`}
-            </p>
+          {IS_REPO && conferences.length > 0 && (
+            <select
+              value={conference}
+              onChange={(e) => setConference(e.target.value)}
+              className="px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-sm text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All conferences</option>
+              {conferences.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
           )}
         </div>
+
+        {(query.trim() || conference) && (
+          <p className="mb-4 text-sm text-gray-500">
+            {filtered.length === 0
+              ? "No presentations match."
+              : `${filtered.length} of ${posters.length} presentation${posters.length !== 1 ? "s" : ""}`}
+          </p>
+        )}
 
         {/* Grid */}
         {loading ? (
