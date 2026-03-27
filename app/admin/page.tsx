@@ -3,21 +3,25 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
+const SOURCES = ['1stcite', 'presentrxiv', '1stcite-demo'];
+
 type Poster = {
   _id: string;
   id: string;
   title: string;
   author: string;
   uploadedAt: string;
+  source?: string;
 };
 
 export default function AdminPage() {
   const [posters, setPosters] = useState<Poster[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // ✅ MUST be inside component
   const [requireLogin, setRequireLogin] = useState<boolean>(false);
   const [savingCfg, setSavingCfg] = useState(false);
+  const [savingSource, setSavingSource] = useState<string | null>(null);
+  const [bulkSource, setBulkSource] = useState('1stcite');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchPosters();
@@ -55,7 +59,7 @@ export default function AdminPage() {
 
   async function fetchPosters() {
     try {
-      const response = await fetch('/api/posters');
+      const response = await fetch('/api/admin/posters');
       if (response.ok) {
         const data = await response.json();
         setPosters(data);
@@ -67,28 +71,67 @@ export default function AdminPage() {
     }
   }
 
+  async function updateSource(id: string, source: string) {
+    setSavingSource(id);
+    try {
+      await fetch('/api/admin/posters', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id, source }),
+      });
+      setPosters((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, source } : p))
+      );
+    } finally {
+      setSavingSource(null);
+    }
+  }
+
+  async function bulkTag() {
+    if (selected.size === 0) return;
+    const ids = [...selected];
+    await Promise.all(ids.map((id) => updateSource(id, bulkSource)));
+    setSelected(new Set());
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setSelected(new Set(posters.map((p) => p.id)));
+  }
+
   async function deletePoster(id: string) {
     if (!confirm('Delete this presentation?')) return;
-
     try {
       const res = await fetch(`/api/posters/${id}`, { method: 'DELETE' });
-
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         alert(j?.error ?? 'Delete failed');
         return;
       }
-
       setPosters((prev) => prev.filter((p) => p.id !== id));
-    } catch (err) {
-      console.error('Delete failed:', err);
+    } catch {
       alert('Delete failed');
     }
   }
 
+  const sourceColor = (source?: string) => {
+    if (source === '1stcite') return 'bg-blue-100 text-blue-800';
+    if (source === 'presentrxiv') return 'bg-green-100 text-green-800';
+    if (source === '1stcite-demo') return 'bg-purple-100 text-purple-800';
+    return 'bg-gray-100 text-gray-500';
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto p-4 md:p-8 max-w-6xl">
+
         <div className="flex items-center justify-between mb-6">
           <div className="space-y-2">
             <div className="flex items-baseline gap-4">
@@ -97,8 +140,6 @@ export default function AdminPage() {
                 Open attendee library →
               </Link>
             </div>
-
-            {/* ✅ Login gate toggle */}
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-700">Require login for attendees</span>
               <button
@@ -115,21 +156,52 @@ export default function AdminPage() {
               </button>
             </div>
           </div>
-
           <Link href="/" className="shrink-0">
             <img src="/1stcite-logo.png" alt="1stCite" className="h-10 w-auto" />
           </Link>
         </div>
+
         <button
-  type="button"
-  onClick={async () => {
-    await fetch("/api/logout", { method: "POST" });
-    window.location.href = "/";
-  }}
-  className="text-sm text-gray-600 hover:underline"
->
-  Logout
-</button>
+          type="button"
+          onClick={async () => {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/';
+          }}
+          className="text-sm text-gray-600 hover:underline mb-6 block"
+        >
+          Logout
+        </button>
+
+        {posters.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 flex flex-wrap items-center gap-3">
+            <span className="text-sm font-medium text-gray-700">Bulk tag:</span>
+            <button onClick={selectAll} className="text-sm text-blue-600 hover:underline">
+              Select all ({posters.length})
+            </button>
+            {selected.size > 0 && (
+              <button onClick={() => setSelected(new Set())} className="text-sm text-gray-500 hover:underline">
+                Clear ({selected.size} selected)
+              </button>
+            )}
+            <select
+              value={bulkSource}
+              onChange={(e) => setBulkSource(e.target.value)}
+              className="text-sm border border-gray-300 rounded px-2 py-1 text-gray-800"
+            >
+              {SOURCES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <button
+              onClick={bulkTag}
+              disabled={selected.size === 0}
+              className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-40"
+            >
+              Apply to {selected.size || '…'} selected
+            </button>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-12">
             <p className="text-gray-600">Loading presentations...</p>
@@ -137,10 +209,7 @@ export default function AdminPage() {
         ) : posters.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-lg shadow">
             <p className="text-xl text-gray-600 mb-4">No presentations yet</p>
-            <Link
-              href="/upload"
-              className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
+            <Link href="/upload" className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
               Upload the First One
             </Link>
           </div>
@@ -150,32 +219,60 @@ export default function AdminPage() {
               {posters.map((poster) => (
                 <div
                   key={poster._id}
-                  className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow p-6 border border-gray-200 flex flex-col"
+                  onClick={() => toggleSelect(poster.id)}
+                  className={[
+                    'bg-white rounded-lg shadow-md p-5 border-2 flex flex-col cursor-pointer transition-all',
+                    selected.has(poster.id) ? 'border-blue-500 shadow-blue-100' : 'border-transparent hover:shadow-lg',
+                  ].join(' ')}
                 >
-                  <h2 className="text-xl font-bold mb-2 text-gray-900 line-clamp-2">{poster.title}</h2>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${sourceColor(poster.source)}`}>
+                      {poster.source || 'untagged'}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(poster.id)}
+                      onChange={() => toggleSelect(poster.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-4 h-4 accent-blue-600"
+                    />
+                  </div>
+
+                  <h2 className="text-base font-bold mb-1 text-gray-900 line-clamp-2">{poster.title}</h2>
                   <p className="text-sm text-gray-600 mb-3">by {poster.author}</p>
-                  <p className="text-xs text-gray-500 mb-4">
-                    Uploaded {new Date(poster.uploadedAt).toLocaleDateString()}
-                  </p>
 
-                  <div className="mt-auto flex items-center justify-between">
-                    <Link href={`/view/${poster.id}`} className="text-blue-600 font-medium text-sm hover:underline">
-                      View →
-                    </Link>
+                  <div className="mt-auto space-y-3">
+                    <select
+                      value={poster.source || ''}
+                      onChange={(e) => { e.stopPropagation(); updateSource(poster.id, e.target.value); }}
+                      onClick={(e) => e.stopPropagation()}
+                      disabled={savingSource === poster.id}
+                      className="w-full text-sm border border-gray-300 rounded px-2 py-1.5 text-gray-800"
+                    >
+                      <option value="">— untagged —</option>
+                      {SOURCES.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
 
-                    <button onClick={() => deletePoster(poster.id)} className="text-sm text-red-600 hover:underline">
-                      Delete
-                    </button>
+                    <div className="flex items-center justify-between">
+                      <Link href={`/view/${poster.id}`} onClick={(e) => e.stopPropagation()} className="text-blue-600 font-medium text-sm hover:underline">
+                        View →
+                      </Link>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deletePoster(poster.id); }}
+                        className="text-sm text-red-600 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
 
             <div className="hidden md:block mt-8 pt-6 border-t">
-              <Link
-                href="/upload"
-                className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
+              <Link href="/upload" className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
                 Upload Presentations
               </Link>
             </div>
