@@ -6,9 +6,13 @@ import { extractPdfText } from "@/app/lib/extractPdfText";
 export async function GET() {
   try {
     const db = await getDb();
+    const siteId = process.env.NEXT_PUBLIC_SITE_ID;
+    const filter: Record<string, any> = { deletedAt: { $exists: false } };
+    if (siteId) filter.source = siteId;
+
     const posters = await db
       .collection("posters")
-      .find({ deletedAt: { $exists: false } })
+      .find(filter)
       .sort({ uploadedAt: -1 })
       .toArray();
     return NextResponse.json(posters);
@@ -48,6 +52,8 @@ export async function POST(request: NextRequest) {
     const db = await getDb();
     const id = Date.now().toString();
 
+    const siteId = process.env.NEXT_PUBLIC_SITE_ID;
+
     const poster = {
       id,
       title,
@@ -55,6 +61,7 @@ export async function POST(request: NextRequest) {
       fileUrl,
       presenterUserId: user._id.toString(),
       uploadedAt: new Date(),
+      ...(siteId ? { source: siteId } : {}),
     };
 
     const result = await db.collection("posters").insertOne(poster);

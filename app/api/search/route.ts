@@ -15,9 +15,13 @@ export async function GET(req: NextRequest) {
   try {
     const db = await getDb();
 
+    const siteId = process.env.NEXT_PUBLIC_SITE_ID;
+    const filter: Record<string, any> = { deletedAt: { $exists: false } };
+    if (siteId) filter.source = siteId;
+
     const posters = await db
       .collection("posters")
-      .find({ deletedAt: { $exists: false } })
+      .find(filter)
       .project({ id: 1, title: 1, author: 1, fileUrl: 1, textContent: 1, uploadedAt: 1 })
       .toArray();
 
