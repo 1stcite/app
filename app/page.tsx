@@ -116,6 +116,9 @@ export default function HomePage() {
           </p>
         )}
 
+        {/* Session subhead */}
+        <p className="mb-4 text-sm font-medium text-gray-500">Day 2 — 11:00 am – 12:15 pm</p>
+
         {/* Grid */}
         {loading ? (
           <div className="text-center py-12">
@@ -126,7 +129,7 @@ export default function HomePage() {
             <p className="text-xl text-gray-600">No presentations yet</p>
           </div>
         ) : filtered.length === 0 ? null : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {filtered.map((poster) => (
               <PosterCard
                 key={poster._id}
