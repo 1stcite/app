@@ -457,26 +457,6 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
   }, []);
   const isMobileLandscape = isMobile && isLandscape;
 
-  // Auto-request browser fullscreen when phone goes landscape, exit when portrait
-  useEffect(() => {
-    if (!isMobile) return;
-
-    if (isLandscape) {
-      const el = document.documentElement;
-      if (el.requestFullscreen) {
-        el.requestFullscreen().catch(() => {});
-      } else if ((el as any).webkitRequestFullscreen) {
-        (el as any).webkitRequestFullscreen();
-      }
-    } else {
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
-      } else if ((document as any).webkitFullscreenElement) {
-        (document as any).webkitExitFullscreen?.();
-      }
-    }
-  }, [isMobile, isLandscape]);
-
   // Desktop center width
   const centerPageWidth = useMemo(() => {
     const w = centerMeasure.rect.width || 0;
@@ -748,6 +728,24 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 <div className="px-3 py-2 rounded-lg bg-white/90 border shadow text-sm text-gray-900">
                   {pageNumber}/{numPages || '?'}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+                      const el = document.documentElement;
+                      if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+                      else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
+                    } else {
+                      if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+                      else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+                    }
+                  }}
+                  className="px-3 py-2 rounded-lg bg-white/90 border shadow text-sm text-gray-900"
+                  title="Toggle fullscreen"
+                >
+                  ⛶
+                </button>
 
                 <button
                   type="button"
