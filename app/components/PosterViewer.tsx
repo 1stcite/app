@@ -457,6 +457,26 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
   }, []);
   const isMobileLandscape = isMobile && isLandscape;
 
+  // Auto-request browser fullscreen when phone goes landscape, exit when portrait
+  useEffect(() => {
+    if (!isMobile) return;
+
+    if (isLandscape) {
+      const el = document.documentElement;
+      if (el.requestFullscreen) {
+        el.requestFullscreen().catch(() => {});
+      } else if ((el as any).webkitRequestFullscreen) {
+        (el as any).webkitRequestFullscreen();
+      }
+    } else {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      } else if ((document as any).webkitFullscreenElement) {
+        (document as any).webkitExitFullscreen?.();
+      }
+    }
+  }, [isMobile, isLandscape]);
+
   // Desktop center width
   const centerPageWidth = useMemo(() => {
     const w = centerMeasure.rect.width || 0;
