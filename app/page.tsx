@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePosters } from "@/app/lib/usePosters";
+import { usePosters, type Poster } from "@/app/lib/usePosters";
 import PosterCard from "@/app/components/PosterCard";
 
 function normalize(s: string) {
@@ -29,6 +29,8 @@ export default function HomePage() {
   const [query, setQuery] = useState("");
   const [conference, setConference] = useState("");
   const [conferences, setConferences] = useState<string[]>([]);
+  const [searchResults, setSearchResults] = useState<Poster[] | null>(null);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     if (!IS_REPO) return;
@@ -38,14 +40,27 @@ export default function HomePage() {
       .catch(() => {});
   }, []);
 
-  const filtered = posters.filter((p) => {
-    const q = normalize(query);
-    const matchesQuery =
-      !q ||
-      normalize(p.title || "").includes(q) ||
-      normalize(p.author || "").includes(q);
+  // Use server-side search when query is present (searches title, author + abstract)
+  useEffect(() => {
+    if (!query.trim()) { setSearchResults(null); return; }
+    if (loading) return; // wait for posters to load before filtering results
+    const controller = new AbortController();
+    setSearching(true);
+    fetch(`/api/search?q=${encodeURIComponent(query.trim())}`, { signal: controller.signal })
+      .then((r) => r.json())
+      .then((data) => {
+        const resultIds = new Set(data.results?.map((r: any) => r.id) ?? []);
+        setSearchResults(posters.filter((p) => resultIds.has(p.id)));
+      })
+      .catch(() => {})
+      .finally(() => setSearching(false));
+    return () => controller.abort();
+  }, [query, posters, loading]);
+
+  const base = searchResults !== null ? searchResults : posters;
+  const filtered = base.filter((p) => {
     const matchesConference = !conference || p.source === conference;
-    return matchesQuery && matchesConference;
+    return matchesConference;
   });
 
   return (
@@ -76,7 +91,7 @@ export default function HomePage() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by title or author…"
+            placeholder="Search by title, author, or abstract…"
             className="flex-1 min-w-[200px] max-w-xl px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
           {IS_REPO && conferences.length > 0 && (
@@ -95,7 +110,7 @@ export default function HomePage() {
 
         {(query.trim() || conference) && (
           <p className="mb-4 text-sm text-gray-500">
-            {filtered.length === 0
+            {searching ? "Searching…" : filtered.length === 0
               ? "No presentations match."
               : `${filtered.length} of ${posters.length} presentation${posters.length !== 1 ? "s" : ""}`}
           </p>
