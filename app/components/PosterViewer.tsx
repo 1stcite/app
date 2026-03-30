@@ -1027,7 +1027,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
       {/* Abstract modal */}
       {abstractOpen && poster?.abstract && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50 p-4"
           onClick={() => setAbstractOpen(false)}
         >
           <div
