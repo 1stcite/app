@@ -369,6 +369,25 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
     }
   }
 
+  async function handleReplyComment(parentId: string, text: string) {
+    try {
+      await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          posterId,
+          page: commentTargetPage,
+          text,
+          visibilityType: 'public',
+          parentId,
+        }),
+      });
+      await fetchComments();
+    } catch (err) {
+      console.error('Reply failed:', err);
+    }
+  }
+
   async function handleDelete() {
     if (!confirm('Delete this presentation?')) return;
 
@@ -944,6 +963,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                   sessionUserId={sessionUserId}
                   onOpenAdd={openCommentComposer}
                   onDelete={handleDeleteComment}
+                  onReply={handleReplyComment}
                 />
               </div>
             </Panel>

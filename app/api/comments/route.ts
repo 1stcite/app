@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     const comments = await db
       .collection("comments")
       .find({ posterId })
-      .sort({ timestamp: -1 })
+      .sort({ timestamp: 1 })
       .toArray();
 
     const visibleComments = comments.filter((comment) => {
@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
     const page = body?.page;
     const text = String(body?.text || "").trim();
     const visibilityType = String(body?.visibilityType || "public");
+    const parentId = body?.parentId ? String(body.parentId) : undefined;
 
     if (!allowedVisibility.has(visibilityType)) {
       return NextResponse.json({ error: "Invalid visibilityType" }, { status: 400 });
@@ -95,6 +96,7 @@ export async function POST(req: NextRequest) {
       userId: user._id,
       visibilityType,
       timestamp: new Date(),
+      ...(parentId ? { parentId } : {}),
     };
 
     const result = await db.collection("comments").insertOne(comment);
