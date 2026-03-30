@@ -843,13 +843,6 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
               </div>
             </div>
           )}
-
-          {/* Portrait footer hint */}
-          {!isLandscape && (
-            <div className="text-center text-xs text-gray-700">
-              {mobileZoomed ? 'Drag to move • Pinch to zoom' : 'Swipe to change slides'}
-            </div>
-          )}
         </div>
 
         {/* Modal composer */}
