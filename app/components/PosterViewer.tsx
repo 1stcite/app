@@ -723,24 +723,13 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
 
           {/* Landscape right rail */}
           {isMobileLandscape && (
-            <div className="fixed right-2 top-1/2 -translate-y-1/2 z-[2000] pointer-events-none lg:hidden">
-              <div className="flex flex-col gap-2 pointer-events-auto">
+            <div className="fixed right-2 top-1/2 -translate-y-1/2 z-[2000] lg:hidden">
+              <div className="flex flex-col gap-2">
                 <div className="px-3 py-2 rounded-lg bg-white/90 border shadow text-sm text-gray-900">
                   {pageNumber}/{numPages || '?'}
                 </div>
 
 <button
-                  type="button"
-                  onClick={() => {
-                    resetTransformRef.current?.();
-                    setMobileZoomed(false);
-                  }}
-                  className="px-3 py-2 rounded-lg bg-white/90 border shadow text-sm text-gray-900"
-                >
-                  Fit
-                </button>
-
-                <button
                   type="button"
                   disabled={pageNumber <= 1}
                   onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
