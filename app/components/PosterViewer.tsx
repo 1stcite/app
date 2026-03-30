@@ -741,20 +741,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                   {pageNumber}/{numPages || '?'}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    const el = document.documentElement;
-                    if (el.requestFullscreen) el.requestFullscreen();
-                    else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
-                  }}
-                  className="px-3 py-2 rounded-lg bg-white/90 border shadow text-sm text-gray-900"
-                  title="Fullscreen"
-                >
-                  ⛶
-                </button>
-
-                <button
+<button
                   type="button"
                   onClick={() => {
                     resetTransformRef.current?.();
