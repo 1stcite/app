@@ -130,6 +130,14 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
   const [editCommentId, setEditCommentId] = useState<string | null>(null);
   const [composerInitialText, setComposerInitialText] = useState<string>('');
   const [abstractOpen, setAbstractOpen] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(false);
+  const controlsTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showControlsBriefly() {
+    setControlsVisible(true);
+    if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+    controlsTimerRef.current = setTimeout(() => setControlsVisible(false), 3000);
+  }
   //session User ID
   const [sessionUserId, setSessionUserId] = useState<string | undefined>(undefined);
   // Responsive
@@ -667,6 +675,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
             }
             onTouchStart={onSwipeStart}
             onTouchEnd={onSwipeEnd}
+            onClick={isMobileLandscape ? showControlsBriefly : undefined}
           >
             <div className="relative z-0 w-full h-full bg-white overflow-hidden">
               {mobilePageWidth <= 0 || fitWidth <= 0 ? (
@@ -723,7 +732,10 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
 
           {/* Landscape right rail */}
           {isMobileLandscape && (
-            <div className="fixed right-2 top-1/2 -translate-y-1/2 z-[2000] pointer-events-none lg:hidden">
+            <div
+              className="fixed right-2 top-1/2 -translate-y-1/2 z-[2000] pointer-events-none lg:hidden transition-opacity duration-300"
+              style={{ opacity: controlsVisible ? 1 : 0, pointerEvents: controlsVisible ? 'auto' : 'none' }}
+            >
               <div className="flex flex-col gap-2 pointer-events-auto">
                 <div className="px-3 py-2 rounded-lg bg-white/90 border shadow text-sm text-gray-900">
                   {pageNumber}/{numPages || '?'}
