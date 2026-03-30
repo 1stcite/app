@@ -732,17 +732,12 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
-                      const el = document.documentElement;
-                      if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
-                      else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
-                    } else {
-                      if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
-                      else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
-                    }
+                    const el = document.documentElement;
+                    if (el.requestFullscreen) el.requestFullscreen();
+                    else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
                   }}
                   className="px-3 py-2 rounded-lg bg-white/90 border shadow text-sm text-gray-900"
-                  title="Toggle fullscreen"
+                  title="Fullscreen"
                 >
                   ⛶
                 </button>
