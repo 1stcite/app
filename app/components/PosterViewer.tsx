@@ -31,6 +31,7 @@ type Poster = {
   author?: string;
   fileUrl?: string;
   filepath?: string;
+  abstract?: string;
 };
 
 /**
@@ -128,6 +129,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
   const [composerPage, setComposerPage] = useState<number>(1);
   const [editCommentId, setEditCommentId] = useState<string | null>(null);
   const [composerInitialText, setComposerInitialText] = useState<string>('');
+  const [abstractOpen, setAbstractOpen] = useState(false);
   //session User ID
   const [sessionUserId, setSessionUserId] = useState<string | undefined>(undefined);
   // Responsive
@@ -755,6 +757,15 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 >
                   Next
                 </button>
+                {poster?.abstract && (
+                  <button
+                    type="button"
+                    onClick={() => setAbstractOpen(true)}
+                    className="px-3 py-1.5 rounded bg-white/90 border shadow text-sm text-gray-900"
+                  >
+                    Abstract
+                  </button>
+                )}
                 {requireLogin && (
                   <button
                     type="button"
@@ -774,6 +785,15 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 <div className="text-sm font-semibold text-gray-800">
                   Comments <span className="text-gray-500 font-normal">({pageComments.length})</span>
                 </div>
+                {poster?.abstract && (
+                  <button
+                    type="button"
+                    onClick={() => setAbstractOpen(true)}
+                    className="px-3 py-1.5 rounded bg-white/90 border shadow text-sm text-gray-900"
+                  >
+                    Abstract
+                  </button>
+                )}
                 {requireLogin && (
                   <button
                     type="button"
@@ -970,6 +990,37 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
           </Group>
         </div>
       </div>
+
+      {/* Abstract modal */}
+      {abstractOpen && poster?.abstract && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setAbstractOpen(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">{poster.title}</h2>
+                {poster.author && <p className="text-sm text-gray-500">{poster.author}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={() => setAbstractOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div className="overflow-y-auto px-5 py-4">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Abstract</h3>
+              <p className="text-sm text-gray-900 leading-relaxed whitespace-pre-wrap">{poster.abstract}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
     </Document>
   );

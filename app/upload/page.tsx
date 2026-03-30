@@ -7,6 +7,7 @@ export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
+  const [abstract, setAbstract] = useState('');
   const [uploading, setUploading] = useState(false);
   const router = useRouter();
 
@@ -47,6 +48,7 @@ export default function UploadPage() {
           title: title.trim(),
           author: author.trim() || 'Anonymous',
           fileUrl,
+          abstract: abstract.trim() || undefined,
         }),
       });
 
@@ -100,6 +102,19 @@ export default function UploadPage() {
               onChange={(e) => setAuthor(e.target.value)}
               placeholder="Your name (optional)"
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+            />
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Abstract
+            </label>
+            <textarea
+              value={abstract}
+              onChange={(e) => setAbstract(e.target.value)}
+              placeholder="Paste your abstract here (optional — enables full-text search)"
+              rows={5}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 resize-vertical"
             />
           </div>
 

@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
     const title = (body?.title ?? "").toString().trim();
     const author = (body?.author ?? "").toString().trim();
     const fileUrl = (body?.fileUrl || body?.url || "").toString().trim();
+    const abstract = (body?.abstract || "").toString().trim() || undefined;
 
     if (!title || !fileUrl) {
       return NextResponse.json(
@@ -63,24 +64,26 @@ export async function POST(request: NextRequest) {
       presenterUserId: user._id.toString(),
       uploadedAt: new Date(),
       ...(siteId ? { source: siteId } : {}),
+      ...(abstract ? { abstract, textContent: abstract, textIndexedAt: new Date() } : {}),
     };
 
     const result = await db.collection("posters").insertOne(poster);
 
-    // Kick off PDF text extraction in the background — don't await so the upload
-    // response is fast. textContent will be populated within seconds.
-    extractPdfText(fileUrl).then(async (textContent) => {
-      if (!textContent) return;
-      try {
-        const dbForUpdate = await getDb();
-        await dbForUpdate.collection("posters").updateOne(
-          { id },
-          { $set: { textContent, textIndexedAt: new Date() } }
-        );
-      } catch (e) {
-        console.error("Failed to store textContent for poster", id, e);
-      }
-    });
+    // Only extract PDF text if no abstract was provided
+    if (!abstract) {
+      extractPdfText(fileUrl).then(async (textContent) => {
+        if (!textContent) return;
+        try {
+          const dbForUpdate = await getDb();
+          await dbForUpdate.collection("posters").updateOne(
+            { id },
+            { $set: { textContent, textIndexedAt: new Date() } }
+          );
+        } catch (e) {
+          console.error("Failed to store textContent for poster", id, e);
+        }
+      });
+    }
 
     return NextResponse.json({ ...poster, _id: result.insertedId }, { status: 201 });
   } catch (error) {
