@@ -892,39 +892,6 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                   className="min-w-0 rounded-lg border bg-white overflow-hidden"
                   style={{ maxHeight: 'calc(100vh - 76px - 240px - 12px)' }} // leave ~240px + gap for grid
                 >
-                  {/* Desktop toolbar */}
-                  <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={pageNumber <= 1}
-                        onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
-                        className="px-3 py-1 rounded border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-40"
-                      >
-                        ← Prev
-                      </button>
-                      <span className="text-sm text-gray-600">{pageNumber} / {numPages || '?'}</span>
-                      <button
-                        type="button"
-                        disabled={numPages === 0 || pageNumber >= numPages}
-                        onClick={() => setPageNumber((p) => Math.min(numPages, p + 1))}
-                        className="px-3 py-1 rounded border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-40"
-                      >
-                        Next →
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {poster?.abstract && (
-                        <button
-                          type="button"
-                          onClick={() => setAbstractOpen(true)}
-                          className="px-3 py-1 rounded border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-100"
-                        >
-                          Abstract
-                        </button>
-                      )}
-                    </div>
-                  </div>
                   <div className="h-full min-h-0 overflow-x-auto overflow-y-auto" style={{ touchAction: 'none' }}>
 
 
@@ -949,6 +916,19 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                   {numPages > 0 ? (
                     <div className="h-full overflow-y-auto p-3" style={{ scrollbarGutter: 'stable' }}>
                       <div className="grid grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
+                        {/* Abstract tile — only when abstract exists */}
+                        {poster?.abstract && (
+                          <button
+                            type="button"
+                            onClick={() => setAbstractOpen(true)}
+                            className="relative rounded-lg border border-gray-200 bg-blue-50 hover:bg-blue-100 overflow-hidden text-left p-2 flex flex-col items-center justify-center gap-1 aspect-[4/3]"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span className="text-xs text-blue-600 font-medium">Abstract</span>
+                          </button>
+                        )}
                         {Array.from({ length: numPages }).map((_, idx) => {
                           const p = idx + 1;
                           const active = p === pageNumber;
