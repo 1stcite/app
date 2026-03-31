@@ -116,8 +116,10 @@ export default function HomePage() {
           </p>
         )}
 
-        {/* Session subhead */}
-        <p className="mb-4 text-sm font-medium text-gray-500">Day 2 — 11:00 am – 12:15 pm</p>
+        {/* Session subhead — demo only */}
+        {SITE_ID === "1stcite-demo" && (
+          <p className="mb-4 text-sm font-medium text-gray-500">Day 2 — 11:00 am – 12:15 pm</p>
+        )}
 
         {/* Grid */}
         {loading ? (
