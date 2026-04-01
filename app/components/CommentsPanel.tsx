@@ -28,6 +28,9 @@ type CommentsPanelProps = {
   onOpenAdd: () => void;
   onDelete: (c: Comment) => void;
   onReply: (parentId: string, text: string) => Promise<void>;
+  slideNote?: string;
+  isPresenter?: boolean;
+  onSaveNote?: (note: string) => Promise<void>;
 };
 
 function CommentThread({
@@ -145,7 +148,22 @@ export default function CommentsPanel({
   onOpenAdd,
   onDelete,
   onReply,
+  slideNote,
+  isPresenter,
+  onSaveNote,
 }: CommentsPanelProps) {
+  const [noteText, setNoteText] = React.useState(slideNote ?? '');
+  const [savingNote, setSavingNote] = React.useState(false);
+
+  // Sync note text when page changes
+  React.useEffect(() => { setNoteText(slideNote ?? ''); }, [slideNote, page]);
+
+  async function handleSaveNote() {
+    if (!onSaveNote) return;
+    setSavingNote(true);
+    await onSaveNote(noteText);
+    setSavingNote(false);
+  }
   // Split into top-level and replies
   const topLevel = comments.filter((c) => !c.parentId);
   const replies = comments.filter((c) => !!c.parentId);

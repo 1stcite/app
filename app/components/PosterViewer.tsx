@@ -32,6 +32,8 @@ type Poster = {
   fileUrl?: string;
   filepath?: string;
   abstract?: string;
+  notes?: Record<string, string>;
+  presenterUserId?: string;
 };
 
 /**
@@ -387,6 +389,23 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
       await fetchComments();
     } catch (err) {
       console.error('Reply failed:', err);
+    }
+  }
+
+  async function handleSaveNote(note: string) {
+    try {
+      await fetch(`/api/posters/${posterId}/notes`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ page: commentTargetPage, note }),
+      });
+      // Update local poster state so note reflects immediately
+      setPoster((prev) => prev ? {
+        ...prev,
+        notes: { ...prev.notes, [commentTargetPage]: note },
+      } : prev);
+    } catch (e) {
+      console.error('Save note failed:', e);
     }
   }
 
@@ -979,6 +998,9 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                   onOpenAdd={openCommentComposer}
                   onDelete={handleDeleteComment}
                   onReply={handleReplyComment}
+                  slideNote={poster?.notes?.[commentTargetPage] ?? ''}
+                  isPresenter={!!sessionUserId && !!poster?.presenterUserId && sessionUserId === poster.presenterUserId}
+                  onSaveNote={handleSaveNote}
                 />
               </div>
             </Panel>
