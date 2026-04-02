@@ -6,13 +6,27 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "1stCite",
-  description: "Conference presentation viewer",
+  title: "1stCite — Engaging Science",
+  description: "Conference Engagement Platform for Scientific Societies",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "1stCite",
+  },
+  openGraph: {
+    title: "1stCite — Engaging Science",
+    description: "Conference Engagement Platform for Scientific Societies",
+    url: "https://1stcite.com",
+    siteName: "1stCite",
+    images: [{ url: "https://1stcite.com/og-image.png", width: 1200, height: 630 }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "1stCite — Engaging Science",
+    description: "Conference Engagement Platform for Scientific Societies",
+    images: ["https://1stcite.com/og-image.png"],
   },
 };
 
