@@ -649,7 +649,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
               </div>
 
               <Link href="/" className="shrink-0">
-                <img src={process.env.NEXT_PUBLIC_SITE_ID === "presentrxiv" ? "/presentrxiv-logo.png" : process.env.NEXT_PUBLIC_SITE_ID === "1stcite-demo" ? "/LSW-logo.png" : "/1stcite-logo.png"} alt="1stCite" className="h-10 w-auto" />
+                <img src={process.env.NEXT_PUBLIC_SITE_LOGO ?? (process.env.NEXT_PUBLIC_SITE_ID === "presentrxiv" ? "/presentrxiv-logo.png" : process.env.NEXT_PUBLIC_SITE_ID === "1stcite-demo" ? "/LSW-logo.png" : "/1stcite-logo.png")} alt="1stCite" className="h-10 w-auto" />
               </Link>
             </div>
           </div>

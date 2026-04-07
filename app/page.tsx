@@ -11,15 +11,19 @@ function normalize(s: string) {
 
 const SITE_ID = process.env.NEXT_PUBLIC_SITE_ID ?? "";
 
-const LOGO =
-  SITE_ID === "presentrxiv" ? "/presentrxiv-logo.png" :
-  SITE_ID === "1stcite-demo" ? "/LSW-logo.png" :
-  "/1stcite-logo.png";
+// Logo and name driven by env vars — each conference instance sets its own
+const LOGO = process.env.NEXT_PUBLIC_SITE_LOGO ??
+  (SITE_ID === "presentrxiv" ? "/presentrxiv-logo.png" :
+   SITE_ID === "1stcite-demo" ? "/LSW-logo.png" :
+   "/1stcite-logo.png");
 
-const LOGO_ALT =
-  SITE_ID === "presentrxiv" ? "PresentrXiv" :
-  SITE_ID === "1stcite-demo" ? "LSW Demo" :
-  "1stCite";
+const LOGO_ALT = process.env.NEXT_PUBLIC_SITE_NAME ??
+  (SITE_ID === "presentrxiv" ? "PresentrXiv" :
+   SITE_ID === "1stcite-demo" ? "LSW Demo" :
+   "1stCite");
+
+// Session label shown below search bar (e.g. "Friday 14:30 – 16:00")
+const SESSION_LABEL = process.env.NEXT_PUBLIC_SESSION_LABEL ?? "";
 
 // Only show conference filter on presentrxiv
 const IS_REPO = SITE_ID === "presentrxiv";
@@ -116,9 +120,9 @@ export default function HomePage() {
           </p>
         )}
 
-        {/* Session subhead — demo only */}
-        {SITE_ID === "1stcite-demo" && (
-          <p className="mb-4 text-sm font-medium text-gray-500">Day 2 — 11:00 am – 12:15 pm</p>
+        {/* Session label — set via NEXT_PUBLIC_SESSION_LABEL env var */}
+        {SESSION_LABEL && (
+          <p className="mb-4 text-sm font-medium text-gray-500">{SESSION_LABEL}</p>
         )}
 
         {/* Grid */}
