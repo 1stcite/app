@@ -52,10 +52,11 @@ export async function middleware(req: NextRequest) {
   const subdomain = extractSubdomain(req);
 
   const isProtected = pathname === "/" || pathname.startsWith("/view/");
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-subdomain", subdomain);
+
   if (!isProtected) {
-    const res = NextResponse.next();
-    res.headers.set("x-subdomain", subdomain);
-    return res;
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   let requireLogin = false;
@@ -73,16 +74,12 @@ export async function middleware(req: NextRequest) {
   }
 
   if (!requireLogin) {
-    const res = NextResponse.next();
-    res.headers.set("x-subdomain", subdomain);
-    return res;
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   const hasSession = Boolean(req.cookies.get(SESSION_COOKIE)?.value);
   if (hasSession) {
-    const res = NextResponse.next();
-    res.headers.set("x-subdomain", subdomain);
-    return res;
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   const loginUrl = req.nextUrl.clone();
