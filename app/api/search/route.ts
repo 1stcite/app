@@ -23,12 +23,19 @@ export async function GET(req: NextRequest) {
   try {
     const db = await getDb();
 
-    const siteId = process.env.NEXT_PUBLIC_SITE_ID;
+    const { headers } = await import("next/headers");
+    const headersList = await headers();
+    const subdomain = headersList.get("x-subdomain") ?? process.env.NEXT_PUBLIC_SITE_ID ?? "";
+
     const filter: Record<string, any> = {
       $text: { $search: q },
       deletedAt: { $exists: false },
     };
-    if (siteId && siteId !== "presentrxiv") filter.source = siteId;
+    if (subdomain && subdomain !== "presentrxiv") {
+      const conf = await db.collection("conferences").findOne({ subdomain, active: true });
+      const sourceId = conf?.sourceId ?? subdomain;
+      filter.source = sourceId;
+    }
 
     const posters = await db
       .collection("posters")

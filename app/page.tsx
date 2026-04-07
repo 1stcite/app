@@ -4,31 +4,14 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePosters, type Poster } from "@/app/lib/usePosters";
 import PosterCard from "@/app/components/PosterCard";
+import { useConference } from "@/app/lib/conferenceContext";
 
 function normalize(s: string) {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-const SITE_ID = process.env.NEXT_PUBLIC_SITE_ID ?? "";
-
-// Logo and name driven by env vars — each conference instance sets its own
-const LOGO = process.env.NEXT_PUBLIC_SITE_LOGO ??
-  (SITE_ID === "presentrxiv" ? "/presentrxiv-logo.png" :
-   SITE_ID === "1stcite-demo" ? "/LSW-logo.png" :
-   "/1stcite-logo.png");
-
-const LOGO_ALT = process.env.NEXT_PUBLIC_SITE_NAME ??
-  (SITE_ID === "presentrxiv" ? "PresentrXiv" :
-   SITE_ID === "1stcite-demo" ? "LSW Demo" :
-   "1stCite");
-
-// Session label shown below search bar (e.g. "Friday 14:30 – 16:00")
-const SESSION_LABEL = process.env.NEXT_PUBLIC_SESSION_LABEL ?? "";
-
-// Only show conference filter on presentrxiv
-const IS_REPO = SITE_ID === "presentrxiv";
-
 export default function HomePage() {
+  const { name: LOGO_ALT, logo: LOGO, sessionLabel: SESSION_LABEL, isRepo: IS_REPO, sourceId: SITE_ID } = useConference();
   const { posters, loading, starredPosterIds, toggleStar } = usePosters();
   const [query, setQuery] = useState("");
   const [conference, setConference] = useState("");

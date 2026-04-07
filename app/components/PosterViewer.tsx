@@ -12,6 +12,7 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 
 import CommentComposerModal from './CommentComposerModal';
 import CommentsPanel, { type Comment } from './CommentsPanel';
+import { useConference } from '@/app/lib/conferenceContext';
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -102,6 +103,7 @@ function useVisualViewportSize() {
 //*************POSTERVIEWER FUNCTION *************************
 export default function PosterViewer({ posterId }: { posterId: string }) {
   const router = useRouter();
+  const { logo: siteLogo, name: siteName } = useConference();
 
   // --- refs used by mobile zoom ---
   const zoomSurfaceRef = useRef<HTMLDivElement | null>(null);
@@ -649,7 +651,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
               </div>
 
               <Link href="/" className="shrink-0">
-                <img src={process.env.NEXT_PUBLIC_SITE_LOGO ?? (process.env.NEXT_PUBLIC_SITE_ID === "presentrxiv" ? "/presentrxiv-logo.png" : process.env.NEXT_PUBLIC_SITE_ID === "1stcite-demo" ? "/LSW-logo.png" : "/1stcite-logo.png")} alt="1stCite" className="h-10 w-auto" />
+                <img src={siteLogo} alt={siteName} className="h-10 w-auto" />
               </Link>
             </div>
           </div>

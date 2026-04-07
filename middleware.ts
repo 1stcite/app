@@ -1,10 +1,35 @@
-// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Defined inline — importing from app/lib/auth pulls in mongodb,
-// which is a Node.js module that crashes the Edge runtime.
 const SESSION_COOKIE = "px_session";
+
+function extractSubdomain(req: NextRequest): string {
+  const host = req.headers.get("host") ?? "";
+  // Strip port if present
+  const hostname = host.split(":")[0];
+
+  // Extract subdomain from *.1stcite.app or *.1stcite.com
+  // e.g. iaprd.1stcite.app → iaprd
+  //      presentrxiv.vercel.app → presentrxiv
+  //      presentrxiv.org → presentrxiv
+  const patterns = [
+    /^(.+)\.1stcite\.app$/,
+    /^(.+)\.1stcite\.com$/,
+    /^(.+)\.presentrxiv\.org$/,
+    /^presentrxiv\.org$/,
+    /^presentrxiv\.vercel\.app$/,
+  ];
+
+  if (/^presentrxiv\.(org|vercel\.app)$/.test(hostname)) return "presentrxiv";
+
+  for (const pattern of patterns) {
+    const match = hostname.match(pattern);
+    if (match) return match[1];
+  }
+
+  // Fallback: use NEXT_PUBLIC_SITE_ID env var (for existing projects)
+  return process.env.NEXT_PUBLIC_SITE_ID ?? "1stcite";
+}
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -15,7 +40,7 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/favicon") ||
     pathname.startsWith("/robots") ||
     pathname.startsWith("/sitemap") ||
-    pathname.startsWith("/presentrxiv-logo.png")
+    pathname.match(/\.(png|jpg|svg|ico|webmanifest)$/)
   ) {
     return NextResponse.next();
   }
@@ -24,8 +49,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  const subdomain = extractSubdomain(req);
+
   const isProtected = pathname === "/" || pathname.startsWith("/view/");
-  if (!isProtected) return NextResponse.next();
+  if (!isProtected) {
+    const res = NextResponse.next();
+    res.headers.set("x-subdomain", subdomain);
+    return res;
+  }
 
   let requireLogin = false;
   try {
@@ -41,10 +72,18 @@ export async function middleware(req: NextRequest) {
     requireLogin = false;
   }
 
-  if (!requireLogin) return NextResponse.next();
+  if (!requireLogin) {
+    const res = NextResponse.next();
+    res.headers.set("x-subdomain", subdomain);
+    return res;
+  }
 
   const hasSession = Boolean(req.cookies.get(SESSION_COOKIE)?.value);
-  if (hasSession) return NextResponse.next();
+  if (hasSession) {
+    const res = NextResponse.next();
+    res.headers.set("x-subdomain", subdomain);
+    return res;
+  }
 
   const loginUrl = req.nextUrl.clone();
   loginUrl.pathname = "/login";
@@ -53,5 +92,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/view/:path*"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

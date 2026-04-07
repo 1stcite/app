@@ -6,10 +6,18 @@ import { extractPdfText } from "@/app/lib/extractPdfText";
 export async function GET() {
   try {
     const db = await getDb();
-    const siteId = process.env.NEXT_PUBLIC_SITE_ID;
+    // Get conference config from x-subdomain header (set by middleware)
+    const { headers } = await import("next/headers");
+    const headersList = await headers();
+    const subdomain = headersList.get("x-subdomain") ?? process.env.NEXT_PUBLIC_SITE_ID ?? "";
+
     const filter: Record<string, any> = { deletedAt: { $exists: false } };
-    // presentrxiv is the repository — show all conferences
-    if (siteId && siteId !== "presentrxiv") filter.source = siteId;
+    if (subdomain && subdomain !== "presentrxiv") {
+      // Look up sourceId from conferences collection
+      const conf = await db.collection("conferences").findOne({ subdomain, active: true });
+      const sourceId = conf?.sourceId ?? subdomain;
+      filter.source = sourceId;
+    }
 
     const posters = await db
       .collection("posters")
