@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 // Read PDF metadata in-browser using pdf.js
 async function extractPdfMeta(file: File): Promise<{ title: string; author: string }> {
   try {
-    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf');
+    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs' as string);
     pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
