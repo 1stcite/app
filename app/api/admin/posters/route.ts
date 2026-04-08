@@ -12,15 +12,30 @@ export async function GET() {
   return NextResponse.json(posters);
 }
 
-// Update source tag on a single poster
+// Update source tag or sortOrder on a single poster, or bulk reorder
 export async function PATCH(req: NextRequest) {
-  const { id, source } = await req.json().catch(() => ({}));
+  const body = await req.json().catch(() => ({}));
+
+  // Bulk reorder: { reorder: [{id, sortOrder}, ...] }
+  if (Array.isArray(body.reorder)) {
+    const db = await getDb();
+    await Promise.all(
+      body.reorder.map(({ id, sortOrder }: { id: string; sortOrder: number }) =>
+        db.collection("posters").updateOne({ id }, { $set: { sortOrder } })
+      )
+    );
+    return NextResponse.json({ ok: true });
+  }
+
+  // Single poster update: source and/or sortOrder
+  const { id, source, sortOrder } = body;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   const db = await getDb();
-  await db.collection("posters").updateOne(
-    { id },
-    { $set: { source: source || null } }
-  );
+  const update: Record<string, unknown> = {};
+  if (source !== undefined) update.source = source || null;
+  if (sortOrder !== undefined) update.sortOrder = sortOrder;
+
+  await db.collection("posters").updateOne({ id }, { $set: update });
   return NextResponse.json({ ok: true });
 }

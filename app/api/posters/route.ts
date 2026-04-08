@@ -22,7 +22,7 @@ export async function GET() {
     const posters = await db
       .collection("posters")
       .find(filter)
-      .sort({ uploadedAt: -1 })
+      .sort({ sortOrder: 1, uploadedAt: -1 })
       .toArray();
     return NextResponse.json(posters);
   } catch (error) {
