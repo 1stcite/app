@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { headers } from "next/headers";
 import { ConferenceProvider, type ConferenceConfig } from "@/app/lib/conferenceContext";
+import { getDb } from "@/app/lib/db";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -19,24 +20,27 @@ export const metadata: Metadata = {
 };
 
 async function getConferenceConfig(subdomain: string): Promise<ConferenceConfig> {
-  try {
-    // Use internal API — works in both dev and prod
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/api/conference?subdomain=${subdomain}`, {
-      cache: "no-store",
-    });
-    if (res.ok) return res.json();
-  } catch {}
-
-  return {
+  const DEFAULT: ConferenceConfig = {
     subdomain,
     name: "1stCite",
     logo: "/1stcite-logo.png",
     sourceId: subdomain || "1stcite",
     isRepo: false,
   };
+
+  if (!subdomain || subdomain === "1stcite") return DEFAULT;
+
+  if (subdomain === "presentrxiv" || subdomain === "www") {
+    return { subdomain, name: "PresentrXiv", logo: "/presentrxiv-logo.png", sourceId: "", isRepo: true };
+  }
+
+  try {
+    const db = await getDb();
+    const conf = await db.collection("conferences").findOne({ subdomain, active: true });
+    if (conf) return conf as unknown as ConferenceConfig;
+  } catch {}
+
+  return DEFAULT;
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
