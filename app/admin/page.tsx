@@ -71,7 +71,8 @@ export default function AdminPage() {
     try {
       const r = await fetch('/api/conference?all=1', { cache: 'no-store' });
       if (r.ok) {
-        const confs: Conference[] = await r.json();
+        const allConfs: (Conference & { isRepo?: boolean })[] = await r.json();
+        const confs = allConfs.filter((c) => !c.isRepo);
         setConferences(confs);
         const sourceIds = confs.map((c) => c.sourceId).filter(Boolean);
         setSources(sourceIds);
