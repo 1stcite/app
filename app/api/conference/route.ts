@@ -23,9 +23,16 @@ const DEFAULT_CONFIG: ConferenceConfig = {
 
 export async function GET(req: NextRequest) {
   const subdomain = req.nextUrl.searchParams.get("subdomain") ?? "";
+  const all = req.nextUrl.searchParams.get("all") === "1";
 
   try {
     const db = await getDb();
+
+    // Return all conferences (for admin use)
+    if (all) {
+      const conferences = await db.collection("conferences").find({ active: true }).toArray();
+      return NextResponse.json(conferences);
+    }
 
     // Special case: presentrxiv is always the repo
     if (subdomain === "presentrxiv" || subdomain === "www") {

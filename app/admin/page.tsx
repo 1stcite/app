@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-const SOURCES = ['1stcite', 'presentrxiv', '1stcite-demo'];
+// SOURCES is now fetched dynamically from the conferences collection
 
 type Poster = {
   _id: string;
@@ -20,13 +20,32 @@ export default function AdminPage() {
   const [requireLogin, setRequireLogin] = useState<boolean>(false);
   const [savingCfg, setSavingCfg] = useState(false);
   const [savingSource, setSavingSource] = useState<string | null>(null);
-  const [bulkSource, setBulkSource] = useState('1stcite');
+  const [bulkSource, setBulkSource] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [sources, setSources] = useState<string[]>([]);
 
   useEffect(() => {
     fetchPosters();
     fetchConfig();
+    fetchSources();
   }, []);
+
+  async function fetchSources() {
+    try {
+      const r = await fetch('/api/conference?all=1', { cache: 'no-store' });
+      if (r.ok) {
+        const conferences = await r.json();
+        const sourceIds: string[] = conferences.map((c: { sourceId: string }) => c.sourceId).filter(Boolean);
+        setSources(sourceIds);
+        if (sourceIds.length > 0) setBulkSource(sourceIds[0]);
+      }
+    } catch (e) {
+      console.error('Error fetching conferences:', e);
+      const fallback = ['1stcite', 'iaprd', 'presentrxiv', '1stcite-demo'];
+      setSources(fallback);
+      setBulkSource(fallback[0]);
+    }
+  }
 
   async function fetchConfig() {
     try {
@@ -121,11 +140,18 @@ export default function AdminPage() {
     }
   }
 
+  const COLOR_PALETTE = [
+    'bg-blue-100 text-blue-800',
+    'bg-green-100 text-green-800',
+    'bg-purple-100 text-purple-800',
+    'bg-orange-100 text-orange-800',
+    'bg-pink-100 text-pink-800',
+    'bg-teal-100 text-teal-800',
+  ];
   const sourceColor = (source?: string) => {
-    if (source === '1stcite') return 'bg-blue-100 text-blue-800';
-    if (source === 'presentrxiv') return 'bg-green-100 text-green-800';
-    if (source === '1stcite-demo') return 'bg-purple-100 text-purple-800';
-    return 'bg-gray-100 text-gray-500';
+    if (!source) return 'bg-gray-100 text-gray-500';
+    const idx = sources.indexOf(source);
+    return idx >= 0 ? COLOR_PALETTE[idx % COLOR_PALETTE.length] : 'bg-gray-100 text-gray-500';
   };
 
   return (
@@ -188,7 +214,7 @@ export default function AdminPage() {
               onChange={(e) => setBulkSource(e.target.value)}
               className="text-sm border border-gray-300 rounded px-2 py-1 text-gray-800"
             >
-              {SOURCES.map((s) => (
+              {sources.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
@@ -250,7 +276,7 @@ export default function AdminPage() {
                       className="w-full text-sm border border-gray-300 rounded px-2 py-1.5 text-gray-800"
                     >
                       <option value="">— untagged —</option>
-                      {SOURCES.map((s) => (
+                      {sources.map((s) => (
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
