@@ -135,7 +135,7 @@ export default function HomePage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-500">Presentations</h1>
+            <h1 className="text-xl md:text-3xl font-bold text-gray-500">Presentations</h1>
             <Link
               href="/selected"
               className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50"
@@ -221,10 +221,10 @@ export default function HomePage() {
                     return (
                       <div key={session.id}>
                         {/* Session header */}
-                        <div className="mb-3 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
-                          <h3 className="font-semibold text-gray-800 text-sm">{session.name}</h3>
+                        <div className="mb-3 p-3 bg-blue-600 rounded-lg shadow-sm">
+                          <h3 className="font-semibold text-white text-sm">{session.name}</h3>
                           {session.location && (
-                            <p className="text-xs text-gray-500 mt-0.5">📍 {session.location}</p>
+                            <p className="text-xs text-blue-100 mt-0.5">📍 {session.location}</p>
                           )}
                         </div>
 
