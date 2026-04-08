@@ -36,13 +36,20 @@ export async function middleware(req: NextRequest) {
 
   if (
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/api") ||
     pathname.startsWith("/favicon") ||
     pathname.startsWith("/robots") ||
     pathname.startsWith("/sitemap") ||
     pathname.match(/\.(png|jpg|svg|ico|webmanifest)$/)
   ) {
     return NextResponse.next();
+  }
+
+  // For API routes, pass x-subdomain header but skip auth checks
+  if (pathname.startsWith("/api")) {
+    const subdomain = extractSubdomain(req);
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set("x-subdomain", subdomain);
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   if (pathname.startsWith("/login")) {
