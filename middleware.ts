@@ -4,7 +4,8 @@ import type { NextRequest } from "next/server";
 const SESSION_COOKIE = "px_session";
 
 function extractSubdomain(req: NextRequest): string {
-  const host = req.headers.get("host") ?? "";
+  // x-forwarded-host is the real hostname on Vercel's edge network
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "";
   // Strip port if present
   const hostname = host.split(":")[0];
 
