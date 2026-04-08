@@ -22,7 +22,10 @@ const DEFAULT_CONFIG: ConferenceConfig = {
 };
 
 export async function GET(req: NextRequest) {
-  const subdomain = req.nextUrl.searchParams.get("subdomain") ?? "";
+  // Accept subdomain from query param OR x-subdomain header (set by middleware)
+  const subdomain = req.nextUrl.searchParams.get("subdomain")
+    ?? req.headers.get("x-subdomain")
+    ?? "";
   const all = req.nextUrl.searchParams.get("all") === "1";
 
   try {

@@ -1,52 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
+import { getSessionUser } from "@/app/lib/auth";
 
+// GET — fetch single poster by id
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params;
-    const db = await getDb();
-
-    const poster = await db
-      .collection("posters")
-      .findOne({ id, deletedAt: { $exists: false } });
-
-    if (!poster) {
-      return NextResponse.json({ error: "Poster not found" }, { status: 404 });
-    }
-
-    return NextResponse.json(poster);
-  } catch (error) {
-    console.error("Error fetching poster:", error);
-    return NextResponse.json({ error: "Failed to fetch poster" }, { status: 500 });
-  }
+  const { id } = await params;
+  const db = await getDb();
+  const poster = await db.collection("posters").findOne({ id, deletedAt: { $exists: false } });
+  if (!poster) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json(poster);
 }
 
-export async function DELETE(
-  _req: NextRequest,
+// PATCH — update title, author, and/or replace PDF
+export async function PATCH(
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params;
-    const db = await getDb();
+  const { id } = await params;
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "Login required" }, { status: 401 });
 
-    const result = await db.collection("posters").updateOne(
-      { id, deletedAt: { $exists: false } },
-      { $set: { deletedAt: new Date() } }
-    );
+  const body = await req.json().catch(() => ({}));
+  const update: Record<string, unknown> = { updatedAt: new Date() };
 
-    if (result.matchedCount === 0) {
-      return NextResponse.json(
-        { error: "Poster not found (or already deleted)" },
-        { status: 404 }
-      );
-    }
+  if (body.title !== undefined) update.title = body.title.toString().trim();
+  if (body.author !== undefined) update.author = body.author.toString().trim();
+  if (body.abstract !== undefined) update.abstract = body.abstract.toString().trim();
+  if (body.fileUrl !== undefined) update.fileUrl = body.fileUrl.toString().trim();
 
-    return NextResponse.json({ ok: true });
-  } catch (error) {
-    console.error("DELETE /api/posters/[id] failed:", error);
-    return NextResponse.json({ error: "Failed to delete poster" }, { status: 500 });
+  if (Object.keys(update).length === 1) {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
+
+  const db = await getDb();
+  const result = await db.collection("posters").findOneAndUpdate(
+    { id },
+    { $set: update },
+    { returnDocument: "after" }
+  );
+
+  if (!result) return NextResponse.json({ error: "Poster not found" }, { status: 404 });
+  return NextResponse.json(result);
+}
+
+// DELETE — soft delete
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "Login required" }, { status: 401 });
+
+  const db = await getDb();
+  await db.collection("posters").updateOne(
+    { id },
+    { $set: { deletedAt: new Date() } }
+  );
+  return NextResponse.json({ ok: true });
 }

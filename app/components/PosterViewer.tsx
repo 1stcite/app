@@ -644,9 +644,12 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                   ← Back
                 </Link>
 
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="truncate text-base font-semibold text-gray-900">{poster.title || 'Untitled'}</div>
-                  <div className="truncate text-xs text-gray-700">{poster.author ? `by ${poster.author}` : ''}</div>
+                  <div className="flex items-center gap-3">
+                    <span className="truncate text-xs text-gray-700">{poster.author ? `by ${poster.author}` : ''}</span>
+                    <Link href={`/edit/${poster.id}`} className="text-xs text-blue-500 hover:underline whitespace-nowrap shrink-0">Edit</Link>
+                  </div>
                 </div>
               </div>
 

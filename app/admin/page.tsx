@@ -438,9 +438,14 @@ export default function AdminPage() {
                       </select>
 
                       <div className="flex items-center justify-between">
-                        <Link href={`/view/${poster.id}`} onClick={(e) => e.stopPropagation()} className="text-blue-600 font-medium text-sm hover:underline">
-                          View →
-                        </Link>
+                        <div className="flex items-center gap-3">
+                          <Link href={`/view/${poster.id}`} onClick={(e) => e.stopPropagation()} className="text-blue-600 font-medium text-sm hover:underline">
+                            View →
+                          </Link>
+                          <Link href={`/edit/${poster.id}`} onClick={(e) => e.stopPropagation()} className="text-gray-500 text-sm hover:underline">
+                            Edit
+                          </Link>
+                        </div>
                         <button
                           onClick={(e) => { e.stopPropagation(); deletePoster(poster.id); }}
                           className="text-sm text-red-600 hover:underline"
