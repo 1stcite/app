@@ -86,7 +86,7 @@ export default function AdminPage() {
       fetch('/api/conference?all=1'),
       fetch('/api/config'),
     ]);
-    if (postersRes.ok) setPosters(await postersRes.ok ? postersRes.json() : []);
+    if (postersRes.ok) setPosters(await postersRes.json());
     if (confsRes.ok) {
       const allConfs: (Conference & { isRepo?: boolean })[] = await confsRes.json();
       const confs = allConfs.filter(c => !c.isRepo);
