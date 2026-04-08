@@ -130,21 +130,20 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto p-4 md:p-8 max-w-6xl">
+      <div className="container mx-auto p-4 md:p-8 max-w-6xl overflow-x-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl md:text-3xl font-bold text-gray-500">Presentations</h1>
-            <Link
-              href="/selected"
-              className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50"
-            >
-              Selected
-            </Link>
-          </div>
-          <Link href="/" className="shrink-0 max-w-[120px] overflow-hidden">
-            <img src={LOGO} alt={LOGO_ALT} className="h-10 w-auto max-w-full object-contain" />
+        <div className="flex items-center gap-2 mb-6 min-w-0">
+          <h1 className="text-xl md:text-3xl font-bold text-gray-500 whitespace-nowrap">Presentations</h1>
+          <Link
+            href="/selected"
+            className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50 whitespace-nowrap shrink-0"
+          >
+            Selected
+          </Link>
+          <div className="flex-1" />
+          <Link href="/" className="shrink-0">
+            <img src={LOGO} alt="" className="h-8 w-auto max-w-[80px] object-contain" />
           </Link>
         </div>
 
