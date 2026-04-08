@@ -24,7 +24,22 @@ export async function GET() {
       .find(filter)
       .sort({ sortOrder: 1, uploadedAt: -1 })
       .toArray();
-    return NextResponse.json(posters);
+
+    // Attach session data
+    const sessionIds = [...new Set(posters.map(p => p.sessionId).filter(Boolean))];
+    let sessionsMap: Record<string, unknown> = {};
+    if (sessionIds.length > 0) {
+      const sessions = await db.collection("sessions")
+        .find({ id: { $in: sessionIds } })
+        .toArray();
+      sessionsMap = Object.fromEntries(sessions.map(s => [s.id, s]));
+    }
+    const postersWithSession = posters.map(p => ({
+      ...p,
+      session: p.sessionId ? sessionsMap[p.sessionId] ?? null : null,
+    }));
+
+    return NextResponse.json(postersWithSession);
   } catch (error) {
     console.error("Error fetching posters:", error);
     return NextResponse.json({ error: "Failed to fetch posters" }, { status: 500 });

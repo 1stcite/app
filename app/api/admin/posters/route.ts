@@ -35,6 +35,7 @@ export async function PATCH(req: NextRequest) {
   const update: Record<string, unknown> = {};
   if (source !== undefined) update.source = source || null;
   if (sortOrder !== undefined) update.sortOrder = sortOrder;
+  if ("sessionId" in body) update.sessionId = body.sessionId || null;
 
   await db.collection("posters").updateOne({ id }, { $set: update });
   return NextResponse.json({ ok: true });
