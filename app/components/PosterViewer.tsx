@@ -653,8 +653,8 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 </div>
               </div>
 
-              <Link href="/" className="shrink-0">
-                <img src={siteLogo} alt={siteName} className="h-10 w-auto" />
+              <Link href="/" className="shrink-0 max-w-[120px] overflow-hidden">
+                <img src={siteLogo} alt={siteName} className="h-10 w-auto max-w-full object-contain" />
               </Link>
             </div>
           </div>

@@ -143,8 +143,8 @@ export default function HomePage() {
               Selected
             </Link>
           </div>
-          <Link href="/" className="shrink-0">
-            <img src={LOGO} alt={LOGO_ALT} className="h-10 w-auto" />
+          <Link href="/" className="shrink-0 max-w-[120px] overflow-hidden">
+            <img src={LOGO} alt={LOGO_ALT} className="h-10 w-auto max-w-full object-contain" />
           </Link>
         </div>
 
