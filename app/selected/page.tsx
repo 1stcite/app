@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePosters } from "@/app/lib/usePosters";
 import PosterCard from "@/app/components/PosterCard";
 import { useConference } from "@/app/lib/conferenceContext";
+import Footer from "@/app/components/Footer";
 
 export default function SelectedPage() {
   const { logo: LOGO, name: LOGO_ALT } = useConference();
@@ -109,6 +110,7 @@ export default function SelectedPage() {
             )}
           </div>
         )}
+      <Footer />
       </div>
     </div>
   );

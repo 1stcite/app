@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Footer from '@/app/components/Footer';
 import Link from 'next/link';
 
 // ── Realistic mock data based on actual IAPRD 2025 content ──────────────────
@@ -428,6 +429,7 @@ export default function InsightsPage() {
             </div>
           </div>
         )}
+      <Footer />
       </div>
     </div>
   );

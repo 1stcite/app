@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePosters, type Poster } from "@/app/lib/usePosters";
 import PosterCard from "@/app/components/PosterCard";
 import { useConference } from "@/app/lib/conferenceContext";
+import Footer from "@/app/components/Footer";
 
 function normalize(s: string) {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
@@ -286,6 +287,7 @@ export default function HomePage() {
             ))}
           </div>
         )}
+      <Footer />
       </div>
     </div>
   );
