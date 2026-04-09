@@ -187,6 +187,36 @@ export default function CommentsPanel({
         </button>
       </div>
 
+      {/* Presenter slide notes */}
+      {(isPresenter || (slideNote && slideNote.trim())) && (
+        <div className="shrink-0 border-b bg-amber-50 px-3 py-2">
+          <p className="text-xs font-semibold text-amber-700 mb-1">
+            {isPresenter ? `📝 Presenter Notes (slide ${page})` : '📝 Presenter Notes'}
+          </p>
+          {isPresenter ? (
+            <div className="space-y-1">
+              <textarea
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                placeholder="Add notes or narration for this slide…"
+                rows={3}
+                className="w-full text-xs border border-amber-200 rounded px-2 py-1.5 bg-white text-gray-800 resize-none focus:outline-none focus:ring-1 focus:ring-amber-400"
+              />
+              <button
+                type="button"
+                onClick={handleSaveNote}
+                disabled={savingNote || noteText === (slideNote ?? '')}
+                className="px-2 py-1 text-xs bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-40"
+              >
+                {savingNote ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs text-gray-700 whitespace-pre-wrap">{slideNote}</p>
+          )}
+        </div>
+      )}
+
       {/* Scroll area */}
       <div
         className="flex-1 min-h-0 overflow-y-auto px-3 py-2"
