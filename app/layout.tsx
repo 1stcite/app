@@ -43,9 +43,27 @@ async function getConferenceConfig(subdomain: string): Promise<ConferenceConfig>
   return DEFAULT;
 }
 
+function extractSubdomainFromHost(host: string): string {
+  const hostname = host.split(":")[0].split(",")[0].trim(); // handle x-forwarded-host lists
+  const m = hostname.match(/^(.+)\.1stcite\.(app|com)$/) ?? hostname.match(/^(.+)\.presentrxiv\.org$/);
+  if (m) return m[1];
+  if (/^presentrxiv\.(org|vercel\.app)$/.test(hostname)) return "presentrxiv";
+  return "";
+}
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers();
-  const subdomain = headersList.get("x-subdomain") ?? process.env.NEXT_PUBLIC_SITE_ID ?? "1stcite";
+  // Try every possible header — Vercel sets x-forwarded-host, middleware sets x-subdomain
+  const xForwardedHost = headersList.get("x-forwarded-host") ?? "";
+  const host = headersList.get("host") ?? "";
+  const xSubdomain = headersList.get("x-subdomain") ?? "";
+
+  const subdomain = xSubdomain
+    || extractSubdomainFromHost(xForwardedHost)
+    || extractSubdomainFromHost(host)
+    || process.env.NEXT_PUBLIC_SITE_ID
+    || "1stcite";
+
   const config = await getConferenceConfig(subdomain);
 
   return (
