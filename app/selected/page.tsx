@@ -62,7 +62,7 @@ export default function SelectedPage() {
               <div key={session.id}>
                 {/* Session header */}
                 <div className="mb-3">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 rounded-lg">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{background:"#1a2e5a"}}>
                     <span className="text-white font-semibold text-sm">{session.name}</span>
                   </div>
                   <div className="flex gap-3 mt-1 text-xs text-gray-500 pl-1">

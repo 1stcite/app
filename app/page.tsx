@@ -220,7 +220,7 @@ export default function HomePage() {
                     return (
                       <div key={session.id}>
                         {/* Session header */}
-                        <div className="mb-3 p-3 bg-blue-600 rounded-lg shadow-sm">
+                        <div className="mb-3 p-3 rounded-lg shadow-sm" style={{background:"#1a2e5a"}}>
                           <h3 className="font-semibold text-white text-sm">{session.name}</h3>
                           {session.location && (
                             <p className="text-xs text-blue-100 mt-0.5">📍 {session.location}</p>
