@@ -143,7 +143,7 @@ export default function HomePage() {
           </Link>
           <div className="flex-1" />
           <Link href="/" className="shrink-0">
-            <img src={LOGO} alt="" className="h-8 w-auto max-w-[80px] object-contain" />
+            <img src={LOGO} alt="" className="h-8 md:h-16 w-auto max-w-[80px] md:max-w-[160px] object-contain" />
           </Link>
         </div>
 
