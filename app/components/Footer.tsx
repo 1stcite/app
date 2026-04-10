@@ -7,10 +7,10 @@ export default function Footer() {
         href="https://1stcite.com"
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+        className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
       >
         Powered by
-        <img src="/1stcite-logo.png" alt="1stCite" className="h-4 w-auto inline-block" />
+        <img src="/1stcite-logo.png" alt="1stCite" className="h-8 w-auto inline-block" />
       </Link>
     </footer>
   );
