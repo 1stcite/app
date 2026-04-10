@@ -136,6 +136,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
   const [abstractOpen, setAbstractOpen] = useState(false);
   //session User ID
   const [sessionUserId, setSessionUserId] = useState<string | undefined>(undefined);
+  const [isAdmin, setIsAdmin] = useState(false);
   // Responsive
   const [isLandscape, setIsLandscape] = useState(false);
 
@@ -343,6 +344,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
       const data = await res.json();
 
       setSessionUserId(data?.sessionUserId ? String(data.sessionUserId) : undefined);
+      setIsAdmin(Boolean(data?.isAdmin));
 
       setComments(
         ((data?.comments || []) as any[]).map((c: any) => ({
@@ -849,7 +851,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
 
                         <div className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{c.text}</div>
 
-                        {sessionUserId && String((c as any).userId) === String(sessionUserId) && (
+                        {sessionUserId && (isAdmin || String((c as any).userId) === String(sessionUserId)) && (
                           <div className="mt-2 flex justify-end">
                             <button
                               type="button"
@@ -1004,7 +1006,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                   onDelete={handleDeleteComment}
                   onReply={handleReplyComment}
                   slideNote={poster?.notes?.[commentTargetPage] ?? ''}
-                  isPresenter={!!sessionUserId && !!poster?.presenterUserId && sessionUserId === poster.presenterUserId}
+                  isPresenter={!!sessionUserId && (isAdmin || (!!poster?.presenterUserId && sessionUserId === poster.presenterUserId))}
                   onSaveNote={handleSaveNote}
                 />
               </div>

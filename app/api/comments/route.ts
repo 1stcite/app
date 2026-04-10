@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
 
     const db = await getDb();
     const sessionUserId = user ? String(user._id) : undefined;
+    const isAdmin = user?.isAdmin === true;
 
     const poster = await db
       .collection<{ id: string; presenterUserId?: ObjectId | string | null }>("posters")
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
       return false;
     });
 
-    return NextResponse.json({ comments: visibleComments, sessionUserId });
+    return NextResponse.json({ comments: visibleComments, sessionUserId, isAdmin });
   } catch (e) {
     console.error("GET /api/comments error:", e);
     return NextResponse.json({ error: "Failed to fetch comments" }, { status: 500 });

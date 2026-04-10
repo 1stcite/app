@@ -8,6 +8,7 @@ export const SESSION_COOKIE = "px_session";
 export type AuthedUser = {
   _id: ObjectId;
   displayName: string;
+  isAdmin?: boolean;
 };
 
 export async function createSession(displayName: string) {
@@ -54,16 +55,21 @@ export async function getSessionUser(): Promise<AuthedUser | null> {
 
   const user = await db
     .collection("users")
-    .findOne({ _id: session.userId }, { projection: { displayName: 1 } });
+    .findOne({ _id: session.userId }, { projection: { displayName: 1, isAdmin: 1 } });
 
   if (!user) return null;
 
+  // Check env var for admin display names (comma-separated)
+  const adminNames = (process.env.ADMIN_DISPLAY_NAMES || "")
+    .split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+  const isAdmin = user.isAdmin === true || adminNames.includes(user.displayName.toLowerCase());
+
   await db.collection("users").updateOne(
     { _id: user._id },
-    { $set: { lastSeenAt: now } }
+    { $set: { lastSeenAt: now, ...(isAdmin ? { isAdmin: true } : {}) } }
   );
 
-  return { _id: user._id, displayName: user.displayName };
+  return { _id: user._id, displayName: user.displayName, isAdmin };
 }
 
 export async function revokeSession() {
