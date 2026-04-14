@@ -32,7 +32,7 @@ export default function PosterCard({
   const isPast = timing === "past";
 
   const bg = isPast
-    ? "bg-gray-100 border-gray-300"
+    ? "bg-gray-200 border-gray-400"
     : variant === "starred"
       ? "bg-yellow-50 border-yellow-200"
       : "bg-white border-gray-200";
