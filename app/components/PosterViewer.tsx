@@ -13,6 +13,7 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import CommentComposerModal from './CommentComposerModal';
 import CommentsPanel, { type Comment } from './CommentsPanel';
 import { useConference } from '@/app/lib/conferenceContext';
+import InCitePanel from '@/app/components/InCitePanel';
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -134,6 +135,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
   const [editCommentId, setEditCommentId] = useState<string | null>(null);
   const [composerInitialText, setComposerInitialText] = useState<string>('');
   const [abstractOpen, setAbstractOpen] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   //session User ID
   const [sessionUserId, setSessionUserId] = useState<string | undefined>(undefined);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -288,6 +290,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
     fetchPoster();
     fetchComments();
     fetchConfig();
+    fetchSaveState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [posterId]);
 
@@ -356,6 +359,33 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
       console.error('Error fetching comments:', err);
     } finally {
       setLoadingComments(false);
+    }
+  }
+
+  async function fetchSaveState() {
+    try {
+      const res = await fetch(`/api/saves`);
+      if (!res.ok) return;
+      const saves = await res.json();
+      setIsSaved(Array.isArray(saves) && saves.some((s: { posterId: string }) => s.posterId === posterId));
+    } catch {}
+  }
+
+  async function toggleSave() {
+    const next = !isSaved;
+    setIsSaved(next); // optimistic
+    try {
+      if (next) {
+        await fetch("/api/saves", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ posterId, source: "in_session" }),
+        });
+      } else {
+        await fetch(`/api/saves?posterId=${encodeURIComponent(posterId)}`, { method: "DELETE" });
+      }
+    } catch {
+      setIsSaved(!next); // revert
     }
   }
 
@@ -772,13 +802,26 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 >
                   Next
                 </button>
-                {poster?.abstract && (
+                {poster && (
                   <button
                     type="button"
                     onClick={() => setAbstractOpen(true)}
                     className="px-3 py-1.5 rounded bg-white/90 border shadow text-sm text-gray-900"
                   >
                     Abstract
+                  </button>
+                )}
+                {poster && (
+                  <button
+                    type="button"
+                    onClick={toggleSave}
+                    className={`px-3 py-1.5 rounded border shadow text-sm font-medium ${
+                      isSaved
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white/90 text-gray-900"
+                    }`}
+                  >
+                    {isSaved ? "✓ Saved" : "+ Save"}
                   </button>
                 )}
                 {requireLogin && (
@@ -800,13 +843,26 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 <div className="text-sm font-semibold text-gray-800">
                   Comments <span className="text-gray-500 font-normal">({pageComments.length})</span>
                 </div>
-                {poster?.abstract && (
+                {poster && (
                   <button
                     type="button"
                     onClick={() => setAbstractOpen(true)}
                     className="px-3 py-1.5 rounded bg-white/90 border shadow text-sm text-gray-900"
                   >
                     Abstract
+                  </button>
+                )}
+                {poster && (
+                  <button
+                    type="button"
+                    onClick={toggleSave}
+                    className={`px-3 py-1.5 rounded border shadow text-sm font-medium ${
+                      isSaved
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white/90 text-gray-900"
+                    }`}
+                  >
+                    {isSaved ? "✓ Saved" : "+ Save"}
                   </button>
                 )}
                 {requireLogin && (
@@ -925,7 +981,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                     <div className="h-full overflow-y-auto p-3" style={{ scrollbarGutter: 'stable' }}>
                       <div className="grid grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
                         {/* Abstract tile — only when abstract exists */}
-                        {poster?.abstract && (
+                        {poster && (
                           <button
                             type="button"
                             onClick={() => setAbstractOpen(true)}
@@ -1016,13 +1072,13 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
       </div>
 
       {/* Abstract modal */}
-      {abstractOpen && poster?.abstract && (
+      {abstractOpen && poster && (
         <div
           className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50 p-4"
           onClick={() => setAbstractOpen(false)}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col"
+            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-5 py-4 border-b">
@@ -1038,9 +1094,80 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 ×
               </button>
             </div>
-            <div className="overflow-y-auto px-5 py-4">
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Abstract</h3>
-              <p className="text-sm text-gray-900 leading-relaxed whitespace-pre-wrap">{poster.abstract}</p>
+            <div className="overflow-y-auto px-5 py-4 space-y-5">
+              {poster.abstract && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Abstract</h3>
+                  <p className="text-sm text-gray-900 leading-relaxed whitespace-pre-wrap">{poster.abstract}</p>
+                </div>
+              )}
+
+              <InCitePanel
+                talkId={posterId}
+                inputs={{
+                  comments: comments.length,
+                }}
+              />
+
+              {isAdmin && (
+                <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 text-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                        Presenter View
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">Per-slide engagement metrics</p>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-medium">
+                      ADMIN / PRESENTER
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {numPages && Array.from({ length: Math.min(numPages, 10) }, (_, i) => {
+                      const slideNum = i + 1;
+                      // Deterministic mock: each slide gets a pseudo-random views + dwell
+                      const seed = (posterId.length * 31 + slideNum) % 100;
+                      const views = 45 + seed * 3;
+                      const dwell = 12 + (seed % 20);
+                      const width = Math.min(100, (views / 320) * 100);
+                      const commentCount = commentCounts[slideNum] || 0;
+                      return (
+                        <div key={slideNum} className="flex items-center gap-3 text-xs">
+                          <span className="text-gray-400 w-12 shrink-0">Slide {slideNum}</span>
+                          <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 rounded-full"
+                              style={{ width: `${width}%` }}
+                            />
+                          </div>
+                          <span className="text-gray-400 w-16 text-right shrink-0">{views} views</span>
+                          <span className="text-gray-500 w-14 text-right shrink-0">{dwell}s avg</span>
+                          {commentCount > 0 && (
+                            <span className="text-blue-400 w-10 text-right shrink-0">💬{commentCount}</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-gray-800 grid grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <p className="text-gray-500">Total views</p>
+                      <p className="text-white font-semibold text-base">{((posterId.length * 47) % 400) + 180}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Saved by</p>
+                      <p className="text-white font-semibold text-base">{((posterId.length * 13) % 50) + 22}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">In libraries</p>
+                      <p className="text-white font-semibold text-base">{((posterId.length * 7) % 30) + 8}</p>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-[10px] text-gray-600 italic">
+                    Demo data · real metrics will come from event collection
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

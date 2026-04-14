@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePosters } from "@/app/lib/usePosters";
 import PosterCard from "@/app/components/PosterCard";
@@ -9,6 +10,13 @@ import Footer from "@/app/components/Footer";
 export default function SelectedPage() {
   const { logo: LOGO, name: LOGO_ALT } = useConference();
   const { loading, starredPosterIds, starredPosters, toggleStar } = usePosters();
+  const [unreviewedCount, setUnreviewedCount] = useState(0);
+  const [libraryCount, setLibraryCount] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/saves?state=unreviewed").then(r => r.json()).then(d => setUnreviewedCount(d?.length || 0));
+    fetch("/api/saves?state=in_library").then(r => r.json()).then(d => setLibraryCount(d?.length || 0));
+  }, [starredPosterIds]);
 
   // Group starred posters by session
   const withSession = starredPosters.filter(p => (p as any).session);
@@ -28,8 +36,8 @@ export default function SelectedPage() {
       <div className="container mx-auto p-4 md:p-8 max-w-6xl">
 
         {/* Header */}
-        <div className="flex items-center gap-2 mb-8 min-w-0">
-          <h1 className="text-xl md:text-3xl font-bold text-gray-500 whitespace-nowrap">Selected</h1>
+        <div className="flex items-center gap-2 mb-4 min-w-0">
+          <h1 className="text-xl md:text-3xl font-bold text-gray-500 whitespace-nowrap">My Schedule</h1>
           <Link
             href="/"
             className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50 whitespace-nowrap shrink-0"
@@ -42,17 +50,44 @@ export default function SelectedPage() {
           </Link>
         </div>
 
+        {/* Action bar */}
+        <div className="flex flex-wrap items-center gap-2 mb-6">
+          <Link
+            href="/review"
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium ${
+              unreviewedCount > 0
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : "bg-gray-100 text-gray-400 cursor-not-allowed"
+            }`}
+            onClick={e => { if (unreviewedCount === 0) e.preventDefault(); }}
+          >
+            Review saves by session
+            {unreviewedCount > 0 && (
+              <span className="bg-white/25 px-1.5 rounded text-xs">{unreviewedCount}</span>
+            )}
+          </Link>
+          <Link
+            href="/library"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+          >
+            📚 My Library
+            {libraryCount > 0 && (
+              <span className="bg-gray-100 px-1.5 rounded text-xs">{libraryCount}</span>
+            )}
+          </Link>
+        </div>
+
         {loading ? (
           <div className="text-center py-12">
             <p className="text-gray-600">Loading...</p>
           </div>
         ) : starredPosters.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-lg shadow">
-            <p className="text-xl text-gray-600">No selected presentations yet</p>
+            <p className="text-xl text-gray-600">No saved talks yet</p>
             <p className="text-sm text-gray-400 mt-2">
-              Star presentations from the{" "}
+              Save talks from the{" "}
               <Link href="/" className="underline">conference view</Link>{" "}
-              to save them here.
+              to build your schedule.
             </p>
           </div>
         ) : (
