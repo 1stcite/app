@@ -1,25 +1,34 @@
 /**
- * InCite Index — composite engagement score for talks.
+ * InCite Index — two-axis engagement metric for talks.
  *
- * Three independent dimensions (each 0–100):
- *   - Interest:    how much attention the talk attracted (views, dwell, reach)
- *   - Interaction: how much people engaged with it (comments, saves, library adds)
- *   - Sentiment:   the positive valence of engagement (higher is better)
+ * Two independent dimensions, each 0-100:
+ *   - Engagement: how much attention and interaction a talk attracted
+ *                 (combines what we previously tracked as Interest and
+ *                 Interaction). High = many people viewed, dwelled,
+ *                 commented, saved, and added to library.
+ *   - Sentiment:  the valence of those reactions. High = supportive,
+ *                 enthusiastic. Low = critical, questioning.
  *
- * Composite score (0–100) is a multiplicative combination so a talk needs
- * all three dimensions to score high. Pure attention without engagement
- * caps out.
+ * The two axes carry genuinely different information and shouldn't
+ * be collapsed into a single composite. A high-engagement low-sentiment
+ * talk is "controversial but important." A high-sentiment low-engagement
+ * talk is "universally liked but few people noticed." Both are valid.
  *
- * For the demo, scores are computed deterministically from the talk's id so
- * they are stable across page loads. Real event data will replace this in
- * Phase 2 (per the conversation about altmetrics architecture).
+ * Visualization: the two axes are rendered as a cross — engagement
+ * is the horizontal bar width, sentiment is the vertical bar height,
+ * with the engagement number anchored at the center.
+ *
+ * For the demo, scores are computed deterministically from the talk's
+ * id so they are stable across page loads. Real event data will
+ * replace this in Phase 2.
  */
 
 export type InCiteScore = {
+  engagement: number; // 0-100
+  sentiment: number; // 0-100
+  // Sub-dimensions of engagement, kept for the detail breakdown
   interest: number; // 0-100
   interaction: number; // 0-100
-  sentiment: number; // 0-100 (no negatives — higher is better)
-  composite: number; // 0-100
 };
 
 /** Deterministic pseudo-random in [0, 1) from a seed string. */
@@ -34,9 +43,6 @@ function seededRand(seed: string): number {
 
 /**
  * Compute a mock InCite score for a talk. Stable across calls.
- *
- * Optionally accepts real-ish inputs (view count, comment count, save count)
- * to nudge the score in the right direction once we have any real data.
  */
 export function computeInCite(
   talkId: string,
@@ -46,15 +52,10 @@ export function computeInCite(
   const r2 = seededRand(talkId + ":interaction");
   const r3 = seededRand(talkId + ":sentiment");
 
-  // Base scores from deterministic noise, biased toward middle-high.
-  // Most talks score in the 40-80 range; a few outliers on each end.
   let interest = Math.round(35 + r1 * 60);
   let interaction = Math.round(25 + r2 * 65);
-  // Sentiment skews positive in scientific audiences — most comments
-  // are supportive or constructive, with a minority questioning or critical.
-  let sentiment = Math.round(50 + r3 * 45); // biased to 50-95 range
+  let sentiment = Math.round(50 + r3 * 45);
 
-  // Nudge by real inputs if we have them
   if (inputs) {
     if (typeof inputs.views === "number") {
       interest = Math.min(100, Math.round(interest * 0.6 + Math.min(100, inputs.views / 5) * 0.4));
@@ -65,23 +66,19 @@ export function computeInCite(
     }
   }
 
-  // Clamp all dimensions to [0, 100]
   interest = Math.max(0, Math.min(100, interest));
   interaction = Math.max(0, Math.min(100, interaction));
   sentiment = Math.max(0, Math.min(100, sentiment));
 
-  // Composite: geometric-style mean so a weakness in any dimension pulls
-  // the composite down. Cube root of the product gives a balanced score
-  // where (80,80,80) → 80 and (90,90,30) → ~58.
-  const composite = Math.round(Math.cbrt(interest * interaction * sentiment));
+  // Engagement is the geometric mean of interest and interaction,
+  // so a weakness in either dimension pulls it down.
+  // sqrt(80*80) = 80, sqrt(90*30) ≈ 52
+  const engagement = Math.round(Math.sqrt(interest * interaction));
 
-  return { interest, interaction, sentiment, composite };
+  return { engagement, sentiment, interest, interaction };
 }
 
-/** Color for a composite score badge. Uniform across all scores — the
- * number itself is the information, and the color should not imply
- * "good" vs "bad" judgment. We use a single emerald palette for every
- * score, which reads as positive and platform-branded without tiering. */
-export function inciteColor(_composite: number): { bg: string; text: string; ring: string } {
+/** Color palette — uniform across all scores, no implicit tiering. */
+export function inciteColor(_score?: number): { bg: string; text: string; ring: string } {
   return { bg: "bg-emerald-100", text: "text-emerald-800", ring: "ring-emerald-300" };
 }

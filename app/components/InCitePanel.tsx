@@ -1,6 +1,7 @@
 "use client";
 
-import { computeInCite, inciteColor } from "@/app/lib/incite";
+import { computeInCite } from "@/app/lib/incite";
+import InCiteBadge from "@/app/components/InCiteBadge";
 
 type Props = {
   talkId: string;
@@ -21,22 +22,29 @@ function Bar({ value, color }: { value: number; color: string }) {
 
 export default function InCitePanel({ talkId, inputs }: Props) {
   const score = computeInCite(talkId, inputs);
-  const colors = inciteColor(score.composite);
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div>
+      <div className="flex items-center justify-between mb-4 gap-4">
+        <div className="flex-1">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">InCite Index</p>
-          <p className="text-xs text-gray-400 mt-0.5">Composite engagement score</p>
+          <p className="text-xs text-gray-400 mt-0.5">Two-axis engagement metric</p>
+          <div className="flex gap-4 mt-2 text-sm">
+            <div>
+              <span className="text-gray-500">Engagement</span>{" "}
+              <span className="font-bold text-emerald-700">{score.engagement}</span>
+            </div>
+            <div>
+              <span className="text-gray-500">Sentiment</span>{" "}
+              <span className="font-bold text-emerald-700">{score.sentiment}</span>
+            </div>
+          </div>
         </div>
-        <div className={`flex items-baseline gap-1 px-3 py-1.5 rounded-lg ring-1 ${colors.bg} ${colors.ring}`}>
-          <span className={`text-3xl font-bold ${colors.text}`}>{score.composite}</span>
-          <span className={`text-xs ${colors.text} opacity-60`}>/100</span>
-        </div>
+        <InCiteBadge talkId={talkId} inputs={inputs} size="lg" />
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 pt-3 border-t border-gray-100">
+        <p className="text-[10px] text-gray-400 uppercase tracking-wide">Engagement breakdown</p>
         <div>
           <div className="flex justify-between text-xs mb-1">
             <span className="text-gray-600">Interest</span>
@@ -55,7 +63,7 @@ export default function InCitePanel({ talkId, inputs }: Props) {
           <p className="text-[10px] text-gray-400 mt-0.5">Comments, saves, library adds</p>
         </div>
 
-        <div>
+        <div className="pt-2">
           <div className="flex justify-between text-xs mb-1">
             <span className="text-gray-600">Sentiment</span>
             <span className="text-gray-500 font-medium">{score.sentiment}</span>

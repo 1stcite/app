@@ -18,6 +18,14 @@ export type SessionLike = {
 /**
  * Parse a session's date + time into a Date.
  * Returns null if the date is missing or invalid.
+ *
+ * Uses UTC interpretation so that this function returns the same
+ * timestamp whether called on the server (Vercel, UTC) or the client
+ * (user's local timezone). The session's "date" field is treated as
+ * a wall-clock anchor that's the same for everyone — what matters
+ * for demo modes is that the relative ordering of before/during/after
+ * timestamps brackets the sessions correctly, and UTC achieves that
+ * consistently across server and client.
  */
 function parseSessionDate(dateStr: string, timeStr?: string): Date | null {
   if (!dateStr) return null;
@@ -33,7 +41,7 @@ function parseSessionDate(dateStr: string, timeStr?: string): Date | null {
     hours = h;
     minutes = mn;
   }
-  return new Date(year, month, day, hours, minutes, 0);
+  return new Date(Date.UTC(year, month, day, hours, minutes, 0));
 }
 
 /**
