@@ -4,6 +4,7 @@ import "./globals.css";
 import { headers } from "next/headers";
 import { ConferenceProvider, type ConferenceConfig } from "@/app/lib/conferenceContext";
 import { getDb } from "@/app/lib/db";
+import AdminBar from "@/app/components/AdminBar";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -82,6 +83,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased text-gray-900 bg-gray-50`}>
         <ConferenceProvider config={config}>
           {children}
+          <AdminBar />
         </ConferenceProvider>
       </body>
     </html>
