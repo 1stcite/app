@@ -6,6 +6,7 @@ import { usePosters, type Poster } from "@/app/lib/usePosters";
 import PosterCard from "@/app/components/PosterCard";
 import { useConference } from "@/app/lib/conferenceContext";
 import Footer from "@/app/components/Footer";
+import { useDemoClock } from "@/app/lib/demoClock";
 
 function normalize(s: string) {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
@@ -68,6 +69,7 @@ function groupByTimeSlot(sessions: Session[]): TimeSlot[] {
 export default function HomePage() {
   const { name: LOGO_ALT, logo: LOGO, sourceId: SITE_ID, isRepo: IS_REPO } = useConference();
   const { posters, loading, starredPosterIds, toggleStar } = usePosters();
+  const { now: demoNow } = useDemoClock();
   const [query, setQuery] = useState("");
   const [conference, setConference] = useState("");
   const [conferences, setConferences] = useState<string[]>([]);
@@ -137,10 +139,10 @@ export default function HomePage() {
         <div className="flex items-center gap-2 mb-6 min-w-0">
           <h1 className="text-xl md:text-3xl font-bold text-gray-500 whitespace-nowrap">Presentations</h1>
           <Link
-            href="/selected"
+            href="/my-talks"
             className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50 whitespace-nowrap shrink-0"
           >
-            Selected
+            My Talks
           </Link>
           <div className="flex-1" />
           <Link href="/" className="shrink-0">
@@ -195,6 +197,7 @@ export default function HomePage() {
                   poster={poster}
                   isStarred={starredPosterIds.includes(poster.id)}
                   onToggleStar={toggleStar}
+                  now={demoNow}
                 />
               ))}
             </div>
@@ -239,6 +242,7 @@ export default function HomePage() {
                                 poster={poster}
                                 isStarred={starredPosterIds.includes(poster.id)}
                                 onToggleStar={toggleStar}
+                                now={demoNow}
                               />
                             ))
                           )}
@@ -263,6 +267,7 @@ export default function HomePage() {
                       poster={poster}
                       isStarred={starredPosterIds.includes(poster.id)}
                       onToggleStar={toggleStar}
+                      now={demoNow}
                     />
                   ))}
                 </div>
@@ -283,6 +288,7 @@ export default function HomePage() {
                 poster={poster}
                 isStarred={starredPosterIds.includes(poster.id)}
                 onToggleStar={toggleStar}
+                now={demoNow}
               />
             ))}
           </div>

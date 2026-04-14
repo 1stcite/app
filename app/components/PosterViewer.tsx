@@ -14,6 +14,8 @@ import CommentComposerModal from './CommentComposerModal';
 import CommentsPanel, { type Comment } from './CommentsPanel';
 import { useConference } from '@/app/lib/conferenceContext';
 import InCitePanel from '@/app/components/InCitePanel';
+import { useDemoClock } from '@/app/lib/demoClock';
+import { sessionTimingAt, type SessionLike } from '@/app/lib/sessionTiming';
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -105,6 +107,7 @@ function useVisualViewportSize() {
 export default function PosterViewer({ posterId }: { posterId: string }) {
   const router = useRouter();
   const { logo: siteLogo, name: siteName } = useConference();
+  const { now: demoNow } = useDemoClock();
 
   // --- refs used by mobile zoom ---
   const zoomSurfaceRef = useRef<HTMLDivElement | null>(null);
@@ -465,6 +468,16 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
     [comments, commentTargetPage]
   );
 
+  // Save button label depends on whether the talk's session is upcoming or past.
+  // Past → "Library" / "In Library". Upcoming → "Schedule" / "Scheduled".
+  const saveTiming = useMemo(() => {
+    const session = (poster as unknown as { session?: SessionLike } | null)?.session;
+    return sessionTimingAt(session, demoNow);
+  }, [poster, demoNow]);
+  const saveButtonLabel = saveTiming === "past"
+    ? (isSaved ? "✓ In Library" : "+ Library")
+    : (isSaved ? "✓ Scheduled" : "+ Schedule");
+
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
     setPageNumber((prev) => (prev < 1 ? 1 : prev > numPages ? numPages : prev));
@@ -821,7 +834,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                         : "bg-white/90 text-gray-900"
                     }`}
                   >
-                    {isSaved ? "✓ Saved" : "+ Save"}
+                    {saveButtonLabel}
                   </button>
                 )}
                 {requireLogin && (
@@ -862,7 +875,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                         : "bg-white/90 text-gray-900"
                     }`}
                   >
-                    {isSaved ? "✓ Saved" : "+ Save"}
+                    {saveButtonLabel}
                   </button>
                 )}
                 {requireLogin && (

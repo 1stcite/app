@@ -11,11 +11,22 @@ type Me = {
   viewMode: "admin" | "attendee";
 };
 
+type DemoMode = "live" | "before" | "after";
+
+function readDemoModeCookie(): DemoMode {
+  if (typeof document === "undefined") return "live";
+  const m = document.cookie.match(/(?:^|;\s*)px_demo_mode=([^;]+)/);
+  if (!m) return "live";
+  const v = decodeURIComponent(m[1]);
+  return v === "before" || v === "after" ? v : "live";
+}
+
 export default function AdminBar() {
   const pathname = usePathname();
   const [me, setMe] = useState<Me | null>(null);
   const [busy, setBusy] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [demoMode, setDemoMode] = useState<DemoMode>("live");
 
   useEffect(() => {
     let cancelled = false;
@@ -23,8 +34,9 @@ export default function AdminBar() {
       .then(r => r.json())
       .then(data => { if (!cancelled) setMe(data); })
       .catch(() => { if (!cancelled) setMe(null); });
+    setDemoMode(readDemoModeCookie());
     return () => { cancelled = true; };
-  }, [pathname]); // refetch on navigation so the bar reflects route gating
+  }, [pathname]);
 
   // Don't render at all unless we know the user is admin
   if (!me?.isAdmin) return null;
@@ -52,6 +64,24 @@ export default function AdminBar() {
     }
   }
 
+  async function setDemoModeAPI(mode: DemoMode) {
+    if (mode === demoMode) return;
+    setBusy(true);
+    try {
+      const r = await fetch("/api/demo-mode", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ mode }),
+      });
+      if (r.ok) {
+        setDemoMode(mode);
+        window.location.reload();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const inAttendeeMode = me.viewMode === "attendee";
 
   if (collapsed) {
@@ -70,12 +100,14 @@ export default function AdminBar() {
   return (
     <div
       className={[
-        "fixed bottom-4 right-4 z-50 rounded-xl shadow-lg border flex items-center gap-1 px-2 py-1.5",
+        "fixed bottom-4 right-4 z-50 rounded-xl shadow-lg border flex flex-col items-stretch px-2 py-1.5 gap-1",
         inAttendeeMode
           ? "bg-amber-50 border-amber-300 text-amber-900"
           : "bg-gray-900 border-gray-700 text-white",
       ].join(" ")}
     >
+      {/* Main row */}
+      <div className="flex items-center gap-1">
       <span
         className={[
           "px-2 py-0.5 rounded-md text-xs font-semibold mr-1",
@@ -85,6 +117,15 @@ export default function AdminBar() {
       >
         {inAttendeeMode ? "ATTENDEE VIEW" : "ADMIN"}
       </span>
+
+      {demoMode !== "live" && (
+        <span
+          className="px-2 py-0.5 rounded-md text-xs font-semibold bg-yellow-400 text-yellow-900 mr-1"
+          title={`Demo clock is set to ${demoMode === "before" ? "before the conference" : "after the conference"}`}
+        >
+          DEMO: {demoMode === "before" ? "BEFORE" : "AFTER"}
+        </span>
+      )}
 
       <Link
         href="/admin"
@@ -133,6 +174,45 @@ export default function AdminBar() {
       >
         ✕
       </button>
+      </div>
+
+      {/* Demo clock switcher row */}
+      <div className={[
+        "flex items-center gap-1 pt-1 border-t",
+        inAttendeeMode ? "border-amber-200" : "border-gray-800",
+      ].join(" ")}>
+        <span className={[
+          "text-[10px] font-semibold uppercase tracking-wide mr-1 px-1",
+          inAttendeeMode ? "text-amber-700" : "text-gray-500",
+        ].join(" ")}>
+          Clock
+        </span>
+        {(["live", "before", "after"] as const).map(m => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setDemoModeAPI(m)}
+            disabled={busy || demoMode === m}
+            className={[
+              "px-2 py-0.5 rounded text-[11px] font-medium transition-colors disabled:cursor-default",
+              demoMode === m
+                ? (m === "live"
+                    ? "bg-emerald-500 text-white"
+                    : "bg-yellow-400 text-yellow-900")
+                : (inAttendeeMode
+                    ? "border border-amber-300 hover:bg-amber-100"
+                    : "border border-gray-700 hover:bg-gray-800"),
+            ].join(" ")}
+            title={
+              m === "live" ? "Use real time" :
+              m === "before" ? "Demo: 1 hour before the conference starts" :
+              "Demo: 1 hour after the conference ends"
+            }
+          >
+            {m === "live" ? "Live" : m === "before" ? "Before" : "After"}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

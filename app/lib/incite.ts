@@ -4,10 +4,11 @@
  * Three independent dimensions (each 0–100):
  *   - Interest:    how much attention the talk attracted (views, dwell, reach)
  *   - Interaction: how much people engaged with it (comments, saves, library adds)
- *   - Sentiment:   the valence of engagement (-1 to +1, displayed as -100 to +100)
+ *   - Sentiment:   the positive valence of engagement (higher is better)
  *
- * Composite score (0–100) is a multiplicative combination so a talk needs all
- * three dimensions to score high. Pure attention without engagement caps out.
+ * Composite score (0–100) is a multiplicative combination so a talk needs
+ * all three dimensions to score high. Pure attention without engagement
+ * caps out.
  *
  * For the demo, scores are computed deterministically from the talk's id so
  * they are stable across page loads. Real event data will replace this in
@@ -17,7 +18,7 @@
 export type InCiteScore = {
   interest: number; // 0-100
   interaction: number; // 0-100
-  sentiment: number; // -100 to +100
+  sentiment: number; // 0-100 (no negatives — higher is better)
   composite: number; // 0-100
 };
 
@@ -28,7 +29,6 @@ function seededRand(seed: string): number {
     h ^= seed.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
-  // Map to [0, 1)
   return ((h >>> 0) % 100000) / 100000;
 }
 
@@ -46,11 +46,13 @@ export function computeInCite(
   const r2 = seededRand(talkId + ":interaction");
   const r3 = seededRand(talkId + ":sentiment");
 
-  // Base scores from deterministic noise, biased toward middle-high
-  // (most talks are middling, a few are great, a few are weak)
+  // Base scores from deterministic noise, biased toward middle-high.
+  // Most talks score in the 40-80 range; a few outliers on each end.
   let interest = Math.round(35 + r1 * 60);
   let interaction = Math.round(25 + r2 * 65);
-  let sentiment = Math.round((r3 - 0.35) * 140); // skewed positive
+  // Sentiment skews positive in scientific audiences — most comments
+  // are supportive or constructive, with a minority questioning or critical.
+  let sentiment = Math.round(50 + r3 * 45); // biased to 50-95 range
 
   // Nudge by real inputs if we have them
   if (inputs) {
@@ -63,12 +65,15 @@ export function computeInCite(
     }
   }
 
-  // Composite: multiplicative so all three matter
-  // Normalize sentiment from [-100, 100] to a [0.5, 1.5] multiplier
-  const sentMult = 1 + sentiment / 200;
-  const composite = Math.round(
-    Math.min(100, ((interest * interaction) / 100) * sentMult)
-  );
+  // Clamp all dimensions to [0, 100]
+  interest = Math.max(0, Math.min(100, interest));
+  interaction = Math.max(0, Math.min(100, interaction));
+  sentiment = Math.max(0, Math.min(100, sentiment));
+
+  // Composite: geometric-style mean so a weakness in any dimension pulls
+  // the composite down. Cube root of the product gives a balanced score
+  // where (80,80,80) → 80 and (90,90,30) → ~58.
+  const composite = Math.round(Math.cbrt(interest * interaction * sentiment));
 
   return { interest, interaction, sentiment, composite };
 }

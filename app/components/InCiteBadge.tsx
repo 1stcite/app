@@ -22,7 +22,7 @@ export default function InCiteBadge({ talkId, inputs, size = "sm", showLabel = f
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-md font-semibold ring-1 ${colors.bg} ${colors.text} ${colors.ring} ${sizeClasses}`}
-      title={`InCite Index: ${score.composite}\nInterest: ${score.interest}\nInteraction: ${score.interaction}\nSentiment: ${score.sentiment > 0 ? "+" : ""}${score.sentiment}`}
+      title={`InCite Index: ${score.composite}\nInterest: ${score.interest}\nInteraction: ${score.interaction}\nSentiment: ${score.sentiment}`}
     >
       {showLabel && <span className="opacity-70 font-normal">InCite</span>}
       <span>{score.composite}</span>

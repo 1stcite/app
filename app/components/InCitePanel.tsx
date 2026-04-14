@@ -8,14 +8,12 @@ type Props = {
 };
 
 function Bar({ value, color }: { value: number; color: string }) {
-  // value can be 0-100 or -100 to +100
-  const isSentiment = value < 0;
-  const width = Math.abs(value);
+  const width = Math.max(0, Math.min(100, value));
   return (
     <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
       <div
         className={`h-full rounded-full ${color}`}
-        style={{ width: `${Math.min(100, width)}%` }}
+        style={{ width: `${width}%` }}
       />
     </div>
   );
@@ -60,11 +58,9 @@ export default function InCitePanel({ talkId, inputs }: Props) {
         <div>
           <div className="flex justify-between text-xs mb-1">
             <span className="text-gray-600">Sentiment</span>
-            <span className="text-gray-500 font-medium">
-              {score.sentiment > 0 ? "+" : ""}{score.sentiment}
-            </span>
+            <span className="text-gray-500 font-medium">{score.sentiment}</span>
           </div>
-          <Bar value={score.sentiment} color={score.sentiment >= 0 ? "bg-emerald-500" : "bg-rose-500"} />
+          <Bar value={score.sentiment} color="bg-emerald-500" />
           <p className="text-[10px] text-gray-400 mt-0.5">Comment valence and reaction quality</p>
         </div>
       </div>
