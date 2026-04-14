@@ -11,14 +11,14 @@ type Me = {
   viewMode: "admin" | "attendee";
 };
 
-type DemoMode = "live" | "before" | "after";
+type DemoMode = "live" | "before" | "during" | "after";
 
 function readDemoModeCookie(): DemoMode {
   if (typeof document === "undefined") return "live";
   const m = document.cookie.match(/(?:^|;\s*)px_demo_mode=([^;]+)/);
   if (!m) return "live";
   const v = decodeURIComponent(m[1]);
-  return v === "before" || v === "after" ? v : "live";
+  return v === "before" || v === "during" || v === "after" ? v : "live";
 }
 
 export default function AdminBar() {
@@ -121,9 +121,13 @@ export default function AdminBar() {
       {demoMode !== "live" && (
         <span
           className="px-2 py-0.5 rounded-md text-xs font-semibold bg-yellow-400 text-yellow-900 mr-1"
-          title={`Demo clock is set to ${demoMode === "before" ? "before the conference" : "after the conference"}`}
+          title={
+            demoMode === "before" ? "Demo clock: before the conference starts" :
+            demoMode === "during" ? "Demo clock: between two sessions (mid-conference)" :
+            "Demo clock: after the conference ends"
+          }
         >
-          DEMO: {demoMode === "before" ? "BEFORE" : "AFTER"}
+          DEMO: {demoMode.toUpperCase()}
         </span>
       )}
 
@@ -187,7 +191,7 @@ export default function AdminBar() {
         ].join(" ")}>
           Clock
         </span>
-        {(["live", "before", "after"] as const).map(m => (
+        {(["live", "before", "during", "after"] as const).map(m => (
           <button
             key={m}
             type="button"
@@ -206,10 +210,11 @@ export default function AdminBar() {
             title={
               m === "live" ? "Use real time" :
               m === "before" ? "Demo: 1 hour before the conference starts" :
+              m === "during" ? "Demo: between two sessions, mid-conference" :
               "Demo: 1 hour after the conference ends"
             }
           >
-            {m === "live" ? "Live" : m === "before" ? "Before" : "After"}
+            {m === "live" ? "Live" : m === "before" ? "Before" : m === "during" ? "During" : "After"}
           </button>
         ))}
       </div>

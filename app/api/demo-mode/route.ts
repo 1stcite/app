@@ -13,11 +13,12 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const mode = body?.mode;
-  if (mode !== "live" && mode !== "before" && mode !== "after") {
+  if (mode !== "live" && mode !== "before" && mode !== "during" && mode !== "after") {
     return NextResponse.json({ error: "Invalid mode" }, { status: 400 });
   }
 
-  // For before/after, compute the as_of timestamp from the current conference's sessions
+  // For before/during/after, compute the as_of timestamp from the current
+  // conference's sessions
   let asOf: Date | null = null;
   if (mode !== "live") {
     const subdomain = req.headers.get("x-subdomain") || "";
@@ -31,7 +32,17 @@ export async function POST(req: Request) {
     const moments = computeDemoClockMoments(
       sessions.map(s => ({ date: s.date, startTime: s.startTime, endTime: s.endTime }))
     );
-    asOf = mode === "before" ? moments.before : moments.after;
+    if (mode === "before") asOf = moments.before;
+    else if (mode === "after") asOf = moments.after;
+    else if (mode === "during") {
+      if (!moments.during) {
+        return NextResponse.json(
+          { error: "No gap between consecutive same-day sessions found for 'during' mode" },
+          { status: 400 }
+        );
+      }
+      asOf = moments.during;
+    }
   }
 
   const res = NextResponse.json({

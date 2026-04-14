@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-export type DemoMode = "live" | "before" | "after";
+export type DemoMode = "live" | "before" | "during" | "after";
 
 const DEMO_MODE_COOKIE = "px_demo_mode";
 
@@ -12,7 +12,7 @@ function readDemoMode(): DemoMode {
   const m = document.cookie.match(/(?:^|;\s*)px_demo_mode=([^;]+)/);
   if (!m) return "live";
   const v = decodeURIComponent(m[1]);
-  return v === "before" || v === "after" ? v : "live";
+  return v === "before" || v === "during" || v === "after" ? v : "live";
 }
 
 /** Read the as-of timestamp from a cookie. Returns null if not set. */

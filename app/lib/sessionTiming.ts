@@ -55,15 +55,20 @@ export function sessionTimingAt(session: SessionLike | null | undefined, now: Da
 /**
  * Compute demo-mode clock timestamps relative to a list of real sessions.
  *
- * Strategy: "before" mode sets the clock to 1 hour before the earliest session;
- * "after" mode sets it to 1 hour after the latest session end.
+ *   - before: 1 hour before the earliest session starts
+ *   - after:  1 hour after the latest session ends
+ *   - during: midpoint between two consecutive same-day sessions — the
+ *             first gap found that has a real (>0) duration. If no such
+ *             gap exists, during is null and the caller should hide
+ *             the mode in the UI.
  *
- * If the session list is empty or all sessions are missing dates, we fall
- * back to fixed offsets from real `now` so demos still work.
+ * If the session list is empty or all sessions are missing dates, we
+ * fall back to fixed offsets from real `now` so demos still work.
  */
 export function computeDemoClockMoments(sessions: SessionLike[]): {
   before: Date;
   after: Date;
+  during: Date | null;
 } {
   const starts: number[] = [];
   const ends: number[] = [];
@@ -81,15 +86,40 @@ export function computeDemoClockMoments(sessions: SessionLike[]): {
     return {
       before: new Date(real - 24 * 60 * 60 * 1000),
       after: new Date(real + 24 * 60 * 60 * 1000),
+      during: null,
     };
   }
 
   const earliest = Math.min(...starts);
   const latest = Math.max(...ends);
 
+  // For "during", find the first pair of consecutive sessions on the
+  // same calendar day with a real gap between them.
+  const sorted = sessions
+    .map(s => ({
+      start: s.date ? parseSessionDate(s.date, s.startTime || "00:00") : null,
+      end: s.date ? parseSessionDate(s.date, s.endTime || "23:59") : null,
+      date: s.date || "",
+    }))
+    .filter(x => x.start && x.end && x.date)
+    .sort((a, b) => (a.start!.getTime() - b.start!.getTime()));
+
+  let during: Date | null = null;
+  for (let i = 0; i + 1 < sorted.length; i++) {
+    const a = sorted[i];
+    const b = sorted[i + 1];
+    if (a.date !== b.date) continue; // must be same day
+    const gapMs = b.start!.getTime() - a.end!.getTime();
+    if (gapMs > 0) {
+      during = new Date(a.end!.getTime() + Math.floor(gapMs / 2));
+      break;
+    }
+  }
+
   return {
-    before: new Date(earliest - 60 * 60 * 1000), // 1 hour before first session
-    after: new Date(latest + 60 * 60 * 1000), // 1 hour after last session
+    before: new Date(earliest - 60 * 60 * 1000),
+    after: new Date(latest + 60 * 60 * 1000),
+    during,
   };
 }
 

@@ -78,11 +78,10 @@ export function computeInCite(
   return { interest, interaction, sentiment, composite };
 }
 
-/** Color for a composite score badge. */
-export function inciteColor(composite: number): { bg: string; text: string; ring: string } {
-  if (composite >= 80) return { bg: "bg-emerald-100", text: "text-emerald-800", ring: "ring-emerald-300" };
-  if (composite >= 65) return { bg: "bg-blue-100", text: "text-blue-800", ring: "ring-blue-300" };
-  if (composite >= 50) return { bg: "bg-amber-100", text: "text-amber-800", ring: "ring-amber-300" };
-  if (composite >= 35) return { bg: "bg-orange-100", text: "text-orange-800", ring: "ring-orange-300" };
-  return { bg: "bg-gray-100", text: "text-gray-600", ring: "ring-gray-300" };
+/** Color for a composite score badge. Uniform across all scores — the
+ * number itself is the information, and the color should not imply
+ * "good" vs "bad" judgment. We use a single emerald palette for every
+ * score, which reads as positive and platform-branded without tiering. */
+export function inciteColor(_composite: number): { bg: string; text: string; ring: string } {
+  return { bg: "bg-emerald-100", text: "text-emerald-800", ring: "ring-emerald-300" };
 }

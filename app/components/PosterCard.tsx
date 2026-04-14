@@ -31,8 +31,9 @@ export default function PosterCard({
   const timing = sessionTimingAt(session, now ?? new Date());
   const isPast = timing === "past";
 
-  const bg =
-    variant === "starred"
+  const bg = isPast
+    ? "bg-gray-100 border-gray-300"
+    : variant === "starred"
       ? "bg-yellow-50 border-yellow-200"
       : "bg-white border-gray-200";
 
@@ -45,9 +46,7 @@ export default function PosterCard({
 
   return (
     <div
-      className={`rounded-lg shadow-sm hover:shadow-md transition-shadow p-5 border ${bg} ${
-        isPast ? "opacity-70" : ""
-      }`}
+      className={`rounded-lg shadow-sm hover:shadow-md transition-shadow p-5 border ${bg}`}
     >
       <Link href={`/view/${poster.id}`} className="block">
         <div className="flex items-start justify-between gap-2">
