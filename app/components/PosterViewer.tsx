@@ -14,6 +14,7 @@ import CommentComposerModal from './CommentComposerModal';
 import CommentsPanel, { type Comment } from './CommentsPanel';
 import { useConference } from '@/app/lib/conferenceContext';
 import EngagementPanel from '@/app/components/EngagementPanel';
+import { useThumbs } from '@/app/lib/useThumbs';
 import { useDemoClock } from '@/app/lib/demoClock';
 import { sessionTimingAt, type SessionLike } from '@/app/lib/sessionTiming';
 
@@ -142,6 +143,8 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
   //session User ID
   const [sessionUserId, setSessionUserId] = useState<string | undefined>(undefined);
   const [isAdmin, setIsAdmin] = useState(false);
+  // Viewed + Thumbs-up
+  const { viewed, thumbed, thumbCount, toggleViewed, toggleThumb } = useThumbs(posterId);
   // Responsive
   const [isLandscape, setIsLandscape] = useState(false);
 
@@ -846,6 +849,38 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                     Comment
                   </button>
                 )}
+                {!!sessionUserId && (
+                  <button
+                    type="button"
+                    onClick={toggleViewed}
+                    className={`px-3 py-1.5 rounded border shadow text-sm font-medium ${
+                      viewed
+                        ? "bg-emerald-600 text-white border-emerald-600"
+                        : "bg-white/90 text-gray-900"
+                    }`}
+                  >
+                    {viewed ? "✓ Viewed" : "Viewed"}
+                  </button>
+                )}
+                {!!sessionUserId && (
+                  <button
+                    type="button"
+                    onClick={() => { if (viewed) toggleThumb(); }}
+                    className={`px-3 py-1.5 rounded border shadow text-sm font-medium flex items-center gap-1.5 ${
+                      !viewed
+                        ? "bg-white/90 text-gray-300 border-gray-200 cursor-default"
+                        : thumbed
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "bg-white/90 text-blue-600 border-gray-300"
+                    }`}
+                    title={!viewed ? "View this talk first" : thumbed ? "Remove thumbs-up" : "Give thumbs-up"}
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zm4-.167v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.556 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
+                    </svg>
+                    {thumbCount || ""}
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -885,6 +920,38 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                     className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm font-medium"
                   >
                     Comment
+                  </button>
+                )}
+                {!!sessionUserId && (
+                  <button
+                    type="button"
+                    onClick={toggleViewed}
+                    className={`px-3 py-1.5 rounded border shadow text-sm font-medium ${
+                      viewed
+                        ? "bg-emerald-600 text-white border-emerald-600"
+                        : "bg-white/90 text-gray-900"
+                    }`}
+                  >
+                    {viewed ? "✓ Viewed" : "Viewed"}
+                  </button>
+                )}
+                {!!sessionUserId && (
+                  <button
+                    type="button"
+                    onClick={() => { if (viewed) toggleThumb(); }}
+                    className={`px-3 py-1.5 rounded border shadow text-sm font-medium flex items-center gap-1.5 ${
+                      !viewed
+                        ? "bg-white/90 text-gray-300 border-gray-200 cursor-default"
+                        : thumbed
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "bg-white/90 text-blue-600 border-gray-300"
+                    }`}
+                    title={!viewed ? "View this talk first" : thumbed ? "Remove thumbs-up" : "Give thumbs-up"}
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zm4-.167v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.556 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
+                    </svg>
+                    {thumbCount || ""}
                   </button>
                 )}
               </div>

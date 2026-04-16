@@ -1,6 +1,7 @@
 "use client";
 
 import { computeEngagement } from "@/app/lib/engagement";
+import { useThumbs } from "@/app/lib/useThumbs";
 
 type Props = {
   talkId: string;
@@ -8,6 +9,9 @@ type Props = {
 
 export default function EngagementPanel({ talkId }: Props) {
   const data = computeEngagement(talkId);
+  const { viewed, thumbed, thumbCount, toggleViewed, toggleThumb } = useThumbs(talkId);
+
+  const displayCount = thumbCount || data.thumbsUp;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
@@ -27,20 +31,45 @@ export default function EngagementPanel({ talkId }: Props) {
           >
             {data.engagement.toLocaleString()}
           </span>
-          <span className="flex items-center gap-1 mt-1">
-            <span className="text-blue-600 text-sm font-medium">
-              {data.thumbsUp}
+          <button
+            type="button"
+            onClick={() => { if (viewed) toggleThumb(); }}
+            className={`flex items-center gap-1 mt-1 transition-colors ${viewed ? "cursor-pointer" : "cursor-default"}`}
+            title={!viewed ? "View this talk first" : thumbed ? "Remove thumbs-up" : "Give thumbs-up"}
+          >
+            <span className={`text-sm font-medium ${!viewed ? "text-gray-300" : thumbed ? "text-blue-600" : "text-blue-400"}`}>
+              {displayCount}
             </span>
             <svg
-              className="text-blue-600"
+              className={`${!viewed ? "text-gray-300" : thumbed ? "text-blue-600" : "text-blue-400"}`}
               style={{ width: "14px", height: "14px" }}
               viewBox="0 0 20 20"
               fill="currentColor"
             >
               <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zm4-.167v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.556 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
             </svg>
-          </span>
+          </button>
         </div>
+      </div>
+
+      {/* Viewed button */}
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={toggleViewed}
+          className={`w-full px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+            viewed
+              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+              : "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300"
+          }`}
+        >
+          {viewed ? "✓ I viewed this talk" : "I viewed this talk"}
+        </button>
+        {!viewed && (
+          <p className="text-xs text-gray-400 mt-1 text-center">
+            Mark as viewed to enable thumbs-up
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-2 pt-3 border-t border-gray-100 text-sm">
