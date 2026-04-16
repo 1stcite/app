@@ -18,8 +18,8 @@ export async function PATCH(
   // Verify caller is the presenter
   const poster = await db.collection("posters").findOne({ id, deletedAt: { $exists: false } });
   if (!poster) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (String(poster.presenterUserId) !== String(user._id)) {
-    return NextResponse.json({ error: "Only the presenter can edit notes" }, { status: 403 });
+  if (String(poster.presenterUserId) !== String(user._id) && !user.isAdmin) {
+    return NextResponse.json({ error: "Only the presenter or admin can edit notes" }, { status: 403 });
   }
 
   // Save note for this page

@@ -666,7 +666,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
   }
 
   const openCommentComposer = () => {
-    if (!requireLogin) return; // passwords off => no commenting
+    if (!sessionUserId) return; // must be signed in to comment
     resetTransformRef.current?.();
     setMobileZoomed(false);
 
@@ -837,7 +837,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                     {saveButtonLabel}
                   </button>
                 )}
-                {requireLogin && (
+                {!!sessionUserId && (
                   <button
                     type="button"
                     onClick={openCommentComposer}
@@ -878,7 +878,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                     {saveButtonLabel}
                   </button>
                 )}
-                {requireLogin && (
+                {!!sessionUserId && (
                   <button
                     type="button"
                     onClick={openCommentComposer}
@@ -941,7 +941,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
         </div>
 
         {/* Modal composer */}
-        {requireLogin && (
+        {!!sessionUserId && (
           <CommentComposerModal
             open={composerOpen}
             mode={composerMode}
