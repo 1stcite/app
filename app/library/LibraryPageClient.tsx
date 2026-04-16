@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useConference } from "@/app/lib/conferenceContext";
-import InCiteBadge from "@/app/components/InCiteBadge";
+import EngagementBadge from "@/app/components/EngagementBadge";
 
 type Save = {
   posterId: string;
@@ -197,7 +197,7 @@ export default function LibraryPageClient() {
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
-                    <InCiteBadge talkId={poster.id} />
+                    <EngagementBadge talkId={poster.id} />
                     {isReady && (
                       <button className="text-xs px-2 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700">
                         Download PDF

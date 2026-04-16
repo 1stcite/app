@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useConference } from "@/app/lib/conferenceContext";
-import InCiteBadge from "@/app/components/InCiteBadge";
+import EngagementBadge from "@/app/components/EngagementBadge";
 
 type Save = {
   posterId: string;
@@ -173,7 +173,7 @@ export default function ReviewPageClient() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-3">
                               <p className="font-medium text-gray-900 leading-snug">{poster.title}</p>
-                              <InCiteBadge talkId={poster.id} />
+                              <EngagementBadge talkId={poster.id} />
                             </div>
                             {poster.author && (
                               <p className="text-sm text-gray-500 mt-0.5">{poster.author}</p>

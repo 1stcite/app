@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Poster } from "@/app/lib/usePosters";
-import InCiteBadge from "@/app/components/InCiteBadge";
+import EngagementBadge from "@/app/components/EngagementBadge";
 import { sessionTimingAt, type SessionLike } from "@/app/lib/sessionTiming";
 
 function firstAuthor(author: string) {
@@ -49,11 +49,11 @@ export default function PosterCard({
       className={`rounded-lg shadow-sm hover:shadow-md transition-shadow p-5 border ${bg}`}
     >
       <Link href={`/view/${poster.id}`} className="block">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-3">
           <div className="text-base font-semibold text-gray-900 leading-snug line-clamp-2 flex-1">
             {poster.title}
           </div>
-          <InCiteBadge talkId={poster.id} />
+          <EngagementBadge talkId={poster.id} />
         </div>
       </Link>
 

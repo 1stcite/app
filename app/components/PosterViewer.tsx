@@ -13,7 +13,7 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import CommentComposerModal from './CommentComposerModal';
 import CommentsPanel, { type Comment } from './CommentsPanel';
 import { useConference } from '@/app/lib/conferenceContext';
-import InCitePanel from '@/app/components/InCitePanel';
+import EngagementPanel from '@/app/components/EngagementPanel';
 import { useDemoClock } from '@/app/lib/demoClock';
 import { sessionTimingAt, type SessionLike } from '@/app/lib/sessionTiming';
 
@@ -1115,12 +1115,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 </div>
               )}
 
-              <InCitePanel
-                talkId={posterId}
-                inputs={{
-                  comments: comments.length,
-                }}
-              />
+              <EngagementPanel talkId={posterId} />
 
               {isAdmin && (
                 <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 text-white">
