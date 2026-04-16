@@ -4,69 +4,108 @@ import { useState } from 'react';
 import Footer from '@/app/components/Footer';
 import Link from 'next/link';
 
-// ── Realistic mock data based on actual IAPRD 2025 content ──────────────────
+// ── Mock data: IAPRD 2025 with new engagement model ─────────────────────────
 
 const CONFERENCE = {
   name: "IAPRD 2025",
   date: "Friday, May 9",
-  timeSlot: "14:30 – 16:00",
-  totalAttendees: 847,
-  totalViews: 3241,
-  totalStars: 186,
-  totalComments: 43,
+  timeSlot: "11:00 – 12:30 & 14:30 – 16:00",
+  totalViewers: 847,
+  totalEngagement: 14820,
+  totalThumbsUp: 623,
+  totalComments: 97,
+  totalCommenters: 54,
   uniqueCountries: 31,
 };
 
-const SESSIONS = [
+type Talk = {
+  id: string;
+  title: string;
+  author: string;
+  engagement: number;
+  thumbsUp: number;
+  viewers: number;
+  medianViewMin: number;
+  comments: number;
+  commenters: number;
+  saves: number;
+  slideData: SlideData[];
+};
+
+type SlideData = {
+  slide: number;
+  dwell: number;
+  controversy: 'none' | 'low' | 'mid' | 'high';
+  confusion: 'none' | 'low' | 'mid' | 'high';
+};
+
+type Session = {
+  id: string;
+  name: string;
+  chair: string;
+  location: string;
+  color: string;
+  time: string;
+  talks: Talk[];
+};
+
+function makeSlides(count: number, seed: number): SlideData[] {
+  const contLevels: Array<SlideData['controversy']> = ['none', 'low', 'mid', 'high'];
+  const confLevels: Array<SlideData['confusion']> = ['none', 'low', 'mid', 'high'];
+  return Array.from({ length: count }, (_, i) => {
+    const h = ((seed * 31 + i * 17) % 100);
+    return {
+      slide: i + 1,
+      dwell: 30 + h,
+      controversy: contLevels[((seed + i * 7) % 13) < 5 ? 0 : ((seed + i * 7) % 13) < 9 ? 1 : ((seed + i * 7) % 13) < 11 ? 2 : 3],
+      confusion: confLevels[((seed + i * 11) % 11) < 5 ? 0 : ((seed + i * 11) % 11) < 8 ? 1 : ((seed + i * 11) % 11) < 10 ? 2 : 3],
+    };
+  });
+}
+
+const SESSIONS: Session[] = [
   {
-    id: "s7",
-    name: "Session 7: Management of Advanced Parkinson's",
+    id: "s5",
+    name: "Parallel Session 5: Update on Neuromodulation",
     chair: "Zoltan Mari & Jinyoung Youn",
     location: "Northside Ballroom",
     color: "#2563eb",
-    views: 1284,
-    stars: 74,
-    comments: 18,
+    time: "11:00 – 12:30",
     talks: [
-      { id: "7a", title: "Defining Advanced PD and Treatment Needs", author: "Indu Subramanian", views: 487, stars: 31, comments: 7, sentiment: 0.82, slideHeat: [12, 45, 23, 87, 34, 92, 56, 78, 43, 65] },
-      { id: "7b", title: "Cognitive and Psychiatric Issues", author: "Daniel Weintraub", views: 412, stars: 28, comments: 6, sentiment: 0.74, slideHeat: [23, 67, 89, 45, 12, 34, 78, 56, 90, 43] },
-      { id: "7c", title: "Motor Fluctuations", author: "Rajesh Pahwa", views: 385, stars: 15, comments: 5, sentiment: 0.71, slideHeat: [34, 56, 23, 78, 45, 67, 12, 89, 34, 56] },
+      { id: "5a", title: "MR-guided Focused Ultrasound", author: "Gordon Baltuch", engagement: 427, thumbsUp: 46, viewers: 312, medianViewMin: 6.8, comments: 7, commenters: 5, saves: 28, slideData: makeSlides(10, 1) },
+      { id: "5b", title: "Deep Brain Stimulation", author: "Alexandra Boogers", engagement: 243, thumbsUp: 61, viewers: 198, medianViewMin: 5.2, comments: 4, commenters: 3, saves: 12, slideData: makeSlides(12, 2) },
+      { id: "5c", title: "Neuromodulatory Neurostimulation: TMS, tDCS, and Beyond", author: "Robert Chen", engagement: 239, thumbsUp: 32, viewers: 187, medianViewMin: 4.9, comments: 5, commenters: 4, saves: 14, slideData: makeSlides(8, 3) },
     ],
   },
   {
-    id: "s8",
-    name: "Session 8: Hyperkinetic Movement Disorders",
+    id: "s6",
+    name: "Parallel Session 6: Defining and Treating Atypical Parkinsonism",
     chair: "Karen Frei & Anhar Hassan",
     location: "Grand Ballroom – Salon D",
     color: "#7c3aed",
-    views: 1109,
-    stars: 67,
-    comments: 14,
+    time: "11:00 – 12:30",
     talks: [
-      { id: "8a", title: "Tardive Syndromes", author: "Roongroj Bhidayasri", views: 356, stars: 22, comments: 4, sentiment: 0.68, slideHeat: [45, 78, 34, 56, 89, 23, 67, 45, 12, 78] },
-      { id: "8b", title: "Potential Disease-Modifying Therapies for Huntington's Disease", author: "Sarah J Tabrizi", views: 489, stars: 38, comments: 7, sentiment: 0.91, slideHeat: [56, 34, 78, 92, 45, 87, 23, 67, 89, 45] },
-      { id: "8c", title: "Myoclonus and Tics", author: "Christos Ganos", views: 264, stars: 7, comments: 3, sentiment: 0.65, slideHeat: [23, 45, 67, 34, 56, 78, 12, 45, 34, 23] },
+      { id: "6a", title: "Differentiating PSP, MSA, and Corticobasal Syndrome", author: "Ai-Huey Tan", engagement: 496, thumbsUp: 12, viewers: 298, medianViewMin: 7.3, comments: 16, commenters: 12, saves: 42, slideData: makeSlides(14, 4) },
+      { id: "6b", title: "Therapeutic Approaches to Atypical Parkinsonism", author: "Huw Morris", engagement: 227, thumbsUp: 91, viewers: 174, medianViewMin: 5.1, comments: 3, commenters: 2, saves: 15, slideData: makeSlides(10, 5) },
+      { id: "6c", title: "Debate: Is Neuropathology the Gold Standard for Diagnosis?", author: "Paola Sandroni & Glenda Halliday", engagement: 429, thumbsUp: 94, viewers: 264, medianViewMin: 8.1, comments: 14, commenters: 11, saves: 35, slideData: makeSlides(8, 6) },
     ],
   },
   {
-    id: "s4",
-    name: "Workshop 4: Diagnostic Testing for Parkinsonism",
+    id: "w3",
+    name: "Workshop 3: Botulinum Toxin Injection Workshop",
     chair: "Marie Saint-Hilaire & Roy Alcalay",
-    location: "Grand Ballroom – Salons A-D",
+    location: "Grand Ballroom – Salons A-C",
     color: "#059669",
-    views: 848,
-    stars: 45,
-    comments: 11,
+    time: "11:00 – 12:30",
     talks: [
-      { id: "4a", title: "Utility and Interpretation of Skin Biopsy Testing for Alpha Synuclein", author: "Pravin Khemani", views: 312, stars: 19, comments: 4, sentiment: 0.78, slideHeat: [67, 89, 45, 23, 78, 56, 34, 90, 45, 67] },
-      { id: "4b", title: "Differential Diagnosis with CSF Diagnosis Markers", author: "David Coughlin", views: 287, stars: 16, comments: 4, sentiment: 0.72, slideHeat: [34, 56, 78, 45, 23, 67, 89, 34, 56, 78] },
-      { id: "4c", title: "Current and Emerging Imaging Markers and Techniques", author: "Marina Picillo", views: 249, stars: 10, comments: 3, sentiment: 0.69, slideHeat: [45, 67, 23, 56, 78, 34, 12, 45, 67, 34] },
+      { id: "w3a", title: "Clinical Utility of Botulinum Neurotoxins", author: "Alberto Albanese", engagement: 302, thumbsUp: 21, viewers: 215, medianViewMin: 4.4, comments: 5, commenters: 4, saves: 22, slideData: makeSlides(10, 7) },
+      { id: "w3b", title: "Techniques for Muscle Localization", author: "Katharine Alter", engagement: 362, thumbsUp: 57, viewers: 249, medianViewMin: 5.9, comments: 8, commenters: 6, saves: 28, slideData: makeSlides(12, 8) },
+      { id: "w3c", title: "Injection Demonstration Video Cases", author: "Jaroslaw Slawek & David Simpson", engagement: 642, thumbsUp: 133, viewers: 412, medianViewMin: 9.2, comments: 18, commenters: 14, saves: 52, slideData: makeSlides(6, 9) },
     ],
   },
 ];
 
 const ALL_TALKS = SESSIONS.flatMap(s => s.talks.map(t => ({ ...t, session: s.name, sessionColor: s.color })));
-const TOP_TALKS = [...ALL_TALKS].sort((a, b) => b.stars - a.stars);
 
 const COUNTRIES = [
   { name: "United States", pct: 34 }, { name: "Japan", pct: 12 }, { name: "Germany", pct: 9 },
@@ -75,88 +114,78 @@ const COUNTRIES = [
   { name: "Other (22)", pct: 15 },
 ];
 
-const ENGAGEMENT_TIMELINE = [
-  { time: "14:30", views: 12 }, { time: "14:40", views: 48 }, { time: "14:50", views: 124 },
-  { time: "15:00", views: 187 }, { time: "15:10", views: 243 }, { time: "15:20", views: 298 },
-  { time: "15:30", views: 334 }, { time: "15:40", views: 289 }, { time: "15:50", views: 412 },
-  { time: "16:00", views: 356 }, { time: "16:10", views: 287 }, { time: "16:20", views: 198 },
-  { time: "16:30", views: 143 }, { time: "16:40", views: 98 }, { time: "16:50", views: 67 },
-  { time: "17:00", views: 45 },
-];
-
 // ── Sub-components ──────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, color = "#2563eb" }: { label: string; value: string | number; sub?: string; color?: string }) {
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
       <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">{label}</p>
-      <p className="text-3xl font-bold" style={{ color }}>{value.toLocaleString()}</p>
+      <p className="text-3xl font-bold" style={{ color }}>{typeof value === 'number' ? value.toLocaleString() : value}</p>
       {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
     </div>
   );
 }
 
-function SentimentBadge({ score }: { score: number }) {
-  const pct = Math.round(score * 100);
-  const color = score >= 0.8 ? '#059669' : score >= 0.7 ? '#d97706' : '#dc2626';
-  const label = score >= 0.8 ? 'Positive' : score >= 0.7 ? 'Mixed' : 'Critical';
+function ThumbIcon({ className = "" }: { className?: string }) {
   return (
-    <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: color + '18', color }}>
-      {label} {pct}%
-    </span>
+    <svg className={className} style={{ width: "14px", height: "14px" }} viewBox="0 0 20 20" fill="currentColor">
+      <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zm4-.167v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.556 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
+    </svg>
   );
 }
 
-function SlideHeatBar({ data }: { data: number[] }) {
-  const max = Math.max(...data);
-  return (
-    <div className="flex items-end gap-0.5 h-8">
-      {data.map((v, i) => (
-        <div key={i} className="flex-1 rounded-sm transition-all"
-          style={{ height: `${(v / max) * 100}%`, background: v === max ? '#2563eb' : `rgba(37,99,235,${0.15 + (v / max) * 0.5})` }}
-          title={`Slide ${i + 1}: ${v} views`}
-        />
-      ))}
-    </div>
-  );
-}
-
-function EngagementChart({ data }: { data: typeof ENGAGEMENT_TIMELINE }) {
-  const max = Math.max(...data.map(d => d.views));
-  const w = 100 / (data.length - 1);
-  const points = data.map((d, i) => `${i * w},${100 - (d.views / max) * 90}`).join(' ');
-  const area = `0,100 ${points} 100,100`;
-
-  return (
-    <div className="relative h-32">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
-        <defs>
-          <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#2563eb" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#2563eb" stopOpacity="0.02" />
-          </linearGradient>
-        </defs>
-        <polygon points={area} fill="url(#grad)" />
-        <polyline points={points} fill="none" stroke="#2563eb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-      </svg>
-      <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-400 mt-1">
-        {data.filter((_, i) => i % 4 === 0).map(d => <span key={d.time}>{d.time}</span>)}
-      </div>
-    </div>
-  );
-}
-
-function SessionBar({ session, max }: { session: typeof SESSIONS[0]; max: number }) {
+function SessionBar({ session, maxEng }: { session: Session; maxEng: number }) {
+  const totalEng = session.talks.reduce((s, t) => s + t.engagement, 0);
+  const totalThumbs = session.talks.reduce((s, t) => s + t.thumbsUp, 0);
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium text-gray-700 truncate max-w-[60%]">{session.name.replace(/^Session \d+: |^Workshop \d+: /, '')}</span>
-        <span className="text-gray-500 text-xs">{session.views.toLocaleString()} views</span>
+        <span className="font-medium text-gray-700 truncate max-w-[55%]">{session.name.replace(/^Parallel Session \d+: |^Workshop \d+: /, '')}</span>
+        <span className="text-gray-500 text-xs flex items-center gap-3">
+          <span>{totalEng.toLocaleString()} eng</span>
+          <span className="flex items-center gap-1 text-blue-500"><ThumbIcon /> {totalThumbs}</span>
+        </span>
       </div>
       <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
         <div className="h-full rounded-full transition-all duration-700"
-          style={{ width: `${(session.views / max) * 100}%`, background: session.color }} />
+          style={{ width: `${(totalEng / maxEng) * 100}%`, background: session.color }} />
       </div>
+    </div>
+  );
+}
+
+const controversyColors: Record<string, string> = { none: '#e5e7eb', low: '#d5e8d4', mid: '#f9d1cc', high: '#f1948a' };
+const confusionColors: Record<string, string> = { none: '#e5e7eb', low: '#dbeafe', mid: '#93c5fd', high: '#3b82f6' };
+
+function SlideHeatmap({ slides, colorKey, colorMap }: { slides: SlideData[]; colorKey: 'controversy' | 'confusion'; colorMap: Record<string, string> }) {
+  const maxDwell = Math.max(...slides.map(s => s.dwell));
+  return (
+    <div className="space-y-0.5">
+      {slides.map(s => {
+        const pct = Math.round((s.dwell / maxDwell) * 100);
+        const color = colorMap[s[colorKey]];
+        return (
+          <div key={s.slide} className="flex items-center gap-2">
+            <span className="text-[10px] text-gray-400 w-4 text-right shrink-0">{s.slide}</span>
+            <div className="flex-1 h-4 bg-gray-100 rounded-sm overflow-hidden">
+              <div className="h-full rounded-sm" style={{ width: `${pct}%`, background: color }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function HeatmapLegend({ items }: { items: { color: string; label: string }[] }) {
+  return (
+    <div className="flex gap-3 mt-2">
+      {items.map(i => (
+        <span key={i.label} className="flex items-center gap-1 text-[10px] text-gray-500">
+          <span className="w-3 h-3 rounded-sm inline-block" style={{ background: i.color }} />
+          {i.label}
+        </span>
+      ))}
     </div>
   );
 }
@@ -165,13 +194,14 @@ function SessionBar({ session, max }: { session: typeof SESSIONS[0]; max: number
 
 export default function InsightsPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'talks' | 'audience'>('overview');
-  const [expandedSession, setExpandedSession] = useState<string | null>('s8');
-  const maxViews = Math.max(...SESSIONS.map(s => s.views));
+  const [expandedSession, setExpandedSession] = useState<string | null>('s6');
+  const [expandedTalk, setExpandedTalk] = useState<string | null>(null);
+
+  const maxSessionEng = Math.max(...SESSIONS.map(s => s.talks.reduce((sum, t) => sum + t.engagement, 0)));
+  const sortedTalks = [...ALL_TALKS].sort((a, b) => b.engagement - a.engagement);
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');`}</style>
-
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -180,11 +210,15 @@ export default function InsightsPage() {
             <span className="text-gray-300">|</span>
             <div>
               <span className="font-semibold text-gray-900 text-sm">{CONFERENCE.name}</span>
-              <span className="text-gray-400 text-sm ml-2">{CONFERENCE.date} · {CONFERENCE.timeSlot}</span>
+              <span className="text-gray-400 text-sm ml-2">{CONFERENCE.date}</span>
             </div>
           </div>
-          <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
-            <span>⚡</span> Sample data
+          <div className="flex items-center gap-2">
+            <Link href="/methodology" className="text-xs text-blue-600 hover:underline">Methodology</Link>
+            <span className="text-gray-300">·</span>
+            <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
+              <span>⚡</span> Sample data
+            </div>
           </div>
         </div>
       </div>
@@ -197,9 +231,9 @@ export default function InsightsPage() {
           <p className="text-gray-500 text-sm mb-6">Engagement analytics for {CONFERENCE.name} · {CONFERENCE.date}</p>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard label="Slide Views" value={CONFERENCE.totalViews} sub="across all sessions" color="#2563eb" />
-            <StatCard label="Stars" value={CONFERENCE.totalStars} sub="talks bookmarked" color="#7c3aed" />
-            <StatCard label="Comments" value={CONFERENCE.totalComments} sub="from attendees" color="#059669" />
+            <StatCard label="Engagement" value={CONFERENCE.totalEngagement} sub="scheduled + saves×2 + comments×3" color="#2563eb" />
+            <StatCard label="Thumbs Up" value={CONFERENCE.totalThumbsUp} sub="binary approval signal" color="#7c3aed" />
+            <StatCard label="Comments" value={CONFERENCE.totalComments} sub={`from ${CONFERENCE.totalCommenters} commenters`} color="#059669" />
             <StatCard label="Countries" value={CONFERENCE.uniqueCountries} sub="reached globally" color="#d97706" />
           </div>
         </div>
@@ -218,217 +252,233 @@ export default function InsightsPage() {
         {/* ── OVERVIEW TAB ── */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-
-            {/* Engagement over time */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-              <h2 className="font-semibold text-gray-900 mb-1">Slide Views Over Time</h2>
-              <p className="text-xs text-gray-400 mb-4">Attendee engagement during and after the session</p>
-              <EngagementChart data={ENGAGEMENT_TIMELINE} />
-              <p className="text-xs text-gray-400 mt-3 text-center">Peak at 15:50 — Q&A period drives return views</p>
-            </div>
-
             {/* Session comparison */}
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-              <h2 className="font-semibold text-gray-900 mb-4">Session Engagement</h2>
+              <h2 className="text-sm font-semibold text-gray-900 mb-4">Session Comparison</h2>
               <div className="space-y-4">
-                {SESSIONS.map(s => <SessionBar key={s.id} session={s} max={maxViews} />)}
+                {SESSIONS.map(s => <SessionBar key={s.id} session={s} maxEng={maxSessionEng} />)}
               </div>
-              <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-3 gap-4 text-center">
-                {SESSIONS.map(s => (
-                  <div key={s.id}>
-                    <p className="text-xs text-gray-400 mb-1 truncate">{s.location}</p>
-                    <p className="text-sm font-semibold" style={{ color: s.color }}>⭐ {s.stars}</p>
-                    <p className="text-xs text-gray-400">{s.comments} comments</p>
+            </div>
+
+            {/* Top talks by engagement */}
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+              <h2 className="text-sm font-semibold text-gray-900 mb-4">Top Talks by Engagement</h2>
+              <div className="space-y-3">
+                {sortedTalks.slice(0, 5).map((t, i) => (
+                  <div key={t.id} className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-gray-400 w-5 text-right">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate">{t.title}</div>
+                      <div className="text-xs text-gray-500">{t.author}</div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-lg font-semibold text-gray-900">{t.engagement}</div>
+                      <div className="flex items-center gap-1 justify-end text-blue-500 text-xs">
+                        <ThumbIcon /> {t.thumbsUp}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Top talk */}
+            {/* Top talks by thumbs-up */}
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-lg">🏆</span>
-                <h2 className="font-semibold text-gray-900">Highest Engagement Talk</h2>
-              </div>
-              {(() => {
-                const top = TOP_TALKS[0];
-                return (
-                  <div className="space-y-3">
-                    <div>
-                      <p className="font-semibold text-gray-900">{top.title}</p>
-                      <p className="text-sm text-gray-500">by {top.author}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{top.session}</p>
+              <h2 className="text-sm font-semibold text-gray-900 mb-4">Top Talks by Thumbs-Up</h2>
+              <div className="space-y-3">
+                {[...ALL_TALKS].sort((a, b) => b.thumbsUp - a.thumbsUp).slice(0, 5).map((t, i) => (
+                  <div key={t.id} className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-gray-400 w-5 text-right">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate">{t.title}</div>
+                      <div className="text-xs text-gray-500">{t.author}</div>
                     </div>
-                    <div className="flex gap-4 text-sm">
-                      <span className="text-gray-600">👁 {top.views} views</span>
-                      <span className="text-gray-600">⭐ {top.stars} stars</span>
-                      <span className="text-gray-600">💬 {top.comments} comments</span>
-                      <SentimentBadge score={top.sentiment} />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400 mb-1">Slide attention heatmap</p>
-                      <SlideHeatBar data={top.slideHeat} />
-                      <p className="text-xs text-gray-400 mt-1">Slide 6 most revisited — trial design methodology</p>
+                    <div className="text-right shrink-0">
+                      <div className="flex items-center gap-1 text-blue-600 text-lg font-semibold">
+                        <ThumbIcon className="text-blue-600" /> {t.thumbsUp}
+                      </div>
+                      <div className="text-xs text-gray-400">{t.engagement} eng</div>
                     </div>
                   </div>
-                );
-              })()}
+                ))}
+              </div>
             </div>
           </div>
         )}
 
         {/* ── TALKS TAB ── */}
         {activeTab === 'talks' && (
-          <div className="space-y-4">
-            {SESSIONS.map(session => (
-              <div key={session.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                {/* Session header */}
-                <button
-                  onClick={() => setExpandedSession(expandedSession === session.id ? null : session.id)}
-                  className="w-full p-5 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
-                >
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: session.color }} />
-                      <p className="font-semibold text-gray-900 text-sm">{session.name}</p>
+          <div className="space-y-3">
+            {SESSIONS.map(session => {
+              const isExpanded = expandedSession === session.id;
+              return (
+                <div key={session.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                  {/* Session header */}
+                  <button
+                    type="button"
+                    className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    onClick={() => setExpandedSession(isExpanded ? null : session.id)}
+                  >
+                    <div className="text-left">
+                      <div className="text-sm font-semibold text-gray-900">{session.name}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{session.chair} · {session.location} · {session.time}</div>
                     </div>
-                    <p className="text-xs text-gray-400">📍 {session.location} · 👤 {session.chair}</p>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm shrink-0">
-                    <span className="text-gray-500">👁 {session.views}</span>
-                    <span className="text-gray-500">⭐ {session.stars}</span>
-                    <span className="text-gray-400 text-xs">{expandedSession === session.id ? '▲' : '▼'}</span>
-                  </div>
-                </button>
+                    <div className="flex items-center gap-4 shrink-0">
+                      <span className="text-sm font-medium text-gray-700">{session.talks.reduce((s, t) => s + t.engagement, 0).toLocaleString()} eng</span>
+                      <svg className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M7.21 14.77a.75.75 0 01.02-1.06L11.17 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" />
+                      </svg>
+                    </div>
+                  </button>
 
-                {/* Talks */}
-                {expandedSession === session.id && (
-                  <div className="border-t border-gray-100 divide-y divide-gray-50">
-                    {session.talks.map((talk, i) => (
-                      <div key={talk.id} className="p-5">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-mono text-gray-400">{talk.id.toUpperCase()}</span>
-                              <p className="font-medium text-gray-900 text-sm">{talk.title}</p>
-                            </div>
-                            <p className="text-xs text-gray-500 mb-3">by {talk.author}</p>
-
-                            {/* Slide heatmap */}
-                            <div className="mb-2">
-                              <p className="text-xs text-gray-400 mb-1">Slide attention</p>
-                              <SlideHeatBar data={talk.slideHeat} />
-                            </div>
-                          </div>
-                          <div className="shrink-0 text-right space-y-1">
-                            <p className="text-lg font-bold text-gray-900">{talk.views}</p>
-                            <p className="text-xs text-gray-400">views</p>
-                            <div className="flex gap-2 justify-end text-xs text-gray-500 mt-2">
-                              <span>⭐ {talk.stars}</span>
-                              <span>💬 {talk.comments}</span>
-                            </div>
-                            <div className="mt-2">
-                              <SentimentBadge score={talk.sentiment} />
-                            </div>
-                          </div>
-                        </div>
+                  {/* Talks list */}
+                  {isExpanded && (
+                    <div className="border-t">
+                      {/* Column header */}
+                      <div className="grid grid-cols-[1fr_80px_80px_70px_70px] gap-3 px-5 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider border-b bg-gray-50">
+                        <div>Talk</div>
+                        <div className="text-center">Engagement</div>
+                        <div className="text-center">👍</div>
+                        <div className="text-center">Viewers</div>
+                        <div className="text-center">Comments</div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+
+                      {session.talks.map(talk => {
+                        const isTalkExpanded = expandedTalk === talk.id;
+                        return (
+                          <div key={talk.id}>
+                            <button
+                              type="button"
+                              className="w-full grid grid-cols-[1fr_80px_80px_70px_70px] gap-3 px-5 py-3 items-center hover:bg-blue-50/30 transition-colors text-left"
+                              onClick={() => setExpandedTalk(isTalkExpanded ? null : talk.id)}
+                            >
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{talk.title}</div>
+                                <div className="text-xs text-gray-500">{talk.author}</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-semibold text-gray-900">{talk.engagement}</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="flex items-center justify-center gap-1 text-blue-600 font-medium">
+                                  <ThumbIcon className="text-blue-600" /> {talk.thumbsUp}
+                                </div>
+                              </div>
+                              <div className="text-center text-sm text-gray-600">{talk.viewers}</div>
+                              <div className="text-center text-sm text-gray-600">{talk.comments}</div>
+                            </button>
+
+                            {/* Expanded: heatmaps */}
+                            {isTalkExpanded && (
+                              <div className="px-5 pb-5 pt-2 border-t bg-gray-50/50">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  {/* Controversy heatmap (public) */}
+                                  <div>
+                                    <div className="text-xs font-semibold text-gray-700 mb-2">Slide Attention · Controversy</div>
+                                    <p className="text-[10px] text-gray-400 mb-2">Color = disagreement among non-question public comments</p>
+                                    <SlideHeatmap slides={talk.slideData} colorKey="controversy" colorMap={controversyColors} />
+                                    <HeatmapLegend items={[
+                                      { color: '#d5e8d4', label: 'Consensus' },
+                                      { color: '#f9d1cc', label: 'Mild' },
+                                      { color: '#f1948a', label: 'High' },
+                                      { color: '#e5e7eb', label: 'Below threshold' },
+                                    ]} />
+                                  </div>
+
+                                  {/* Confusion heatmap (presenter-only) */}
+                                  <div className="border border-dashed border-gray-300 rounded-lg p-3 bg-white/50">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <span className="text-xs font-semibold text-gray-700">Slide Attention · Confusion</span>
+                                      <span className="text-[9px] font-semibold bg-red-100 text-red-800 px-1.5 py-0.5 rounded uppercase">Presenter only</span>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 mb-2">Color = question density (AI-classified from comments + notes-to-author)</p>
+                                    <SlideHeatmap slides={talk.slideData} colorKey="confusion" colorMap={confusionColors} />
+                                    <HeatmapLegend items={[
+                                      { color: '#d5e8d4', label: 'Clear' },
+                                      { color: '#dbeafe', label: 'Some Qs' },
+                                      { color: '#93c5fd', label: 'Many Qs' },
+                                      { color: '#3b82f6', label: 'High' },
+                                      { color: '#e5e7eb', label: 'Below threshold' },
+                                    ]} />
+                                  </div>
+                                </div>
+
+                                {/* Stats detail row */}
+                                <div className="grid grid-cols-5 gap-4 mt-4 pt-3 border-t text-center text-xs">
+                                  <div><div className="font-semibold text-gray-900">{talk.viewers}</div><div className="text-gray-400">Viewers</div></div>
+                                  <div><div className="font-semibold text-gray-900">{talk.medianViewMin} m</div><div className="text-gray-400">Median time</div></div>
+                                  <div><div className="font-semibold text-gray-900">{talk.commenters}</div><div className="text-gray-400">Commenters</div></div>
+                                  <div><div className="font-semibold text-gray-900">{talk.saves}</div><div className="text-gray-400">Saves</div></div>
+                                  <div><div className="font-semibold text-blue-600 flex items-center justify-center gap-1"><ThumbIcon className="text-blue-600" /> {talk.thumbsUp}</div><div className="text-gray-400">Thumbs up</div></div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
         {/* ── AUDIENCE TAB ── */}
         {activeTab === 'audience' && (
           <div className="space-y-6">
-
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Geographic reach */}
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-                <h2 className="font-semibold text-gray-900 mb-4">Geographic Reach</h2>
-                <div className="space-y-2">
-                  {COUNTRIES.map(c => (
-                    <div key={c.name} className="flex items-center gap-3">
-                      <span className="text-xs text-gray-600 w-28 shrink-0">{c.name}</span>
-                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full bg-blue-500" style={{ width: `${c.pct}%` }} />
-                      </div>
-                      <span className="text-xs text-gray-400 w-8 text-right">{c.pct}%</span>
+            {/* Geographic reach */}
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+              <h2 className="text-sm font-semibold text-gray-900 mb-4">Geographic Reach</h2>
+              <p className="text-xs text-gray-500 mb-4">Viewers from {CONFERENCE.uniqueCountries} countries</p>
+              <div className="space-y-2">
+                {COUNTRIES.map(c => (
+                  <div key={c.name} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-600 w-28 truncate">{c.name}</span>
+                    <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${c.pct}%` }} />
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Comment sentiment breakdown */}
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-                <h2 className="font-semibold text-gray-900 mb-4">Comment Sentiment</h2>
-                <div className="space-y-4">
-                  {[
-                    { label: 'Positive / Enthusiastic', pct: 58, color: '#059669', examples: ['Excellent trial design', 'Very relevant to my patients'] },
-                    { label: 'Questions / Curious', pct: 31, color: '#d97706', examples: ['What about earlier stages?', 'How does this compare to...'] },
-                    { label: 'Critical / Skeptical', pct: 11, color: '#dc2626', examples: ['Sample size concerns', 'Selection bias?'] },
-                  ].map(s => (
-                    <div key={s.label}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="font-medium" style={{ color: s.color }}>{s.label}</span>
-                        <span className="text-gray-500">{s.pct}%</span>
-                      </div>
-                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-1.5">
-                        <div className="h-full rounded-full" style={{ width: `${s.pct}%`, background: s.color }} />
-                      </div>
-                      <p className="text-xs text-gray-400 italic">e.g. "{s.examples[0]}"</p>
-                    </div>
-                  ))}
-                </div>
+                    <span className="text-xs text-gray-500 w-8 text-right">{c.pct}%</span>
+                  </div>
+                ))}
               </div>
             </div>
 
             {/* What this means */}
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-6">
-              <h2 className="font-semibold text-blue-900 mb-3">What This Means for IAPRD</h2>
-              <div className="grid md:grid-cols-3 gap-4 text-sm">
-                {[
-                  { icon: '🌍', title: 'Global Amplification', body: 'Your session reached 31 countries — far beyond the room. Attendees who couldn\'t make it to all parallel sessions engaged asynchronously.' },
-                  { icon: '📊', title: 'Program Intelligence', body: 'Huntington\'s disease content drove the highest engagement. Data like this informs next year\'s program committee decisions.' },
-                  { icon: '🔬', title: 'Presenter Value', body: 'Each presenter receives a DOI-citable record of their talk with engagement metrics — a new line on their CV that didn\'t exist before.' },
-                ].map(item => (
-                  <div key={item.title}>
-                    <p className="text-lg mb-1">{item.icon}</p>
-                    <p className="font-semibold text-blue-900 mb-1">{item.title}</p>
-                    <p className="text-blue-700 text-xs leading-relaxed">{item.body}</p>
-                  </div>
-                ))}
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+              <h2 className="text-sm font-semibold text-gray-900 mb-3">What This Means for IAPRD</h2>
+              <div className="space-y-3 text-sm text-gray-700 leading-relaxed">
+                <p>
+                  With {CONFERENCE.totalEngagement.toLocaleString()} total engagement across {ALL_TALKS.length} talks and
+                  {' '}{CONFERENCE.totalThumbsUp} thumbs-up from attendees, this session demonstrates sustained,
+                  active interaction — not passive viewing.
+                </p>
+                <p>
+                  The separation between engagement and thumbs-up reveals which talks generated attention versus
+                  approval. High-engagement, lower-thumbs-up talks like the atypical parkinsonism differential diagnosis
+                  session suggest content that provoked discussion without universal approval — a marker of genuinely
+                  productive scientific discourse.
+                </p>
+                <p>
+                  The per-slide controversy and confusion heatmaps (available per-talk in the Talks tab) give program
+                  committees a new tool: identifying which specific content points drove disagreement or confusion,
+                  enabling targeted follow-up sessions at IAPRD 2026.
+                </p>
               </div>
             </div>
 
-            {/* Future metrics teaser */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <h2 className="font-semibold text-gray-900">Coming with PresentrXiv Integration</h2>
-                <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Roadmap</span>
-              </div>
-              <div className="grid md:grid-cols-2 gap-3">
-                {[
-                  { icon: '🔗', label: 'Citation tracking', desc: 'How many papers cite this presentation after publication' },
-                  { icon: '📈', label: 'Post-conference reach', desc: 'Views and downloads after the DOI is minted' },
-                  { icon: '🏥', label: 'Institutional reach', desc: 'Which hospitals and universities engaged' },
-                  { icon: '💊', label: 'Industry engagement', desc: 'Anonymized pharma/biotech viewing patterns' },
-                ].map(item => (
-                  <div key={item.label} className="flex gap-3 p-3 rounded-lg bg-gray-50">
-                    <span className="text-xl shrink-0">{item.icon}</span>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">{item.label}</p>
-                      <p className="text-xs text-gray-400">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
+            {/* Roadmap */}
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl shadow-sm p-6 text-white">
+              <h2 className="text-sm font-semibold mb-3">Coming Next</h2>
+              <div className="space-y-2 text-sm text-gray-300">
+                <p>• <strong className="text-white">ORCID integration</strong> — audience composition breakdown by field, seniority, and geography for talks with ORCID-linked thumbs-up data.</p>
+                <p>• <strong className="text-white">Real-time tracking</strong> — per-slide dwell time, revisit patterns, and attention curves replacing the current mock data.</p>
+                <p>• <strong className="text-white">PresentrXiv archiving</strong> — DOI-linked presentation records with citation tracking via OpenAlex.</p>
               </div>
             </div>
           </div>
         )}
+
       <Footer />
       </div>
     </div>
