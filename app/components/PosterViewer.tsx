@@ -14,7 +14,6 @@ import CommentComposerModal from './CommentComposerModal';
 import CommentsPanel, { type Comment } from './CommentsPanel';
 import { useConference } from '@/app/lib/conferenceContext';
 import EngagementPanel from '@/app/components/EngagementPanel';
-import { useLikes } from '@/app/lib/useLikes';
 import { useDemoClock } from '@/app/lib/demoClock';
 import { sessionTimingAt, type SessionLike } from '@/app/lib/sessionTiming';
 
@@ -143,8 +142,6 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
   //session User ID
   const [sessionUserId, setSessionUserId] = useState<string | undefined>(undefined);
   const [isAdmin, setIsAdmin] = useState(false);
-  // Viewed + Likes
-  const { viewed, liked, likeCount, toggleViewed, toggleLike } = useLikes(posterId);
   // Responsive
   const [isLandscape, setIsLandscape] = useState(false);
 
@@ -707,6 +704,12 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 </div>
               </div>
 
+              {!sessionUserId && !loadingComments && (
+                <Link href="/login" className="shrink-0 text-xs text-blue-600 font-medium hover:underline whitespace-nowrap">
+                  Sign in
+                </Link>
+              )}
+
               <Link href="/" className="shrink-0 max-w-[120px] overflow-hidden">
                 <img src={siteLogo} alt={siteName} className="h-10 w-auto max-w-full object-contain" />
               </Link>
@@ -827,15 +830,6 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 {poster && (
                   <button
                     type="button"
-                    onClick={() => setAbstractOpen(true)}
-                    className="px-3 py-1.5 rounded bg-white/90 border shadow text-sm text-gray-900"
-                  >
-                    Abstract
-                  </button>
-                )}
-                {poster && (
-                  <button
-                    type="button"
                     onClick={toggleSave}
                     className={`px-3 py-1.5 rounded border shadow text-sm font-medium ${
                       isSaved
@@ -844,171 +838,33 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                     }`}
                   >
                     {saveButtonLabel}
-                  </button>
-                )}
-                {!!sessionUserId && (
-                  <button
-                    type="button"
-                    onClick={openCommentComposer}
-                    className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm font-medium"
-                  >
-                    Comment
-                  </button>
-                )}
-                {!!sessionUserId && (
-                  <button
-                    type="button"
-                    onClick={toggleViewed}
-                    className={`px-3 py-1.5 rounded border shadow text-sm font-medium ${
-                      viewed
-                        ? "bg-emerald-600 text-white border-emerald-600"
-                        : "bg-white/90 text-gray-900"
-                    }`}
-                  >
-                    {viewed ? "✓ Viewed" : "Viewed"}
-                  </button>
-                )}
-                {!!sessionUserId && (
-                  <button
-                    type="button"
-                    onClick={() => { if (viewed) toggleLike(); }}
-                    className={`px-3 py-1.5 rounded border shadow text-sm font-medium flex items-center gap-1.5 ${
-                      !viewed
-                        ? "bg-white/90 text-gray-300 border-gray-200 cursor-default"
-                        : liked
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-white/90 text-blue-600 border-gray-300"
-                    }`}
-                    title={!viewed ? "View this talk to enable likes" : liked ? "Remove like" : "Give like"}
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zm4-.167v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.556 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
-                    </svg>
-                    {likeCount || ""}
                   </button>
                 )}
               </div>
             </div>
           )}
-          {/* Portrait comments */}
+          {/* Portrait comments + presenter notes */}
           {!isLandscape && (
-            <div className="bg-white rounded-lg border">
-              <div className="flex items-center justify-between px-3 py-2 border-b">
-                <div className="text-sm font-semibold text-gray-800">
-                  Comments <span className="text-gray-500 font-normal">({pageComments.length})</span>
+            <div className="bg-white rounded-lg border overflow-hidden" style={{ maxHeight: '50dvh' }}>
+              {!sessionUserId && (
+                <div className="px-3 py-2 bg-gray-50 border-b text-sm text-gray-600 flex items-center justify-between">
+                  <span>Sign in to comment, save, and interact</span>
+                  <a href="/login" className="text-blue-600 font-medium hover:underline">Sign in</a>
                 </div>
-                {poster && (
-                  <button
-                    type="button"
-                    onClick={() => setAbstractOpen(true)}
-                    className="px-3 py-1.5 rounded bg-white/90 border shadow text-sm text-gray-900"
-                  >
-                    Abstract
-                  </button>
-                )}
-                {poster && (
-                  <button
-                    type="button"
-                    onClick={toggleSave}
-                    className={`px-3 py-1.5 rounded border shadow text-sm font-medium ${
-                      isSaved
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white/90 text-gray-900"
-                    }`}
-                  >
-                    {saveButtonLabel}
-                  </button>
-                )}
-                {!!sessionUserId && (
-                  <button
-                    type="button"
-                    onClick={openCommentComposer}
-                    className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm font-medium"
-                  >
-                    Comment
-                  </button>
-                )}
-                {!!sessionUserId && (
-                  <button
-                    type="button"
-                    onClick={toggleViewed}
-                    className={`px-3 py-1.5 rounded border shadow text-sm font-medium ${
-                      viewed
-                        ? "bg-emerald-600 text-white border-emerald-600"
-                        : "bg-white/90 text-gray-900"
-                    }`}
-                  >
-                    {viewed ? "✓ Viewed" : "Viewed"}
-                  </button>
-                )}
-                {!!sessionUserId && (
-                  <button
-                    type="button"
-                    onClick={() => { if (viewed) toggleLike(); }}
-                    className={`px-3 py-1.5 rounded border shadow text-sm font-medium flex items-center gap-1.5 ${
-                      !viewed
-                        ? "bg-white/90 text-gray-300 border-gray-200 cursor-default"
-                        : liked
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-white/90 text-blue-600 border-gray-300"
-                    }`}
-                    title={!viewed ? "View this talk to enable likes" : liked ? "Remove like" : "Give like"}
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zm4-.167v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.556 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
-                    </svg>
-                    {likeCount || ""}
-                  </button>
-                )}
-              </div>
-
-              <div className="max-h-[35dvh] overflow-y-auto px-3 py-2">
-                {loadingComments ? (
-                  <div className="text-sm text-gray-600">Loading…</div>
-                ) : pageComments.length === 0 ? (
-                  <div className="text-sm text-gray-600">No comments yet.</div>
-                ) : (
-                  <div className="space-y-2">
-                    {pageComments.map((c) => (
-                      <div key={c._id || c.id} className="rounded border border-gray-200 bg-gray-50 p-2">
-                        <div className="text-xs text-gray-500 flex items-center justify-between">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="truncate">{c.author || 'Attendee'}</span>
-
-                            <span className="text-[10px] px-1.5 py-0.5 rounded border bg-white text-gray-700">
-                              {((c as any).visibilityType ?? 'public') === 'note'
-                                ? 'Note'
-                                : ((c as any).visibilityType ?? 'public') === 'question'
-                                  ? 'Question'
-                                  : 'Public'}
-                            </span>
-                          </div>
-
-                          <span>
-                            {c.timestamp instanceof Date
-                              ? c.timestamp.toLocaleString()
-                              : new Date(c.timestamp as any).toLocaleString()}
-                          </span>
-                        </div>
-
-                        <div className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{c.text}</div>
-
-                        {sessionUserId && (isAdmin || String((c as any).userId) === String(sessionUserId)) && (
-                          <div className="mt-2 flex justify-end">
-                            <button
-                              type="button"
-                              className="text-xs text-red-700"
-                              onClick={() => handleDeleteComment(c)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              )}
+              <CommentsPanel
+                page={commentTargetPage}
+                numPages={numPages || 0}
+                loading={loadingComments}
+                comments={pageComments}
+                sessionUserId={sessionUserId}
+                onOpenAdd={openCommentComposer}
+                onDelete={handleDeleteComment}
+                onReply={handleReplyComment}
+                slideNote={poster?.notes?.[commentTargetPage] ?? ''}
+                isPresenter={!!sessionUserId && (isAdmin || (!!poster?.presenterUserId && sessionUserId === poster.presenterUserId))}
+                onSaveNote={handleSaveNote}
+              />
             </div>
           )}
         </div>
