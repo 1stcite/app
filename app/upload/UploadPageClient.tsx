@@ -2,7 +2,6 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { upload } from '@vercel/blob/client';
 
 // Read PDF metadata in-browser using pdf.js
 async function extractPdfMeta(file: File): Promise<{ title: string; author: string }> {
@@ -99,15 +98,11 @@ export default function UploadPage() {
   async function uploadOne(entry: FileEntry) {
     updateEntry(entry.id, { status: 'uploading' });
     try {
-      // Upload directly to Vercel Blob from the browser (no 4.5MB limit)
-      const blob = await upload(
-        `posters/${Date.now()}-${entry.file.name}`,
-        entry.file,
-        {
-          access: 'public',
-          handleUploadUrl: '/api/upload-blob',
-        }
-      );
+      const formData = new FormData();
+      formData.append('file', entry.file);
+      const blobRes = await fetch('/api/upload-blob', { method: 'POST', body: formData });
+      if (!blobRes.ok) throw new Error((await blobRes.json()).error || 'Blob upload failed');
+      const { url: fileUrl } = await blobRes.json();
 
       const metaRes = await fetch('/api/posters', {
         method: 'POST',
@@ -115,7 +110,7 @@ export default function UploadPage() {
         body: JSON.stringify({
           title: entry.title.trim() || filenameToTitle(entry.file.name),
           author: entry.author.trim() || 'Anonymous',
-          fileUrl: blob.url,
+          fileUrl,
         }),
       });
       if (!metaRes.ok) throw new Error((await metaRes.json()).error || 'Metadata save failed');
