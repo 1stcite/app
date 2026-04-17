@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import type { Poster } from "@/app/lib/usePosters";
 import EngagementBadge from "@/app/components/EngagementBadge";
+import { useLibrary } from "@/app/lib/useLibrary";
 import { sessionTimingAt, type SessionLike } from "@/app/lib/sessionTiming";
 
 function firstAuthor(author: string) {
@@ -12,7 +12,7 @@ function firstAuthor(author: string) {
   return a.split(/[,;]+/)[0].trim();
 }
 
-/* ── Icon components ─────────────────────────────────────────────────── */
+/* ── Icons ───────────────────────────────────────────────────────────── */
 
 function StarIcon({ filled }: { filled: boolean }) {
   return filled ? (
@@ -67,40 +67,13 @@ export default function PosterCard({
   const session = (poster as unknown as { session?: SessionLike }).session ?? undefined;
   const timing = sessionTimingAt(session, now ?? new Date());
   const isPast = timing === "past";
-  const [showAttended, setShowAttended] = useState(false);
-  const [attended, setAttended] = useState(false);
+  const { saved, attended, toggleSave, setAttended } = useLibrary(poster.id);
 
   const bg = isPast
     ? "bg-gray-200 border-gray-400"
     : variant === "starred"
       ? "bg-yellow-50 border-yellow-200"
       : "bg-white border-gray-200";
-
-  function handleSchedule() {
-    onToggleStar(poster.id);
-  }
-
-  function handleSave() {
-    if (isStarred) {
-      onToggleStar(poster.id);
-      setShowAttended(false);
-      setAttended(false);
-    } else {
-      onToggleStar(poster.id);
-      setShowAttended(true);
-    }
-  }
-
-  async function handleAttendedChange(checked: boolean) {
-    setAttended(checked);
-    try {
-      await fetch("/api/saves/attended", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ posterId: poster.id, attended: checked }),
-      });
-    } catch { /* non-critical */ }
-  }
 
   return (
     <div className={`rounded-lg shadow-sm hover:shadow-md transition-shadow p-4 border ${bg}`}>
@@ -120,24 +93,24 @@ export default function PosterCard({
           <div className="flex-1" />
         )}
 
-        {/* Icon actions — context-dependent on session timing */}
+        {/* Icon actions */}
         <div className="flex items-center gap-1 shrink-0">
-          {/* Before session: ⭐ Schedule (primary) */}
+          {/* ⭐ Schedule — before session only, toggleable */}
           {!isPast && (
             <button
-              onClick={handleSchedule}
+              onClick={() => onToggleStar(poster.id)}
               className={`p-1.5 rounded-md transition-colors ${
                 isStarred
                   ? "text-amber-500 bg-amber-50"
                   : "text-gray-900 hover:text-amber-500 hover:bg-amber-50"
               }`}
-              title={isStarred ? "Scheduled" : "Add to schedule"}
+              title={isStarred ? "Remove from schedule" : "Add to schedule"}
             >
               <StarIcon filled={isStarred} />
             </button>
           )}
 
-          {/* Always: 👁 View */}
+          {/* 👁 View — always visible */}
           <Link
             href={`/view/${poster.id}`}
             className="p-1.5 rounded-md text-gray-900 hover:text-blue-600 hover:bg-blue-50 transition-colors"
@@ -146,32 +119,32 @@ export default function PosterCard({
             <EyeIcon />
           </Link>
 
-          {/* During/after session: 📚 Save to Library */}
+          {/* 📚 Library — during/after session, toggleable independently */}
           {isPast && (
             <button
-              onClick={handleSave}
+              onClick={toggleSave}
               className={`p-1.5 rounded-md transition-colors ${
-                isStarred
+                saved
                   ? "text-blue-600 bg-blue-50"
                   : "text-gray-900 hover:text-blue-600 hover:bg-blue-50"
               }`}
-              title={isStarred ? "In your library" : "Save to library"}
+              title={saved ? "Remove from library" : "Save to library"}
             >
-              <BookIcon filled={isStarred} />
+              <BookIcon filled={saved} />
             </button>
           )}
         </div>
       </div>
 
-      {/* Inline attendance checkbox — appears after saving to library */}
-      {isPast && isStarred && showAttended && (
+      {/* Inline attendance checkbox — after saving to library */}
+      {isPast && saved && (
         <div className="mt-2 flex items-center gap-2 text-xs text-gray-600 bg-blue-50 rounded-md px-3 py-2">
           <span className="text-blue-700 font-medium">Saved ✓</span>
           <label className="flex items-center gap-1.5 ml-1 cursor-pointer">
             <input
               type="checkbox"
               checked={attended}
-              onChange={(e) => handleAttendedChange(e.target.checked)}
+              onChange={(e) => setAttended(e.target.checked)}
               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
             <span>I attended this talk</span>

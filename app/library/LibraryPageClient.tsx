@@ -7,9 +7,8 @@ import EngagementBadge from "@/app/components/EngagementBadge";
 
 type Save = {
   posterId: string;
-  state: "in_library" | "unreviewed" | "declined";
-  source: string;
-  reviewedAt: string | null;
+  attended: boolean;
+  createdAt: string;
 };
 
 type Poster = {
@@ -42,7 +41,7 @@ export default function LibraryPageClient() {
   useEffect(() => {
     Promise.all([
       fetch("/api/posters").then(r => r.json()),
-      fetch("/api/saves").then(r => r.json()),
+      fetch("/api/library").then(r => r.json()),
     ]).then(([p, s]) => {
       setPosters(p || []);
       setSaves(s || []);
@@ -53,7 +52,6 @@ export default function LibraryPageClient() {
   const items = useMemo(() => {
     const posterById = new Map(posters.map(p => [p.id, p]));
     return saves
-      .filter(s => s.state !== "declined")
       .map(s => ({ save: s, poster: posterById.get(s.posterId) }))
       .filter((x): x is { save: Save; poster: Poster } => Boolean(x.poster))
       .map(({ save, poster }) => ({
