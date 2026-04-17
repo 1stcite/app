@@ -1,7 +1,7 @@
 "use client";
 
 import { computeEngagement } from "@/app/lib/engagement";
-import { useThumbs } from "@/app/lib/useThumbs";
+import { useLikes } from "@/app/lib/useLikes";
 
 type Props = {
   talkId: string;
@@ -9,9 +9,9 @@ type Props = {
 
 export default function EngagementPanel({ talkId }: Props) {
   const data = computeEngagement(talkId);
-  const { viewed, thumbed, thumbCount, toggleViewed, toggleThumb } = useThumbs(talkId);
+  const { viewed, liked, likeCount, toggleViewed, toggleLike } = useLikes(talkId);
 
-  const displayCount = thumbCount || data.thumbsUp;
+  const displayCount = likeCount || data.likes;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
@@ -33,15 +33,15 @@ export default function EngagementPanel({ talkId }: Props) {
           </span>
           <button
             type="button"
-            onClick={() => { if (viewed) toggleThumb(); }}
+            onClick={() => { if (viewed) toggleLike(); }}
             className={`flex items-center gap-1 mt-1 transition-colors ${viewed ? "cursor-pointer" : "cursor-default"}`}
-            title={!viewed ? "View this talk first" : thumbed ? "Remove thumbs-up" : "Give thumbs-up"}
+            title={!viewed ? "View this talk to enable likes" : liked ? "Remove like" : "Give like"}
           >
-            <span className={`text-sm font-medium ${!viewed ? "text-gray-300" : thumbed ? "text-blue-600" : "text-blue-400"}`}>
+            <span className={`text-sm font-medium ${!viewed ? "text-gray-300" : liked ? "text-blue-600" : "text-blue-400"}`}>
               {displayCount}
             </span>
             <svg
-              className={`${!viewed ? "text-gray-300" : thumbed ? "text-blue-600" : "text-blue-400"}`}
+              className={`${!viewed ? "text-gray-300" : liked ? "text-blue-600" : "text-blue-400"}`}
               style={{ width: "14px", height: "14px" }}
               viewBox="0 0 20 20"
               fill="currentColor"
@@ -67,7 +67,7 @@ export default function EngagementPanel({ talkId }: Props) {
         </button>
         {!viewed && (
           <p className="text-xs text-gray-400 mt-1 text-center">
-            Mark as viewed to enable thumbs-up
+            Mark as viewed to enable like
           </p>
         )}
       </div>

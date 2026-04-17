@@ -1,9 +1,9 @@
 /**
- * Thumbs-up API — binary approval signal per talk.
+ * Likes API — binary approval signal per talk.
  *
- * GET    /api/thumbs?posterId=X  → { thumbed: boolean, count: number }
- * POST   /api/thumbs             → { posterId }  (add thumb, requires viewed)
- * DELETE /api/thumbs?posterId=X  → remove thumb
+ * GET    /api/likes?posterId=X  → { liked: boolean, count: number }
+ * POST   /api/likes             → { posterId }  (add like, requires viewed)
+ * DELETE /api/likes?posterId=X  → remove like
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -18,13 +18,13 @@ export async function GET(req: NextRequest) {
 
   if (!posterId) return NextResponse.json({ error: "posterId required" }, { status: 400 });
 
-  const count = await db.collection("thumbs").countDocuments({ posterId });
+  const count = await db.collection("likes").countDocuments({ posterId });
   const user = await getSessionUser().catch(() => null);
 
-  if (!user) return NextResponse.json({ thumbed: false, count });
+  if (!user) return NextResponse.json({ liked: false, count });
 
-  const doc = await db.collection("thumbs").findOne({ userId: user._id, posterId });
-  return NextResponse.json({ thumbed: !!doc, count });
+  const doc = await db.collection("likes").findOne({ userId: user._id, posterId });
+  return NextResponse.json({ liked: !!doc, count });
 }
 
 export async function POST(req: NextRequest) {
@@ -41,18 +41,18 @@ export async function POST(req: NextRequest) {
   const viewed = await db.collection("viewed").findOne({ userId: user._id, posterId });
   if (!viewed) {
     return NextResponse.json(
-      { error: "You must view this talk before giving a thumbs-up" },
+      { error: "You must view this talk before liking" },
       { status: 403 }
     );
   }
 
-  const existing = await db.collection("thumbs").findOne({ userId: user._id, posterId });
+  const existing = await db.collection("likes").findOne({ userId: user._id, posterId });
   if (!existing) {
-    await db.collection("thumbs").insertOne({ userId: user._id, posterId, createdAt: new Date() });
+    await db.collection("likes").insertOne({ userId: user._id, posterId, createdAt: new Date() });
   }
 
-  const count = await db.collection("thumbs").countDocuments({ posterId });
-  return NextResponse.json({ thumbed: true, count });
+  const count = await db.collection("likes").countDocuments({ posterId });
+  return NextResponse.json({ liked: true, count });
 }
 
 export async function DELETE(req: NextRequest) {
@@ -63,8 +63,8 @@ export async function DELETE(req: NextRequest) {
   if (!posterId) return NextResponse.json({ error: "posterId required" }, { status: 400 });
 
   const db = await getDb();
-  await db.collection("thumbs").deleteOne({ userId: user._id, posterId });
+  await db.collection("likes").deleteOne({ userId: user._id, posterId });
 
-  const count = await db.collection("thumbs").countDocuments({ posterId });
-  return NextResponse.json({ thumbed: false, count });
+  const count = await db.collection("likes").countDocuments({ posterId });
+  return NextResponse.json({ liked: false, count });
 }

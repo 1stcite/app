@@ -1,7 +1,7 @@
 "use client";
 
 import { computeEngagement } from "@/app/lib/engagement";
-import { useThumbs } from "@/app/lib/useThumbs";
+import { useLikes } from "@/app/lib/useLikes";
 import { useState } from "react";
 
 type Props = {
@@ -13,27 +13,27 @@ type Props = {
  *
  * Layout:
  *   898        ← engagement score, 20px, weight 500
- *   127 👍     ← thumbs-up count + blue icon (or grey if not viewed)
+ *   127 👍     ← like count + blue icon (or grey if not viewed)
  *
- * Thumbs-up is greyed out until the user has marked "I viewed this talk."
+ * Likes is greyed out until the user has marked "I viewed this talk."
  * Clicking the grey thumb does nothing. Clicking the active blue thumb toggles it.
  */
 export default function EngagementBadge({ talkId }: Props) {
   const data = computeEngagement(talkId);
-  const { viewed, thumbed, thumbCount, toggleThumb } = useThumbs(talkId);
+  const { viewed, liked, likeCount, toggleLike } = useLikes(talkId);
   const [showTip, setShowTip] = useState(false);
 
-  const displayCount = thumbCount || data.thumbsUp; // fallback to mock if no real data
+  const displayCount = likeCount || data.likes; // fallback to mock if no real data
 
-  const thumbColor = !viewed
+  const likeColor = !viewed
     ? "text-gray-300"
-    : thumbed
+    : liked
       ? "text-blue-600"
       : "text-blue-400 hover:text-blue-600";
 
   const countColor = !viewed
     ? "text-gray-300"
-    : thumbed
+    : liked
       ? "text-blue-600"
       : "text-blue-400";
 
@@ -55,21 +55,21 @@ export default function EngagementBadge({ talkId }: Props) {
         {data.engagement.toLocaleString()}
       </span>
 
-      {/* Thumbs-up row: count then icon */}
+      {/* Likes row: count then icon */}
       <button
         type="button"
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (viewed) toggleThumb();
+          if (viewed) toggleLike();
         }}
         className={`flex items-center gap-1 mt-0.5 transition-colors ${viewed ? "cursor-pointer" : "cursor-default"}`}
         title={
           !viewed
-            ? "View this talk to enable thumbs-up"
-            : thumbed
-              ? "Remove thumbs-up"
-              : "Give thumbs-up"
+            ? "View this talk to enable like"
+            : liked
+              ? "Remove like"
+              : "Give like"
         }
       >
         <span
@@ -83,7 +83,7 @@ export default function EngagementBadge({ talkId }: Props) {
           {displayCount}
         </span>
         <svg
-          className={`transition-colors ${thumbColor}`}
+          className={`transition-colors ${likeColor}`}
           style={{ width: "13px", height: "13px" }}
           viewBox="0 0 20 20"
           fill="currentColor"

@@ -8,18 +8,13 @@ export default function MethodologyPage() {
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-2xl mx-auto px-6 py-12">
-        <Link
-          href="/"
-          className="text-sm text-blue-600 hover:underline inline-block mb-8"
-        >
+        <Link href="/" className="text-sm text-blue-600 hover:underline inline-block mb-8">
           ← Back to sessions
         </Link>
 
-        <h1 className="text-2xl font-semibold tracking-tight mb-1">
-          Scoring Methodology
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight mb-1">Scoring Methodology</h1>
         <p className="text-xs text-gray-500 mb-10">
-          Version <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">v0.4 · 2026-04-16</code> · Applies to all conferences on 1stCite
+          Version <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">v0.5 · 2026-04-16</code> · Applies to all conferences on 1stCite
         </p>
 
         <Section title="Engagement">
@@ -42,85 +37,86 @@ export default function MethodologyPage() {
           </Note>
         </Section>
 
-        <Section title="Thumbs-up">
+        <Section title="Likes">
           <P>
-            A binary signal of approval. Each logged-in user may give a talk one
-            thumbs-up. No rating scale. The count is displayed below the
-            engagement score as a secondary metric.
+            A binary signal of approval. Each logged-in user may like a talk
+            once. No rating scale. The count is displayed below the engagement
+            score as a secondary metric.
           </P>
           <P>
-            Thumbs-up is deliberately not folded into the engagement formula.
-            Engagement measures attention; thumbs-up measures reception. A talk
-            can attract enormous attention for controversial reasons while
-            receiving few thumbs-up — that&apos;s information worth preserving.
+            Likes require the user to have marked the talk as viewed first. This
+            ensures likes come from people who have actually engaged with the
+            content, not just seen it in a list.
+          </P>
+          <P>
+            Likes are deliberately not folded into the engagement formula.
+            Engagement measures attention; likes measure reception. A talk can
+            attract enormous attention for controversial reasons while receiving
+            few likes — that&apos;s information worth preserving.
           </P>
           <Note>
             For ORCID-authenticated users who have provided their own ORCID,
-            thumbs-up data is available in the detail view as an audience
-            composition breakdown (by field, seniority, geography).
+            likes data is available in the detail view as an audience composition
+            breakdown (by field, seniority, geography).
           </Note>
         </Section>
 
-        <Section title="Controversy (per-slide)">
+        <Section title="Slide attention">
           <P>
-            In the talk detail view, each slide&apos;s attention bar is colored to
-            indicate disagreement among commenters. Controversy is derived from
-            variance in tone among public comments classified as non-questions on
-            that specific slide.
+            In the talk detail view, each slide shows a comment count — the
+            number of comments posted on that specific slide. This provides a
+            simple, interpretable measure of which slides drew the most response.
           </P>
-          <ul className="list-disc pl-5 space-y-1.5 text-sm leading-relaxed mb-4">
-            <li>
-              <strong>Cool (green)</strong> — commenters broadly agree.
-            </li>
-            <li>
-              <strong>Warm (orange → red)</strong> — commenters disagree about
-              the content of that slide.
-            </li>
-            <li>
-              <strong>Gray</strong> — below threshold (3–4 non-question public
-              comments on that slide).
-            </li>
-          </ul>
           <P>
-            The controversy heatmap is visible to all users in the talk detail
-            view.
+            No minimum threshold is applied. A slide with zero comments simply
+            shows zero. The bar chart scales relative to the most-commented slide
+            in the talk.
           </P>
         </Section>
 
-        <Section title="Confusion (per-slide, presenter-only)">
+        <Section title="Questions by slide">
           <P>
-            A parallel signal visible only on the presenter&apos;s dashboard. Derived
-            from question density on each slide. Questions identified by AI
-            classification of public comments and notes-to-author.
+            Public comments and notes-to-author are classified in the background
+            by AI as either a question or a non-question. The question count per
+            slide is shown alongside the total comment count.
           </P>
-          <ul className="list-disc pl-5 space-y-1.5 text-sm leading-relaxed mb-4">
-            <li>
-              Questions from public comments and notes-to-author feed the
-              confusion computation.
-            </li>
-            <li>Personal notes feed nothing.</li>
-          </ul>
           <P>
-            Confusion is not a judgment of clarity. A slide with many questions
-            may simply be the most interesting or novel slide. The presenter is
-            in the best position to interpret the signal.
+            A slide with many questions may be the most interesting, novel, or
+            unclear slide in the deck. The presenter is in the best position to
+            interpret the signal.
           </P>
         </Section>
 
-        <Section title="Comment classification">
+        <Section title="Comment sentiment (author-only)">
           <P>
-            Every public comment and note-to-author is classified in the
-            background by AI as either a question or a non-question. This
-            classification drives the controversy and confusion computations. The
-            three existing comment tags (public comment, note to author, personal
-            note) remain unchanged — no user-facing UI change.
+            An overall sentiment summary is provided to the presenter only. All
+            comments on the talk — including public comments and private
+            notes-to-author — are categorized as praise, neutral, or critical.
+          </P>
+          <P>
+            The summary shows a simple count in each category. This is not
+            displayed publicly. It is a tool for the presenter to gauge overall
+            reception without reading every comment individually.
+          </P>
+          <Note>
+            Personal notes (visible only to the note-taker) are excluded from
+            the sentiment summary.
+          </Note>
+        </Section>
+
+        <Section title="Comment tags">
+          <P>
+            The three existing comment tags remain unchanged: public comment,
+            note to author, and personal note. The AI classification layer
+            (question detection, sentiment categorization) runs in the background
+            with no change to the user-facing comment interface.
           </P>
         </Section>
 
         <Section title="Sort options">
           <P>
             The session index supports three sort modes: program order (default),
-            engagement (descending), and thumbs-up (descending). Sorting is
+            engagement (descending), and likes (descending). Sorting is
             per-session.
           </P>
         </Section>
@@ -129,7 +125,7 @@ export default function MethodologyPage() {
           <P>
             Sign in with ORCID is the primary login method (OAuth). Email
             fallback available. No login required to view talks via shared links.
-            Commenting, saving, and thumbs-up require login.
+            Commenting, saving, and liking require login.
           </P>
           <P>
             ORCID data (field, seniority, publication count, geography) is cached
@@ -156,16 +152,17 @@ export default function MethodologyPage() {
           <ul className="list-disc pl-5 space-y-1.5 text-sm leading-relaxed mb-4">
             <li>Engagement rewards activity, not quality.</li>
             <li>
-              Thumbs-up counts can be influenced by presenter visibility and
-              network effects.
+              Like counts can be influenced by presenter visibility and network
+              effects.
             </li>
             <li>
-              AI comment classification is imperfect. Misclassification shifts
-              controversy and confusion signals.
+              AI comment classification (question detection, sentiment) is
+              imperfect. Misclassification can shift per-slide and summary
+              signals.
             </li>
             <li>
-              Per-slide controversy requires sufficient comments on individual
-              slides, which may not occur at smaller conferences.
+              Per-slide comment counts require sufficient commenting activity,
+              which may not occur at smaller conferences.
             </li>
             <li>
               None of these metrics are intended as a quality judgment of the
@@ -182,10 +179,7 @@ export default function MethodologyPage() {
           </P>
         </Section>
 
-        <Link
-          href="/"
-          className="text-sm text-blue-600 hover:underline inline-block mt-8"
-        >
+        <Link href="/" className="text-sm text-blue-600 hover:underline inline-block mt-8">
           ← Back to sessions
         </Link>
       </div>

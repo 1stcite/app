@@ -6,8 +6,8 @@
  * Displayed as a raw number with no threshold. The components
  * are observable facts about audience behavior, not derived estimates.
  *
- * Thumbs-up is tracked separately and NOT folded into engagement.
- * Engagement measures attention; thumbs-up measures reception.
+ * Likes is tracked separately and NOT folded into engagement.
+ * Engagement measures attention; likes measures reception.
  *
  * For the demo, scores are computed deterministically from the talk's
  * id so they are stable across page loads. Real event data will
@@ -20,7 +20,7 @@ export type EngagementData = {
   medianViewTimeMin: number; // decimal minutes
   comments: number;
   commenters: number;
-  thumbsUp: number;
+  likes: number;
   saves: number;
   scheduled: number;
 };
@@ -43,14 +43,14 @@ export function computeEngagement(talkId: string): EngagementData {
   const r1 = seededRand(talkId + ":viewers");
   const r2 = seededRand(talkId + ":saves");
   const r3 = seededRand(talkId + ":comments");
-  const r4 = seededRand(talkId + ":thumbs");
+  const r4 = seededRand(talkId + ":likes");
   const r5 = seededRand(talkId + ":time");
 
   const viewers = Math.round(60 + r1 * 400);
   const saves = Math.round(5 + r2 * 80);
   const comments = Math.round(r3 * 25);
   const commenters = Math.min(comments, Math.round(comments * (0.5 + r3 * 0.5)));
-  const thumbsUp = Math.round(5 + r4 * 130);
+  const likes = Math.round(5 + r4 * 130);
   const medianViewTimeMin = Math.round((2 + r5 * 8) * 10) / 10;
 
   // Scheduled = viewers (everyone who showed up counts as 1 scheduled)
@@ -63,7 +63,7 @@ export function computeEngagement(talkId: string): EngagementData {
     medianViewTimeMin,
     comments,
     commenters,
-    thumbsUp,
+    likes,
     saves,
     scheduled,
   };
