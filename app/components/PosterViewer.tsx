@@ -347,13 +347,19 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
   async function fetchComments() {
     try {
       setLoadingComments(true);
-      const res = await fetch(`/api/comments?posterId=${posterId}`);
+      const [res, meRes] = await Promise.all([
+        fetch(`/api/comments?posterId=${posterId}`),
+        fetch('/api/me', { cache: 'no-store' }),
+      ]);
       if (!res.ok) return;
 
       const data = await res.json();
+      const me = meRes.ok ? await meRes.json() : {};
 
       setSessionUserId(data?.sessionUserId ? String(data.sessionUserId) : undefined);
-      setIsAdmin(Boolean(data?.isAdmin));
+      // Respect attendee view mode: suppress admin privileges when previewing as attendee
+      const effectiveAdmin = Boolean(data?.isAdmin) && me?.viewMode !== 'attendee';
+      setIsAdmin(effectiveAdmin);
 
       setComments(
         ((data?.comments || []) as any[]).map((c: any) => ({
