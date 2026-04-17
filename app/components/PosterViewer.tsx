@@ -845,7 +845,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
           )}
           {/* Portrait comments + presenter notes */}
           {!isLandscape && (
-            <div className="bg-white rounded-lg border overflow-hidden" style={{ maxHeight: '50dvh' }}>
+            <div className="bg-white rounded-lg border overflow-hidden flex flex-col" style={{ height: '50dvh' }}>
               {!sessionUserId && (
                 <div className="px-3 py-2 bg-gray-50 border-b text-sm text-gray-600 flex items-center justify-between">
                   <span>Sign in to comment, save, and interact</span>
