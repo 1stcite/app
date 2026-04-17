@@ -129,7 +129,7 @@ export default function PosterCard({
               className={`p-1.5 rounded-md transition-colors ${
                 isStarred
                   ? "text-amber-500 bg-amber-50"
-                  : "text-gray-400 hover:text-amber-500 hover:bg-amber-50"
+                  : "text-gray-900 hover:text-amber-500 hover:bg-amber-50"
               }`}
               title={isStarred ? "Scheduled" : "Add to schedule"}
             >
@@ -140,7 +140,7 @@ export default function PosterCard({
           {/* Always: 👁 View */}
           <Link
             href={`/view/${poster.id}`}
-            className="p-1.5 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            className="p-1.5 rounded-md text-gray-900 hover:text-blue-600 hover:bg-blue-50 transition-colors"
             title="View slides"
           >
             <EyeIcon />
@@ -153,7 +153,7 @@ export default function PosterCard({
               className={`p-1.5 rounded-md transition-colors ${
                 isStarred
                   ? "text-blue-600 bg-blue-50"
-                  : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                  : "text-gray-900 hover:text-blue-600 hover:bg-blue-50"
               }`}
               title={isStarred ? "In your library" : "Save to library"}
             >
