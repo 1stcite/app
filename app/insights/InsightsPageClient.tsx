@@ -102,12 +102,12 @@ const SESSIONS: Session[] = [
 
 const ALL_TALKS = SESSIONS.flatMap(s => s.talks.map(t => ({ ...t, session: s.name, sessionColor: s.color })));
 
-const COUNTRIES = [
-  { name: "United States", pct: 34 }, { name: "Japan", pct: 12 }, { name: "Germany", pct: 9 },
-  { name: "United Kingdom", pct: 8 }, { name: "France", pct: 6 }, { name: "Canada", pct: 5 },
-  { name: "Australia", pct: 4 }, { name: "Italy", pct: 4 }, { name: "South Korea", pct: 3 },
-  { name: "Other (22)", pct: 15 },
-];
+// Audience metrics segmented by seniority (mock — will come from ORCID data)
+const AUDIENCE_METRICS = {
+  all: { label: "All Attendees", viewers: 847, engagement: 14820, likes: 623, comments: 97, medianViewMin: 5.8, saves: 312 },
+  senior: { label: "Senior (10+ years)", viewers: 312, engagement: 6240, likes: 287, comments: 52, medianViewMin: 7.2, saves: 148 },
+  junior: { label: "Junior (<10 years)", viewers: 535, engagement: 8580, likes: 336, comments: 45, medianViewMin: 4.9, saves: 164 },
+};
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
@@ -422,49 +422,90 @@ export default function InsightsPage() {
         {/* ── AUDIENCE ── */}
         {activeTab === 'audience' && (
           <div className="space-y-6">
+            {/* Metrics by seniority */}
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-              <h2 className="text-sm font-semibold text-gray-900 mb-4">Geographic Reach</h2>
-              <p className="text-xs text-gray-500 mb-4">Viewers from {CONFERENCE.uniqueCountries} countries</p>
-              <div className="space-y-2">
-                {COUNTRIES.map(c => (
-                  <div key={c.name} className="flex items-center gap-3">
-                    <span className="text-xs text-gray-600 w-28 truncate">{c.name}</span>
-                    <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${c.pct}%` }} />
-                    </div>
-                    <span className="text-xs text-gray-500 w-8 text-right">{c.pct}%</span>
-                  </div>
-                ))}
+              <h2 className="text-sm font-semibold text-gray-900 mb-1">Audience Metrics by Seniority</h2>
+              <p className="text-xs text-gray-500 mb-5">Based on ORCID publication history. Senior = 10+ years of indexed publications.</p>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left">
+                      <th className="pb-2 pr-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Metric</th>
+                      {Object.values(AUDIENCE_METRICS).map(g => (
+                        <th key={g.label} className="pb-2 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">{g.label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    <tr>
+                      <td className="py-2.5 pr-4 text-gray-700">Viewers</td>
+                      {Object.values(AUDIENCE_METRICS).map(g => <td key={g.label} className="py-2.5 px-4 text-right font-medium text-gray-900">{g.viewers.toLocaleString()}</td>)}
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 pr-4 text-gray-700">Engagement</td>
+                      {Object.values(AUDIENCE_METRICS).map(g => <td key={g.label} className="py-2.5 px-4 text-right font-medium text-gray-900">{g.engagement.toLocaleString()}</td>)}
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 pr-4 text-gray-700">Likes</td>
+                      {Object.values(AUDIENCE_METRICS).map(g => <td key={g.label} className="py-2.5 px-4 text-right font-medium text-blue-600">{g.likes}</td>)}
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 pr-4 text-gray-700">Comments</td>
+                      {Object.values(AUDIENCE_METRICS).map(g => <td key={g.label} className="py-2.5 px-4 text-right font-medium text-gray-900">{g.comments}</td>)}
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 pr-4 text-gray-700">Median view time</td>
+                      {Object.values(AUDIENCE_METRICS).map(g => <td key={g.label} className="py-2.5 px-4 text-right font-medium text-gray-900">{g.medianViewMin} m</td>)}
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 pr-4 text-gray-700">Saves</td>
+                      {Object.values(AUDIENCE_METRICS).map(g => <td key={g.label} className="py-2.5 px-4 text-right font-medium text-gray-900">{g.saves}</td>)}
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 pr-4 text-gray-700">Eng / viewer</td>
+                      {Object.values(AUDIENCE_METRICS).map(g => <td key={g.label} className="py-2.5 px-4 text-right font-medium text-gray-900">{(g.engagement / g.viewers).toFixed(1)}</td>)}
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 pr-4 text-gray-700">Like rate</td>
+                      {Object.values(AUDIENCE_METRICS).map(g => <td key={g.label} className="py-2.5 px-4 text-right font-medium text-gray-900">{Math.round(g.likes / g.viewers * 100)}%</td>)}
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 
+            {/* Interpretation */}
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-              <h2 className="text-sm font-semibold text-gray-900 mb-3">What This Means for IAPRD</h2>
+              <h2 className="text-sm font-semibold text-gray-900 mb-3">What This Tells the Program Committee</h2>
               <div className="space-y-3 text-sm text-gray-700 leading-relaxed">
                 <p>
-                  With {CONFERENCE.totalEngagement.toLocaleString()} total engagement across {ALL_TALKS.length} talks and
-                  {' '}{CONFERENCE.totalLikes} likes from attendees who viewed the content, this session demonstrates
-                  sustained, active interaction.
+                  Senior attendees spend {AUDIENCE_METRICS.senior.medianViewMin} minutes per talk versus {AUDIENCE_METRICS.junior.medianViewMin} for
+                  junior attendees, and generate {Math.round(AUDIENCE_METRICS.senior.comments / AUDIENCE_METRICS.senior.viewers * 100)}% comment rates
+                  versus {Math.round(AUDIENCE_METRICS.junior.comments / AUDIENCE_METRICS.junior.viewers * 100)}% — deeper engagement per person despite
+                  being a smaller group.
                 </p>
                 <p>
-                  The separation between engagement and likes reveals which talks generated attention versus
-                  approval. High-engagement, lower-likes talks suggest content that provoked discussion without
-                  universal approval — a marker of productive scientific discourse.
+                  The like rate is {Math.round(AUDIENCE_METRICS.senior.likes / AUDIENCE_METRICS.senior.viewers * 100)}% among
+                  senior versus {Math.round(AUDIENCE_METRICS.junior.likes / AUDIENCE_METRICS.junior.viewers * 100)}% among
+                  junior attendees. When these diverge significantly on specific talks, it signals content
+                  that resonates differently by career stage — useful for planning tracks and workshops.
                 </p>
                 <p>
-                  The per-slide comment and question breakdowns (available per-talk in the Talks tab) give program
-                  committees a new tool: identifying which specific slides drove the most response and which generated
-                  questions, enabling targeted follow-up sessions at IAPRD 2026.
+                  Engagement per viewer ({(AUDIENCE_METRICS.senior.engagement / AUDIENCE_METRICS.senior.viewers).toFixed(1)} senior
+                  vs {(AUDIENCE_METRICS.junior.engagement / AUDIENCE_METRICS.junior.viewers).toFixed(1)} junior) captures
+                  the intensity of interaction independent of headcount.
                 </p>
               </div>
             </div>
 
+            {/* Roadmap */}
             <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl shadow-sm p-6 text-white">
               <h2 className="text-sm font-semibold mb-3">Coming Next</h2>
               <div className="space-y-2 text-sm text-gray-300">
-                <p>• <strong className="text-white">ORCID integration</strong> — audience composition breakdown by field, seniority, and geography for ORCID-linked likes.</p>
-                <p>• <strong className="text-white">Real-time tracking</strong> — per-slide dwell time, revisit patterns, and attention curves replacing mock data.</p>
-                <p>• <strong className="text-white">PresentrXiv archiving</strong> — DOI-linked presentation records with citation tracking via OpenAlex.</p>
+                <p>• <strong className="text-white">Per-talk seniority breakdown</strong> — which talks drew disproportionate senior vs junior engagement, and where do senior experts disagree.</p>
+                <p>• <strong className="text-white">Field segmentation</strong> — engagement by subspecialty (movement disorders, neurodegeneration, biomarkers) derived from ORCID publication profiles.</p>
+                <p>• <strong className="text-white">Geographic analysis</strong> — regional engagement patterns correlated with seniority and field.</p>
               </div>
             </div>
           </div>

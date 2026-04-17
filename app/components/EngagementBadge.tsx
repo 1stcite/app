@@ -25,17 +25,16 @@ export default function EngagementBadge({ talkId }: Props) {
 
   const displayCount = likeCount || data.likes; // fallback to mock if no real data
 
-  const likeColor = !viewed
+  // Count is always visible blue; icon is grey until viewed, then blue (filled if liked)
+  const likeIconColor = !viewed
     ? "text-gray-300"
     : liked
       ? "text-blue-600"
       : "text-blue-400 hover:text-blue-600";
 
-  const countColor = !viewed
-    ? "text-gray-300"
-    : liked
-      ? "text-blue-600"
-      : "text-blue-400";
+  const countColor = liked
+    ? "text-blue-600"
+    : "text-blue-500";
 
   return (
     <div
@@ -83,7 +82,7 @@ export default function EngagementBadge({ talkId }: Props) {
           {displayCount}
         </span>
         <svg
-          className={`transition-colors ${likeColor}`}
+          className={`transition-colors ${likeIconColor}`}
           style={{ width: "13px", height: "13px" }}
           viewBox="0 0 20 20"
           fill="currentColor"
