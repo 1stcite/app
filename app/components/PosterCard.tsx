@@ -77,7 +77,7 @@ export default function PosterCard({
       : "bg-white border-gray-200";
 
   function handleSchedule() {
-    if (!isStarred) onToggleStar(poster.id);
+    onToggleStar(poster.id);
   }
 
   function handleSave() {
