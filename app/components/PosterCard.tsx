@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Poster } from "@/app/lib/usePosters";
 import EngagementBadge from "@/app/components/EngagementBadge";
 import { useLibrary } from "@/app/lib/useLibrary";
-import { sessionTimingAt, type SessionLike } from "@/app/lib/sessionTiming";
+import { useAttend } from "@/app/lib/useAttend";
 
 function firstAuthor(author: string) {
   const a = String(author || "").trim();
@@ -26,8 +26,13 @@ function StarIcon({ filled }: { filled: boolean }) {
   );
 }
 
-function EyeIcon() {
-  return (
+function EyeIcon({ filled }: { filled: boolean }) {
+  return filled ? (
+    <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+      <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+    </svg>
+  ) : (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.64 0 8.577 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.64 0-8.577-3.007-9.963-7.178z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -62,24 +67,20 @@ export default function PosterCard({
   isStarred,
   onToggleStar,
   variant = "default",
-  now,
 }: PosterCardProps) {
-  const session = (poster as unknown as { session?: SessionLike }).session ?? undefined;
-  const timing = sessionTimingAt(session, now ?? new Date());
-  const isPast = timing === "past";
-  const { saved, attended, toggleSave, setAttended } = useLibrary(poster.id);
+  const { saved, toggleSave } = useLibrary(poster.id);
+  const { attended, toggleAttend } = useAttend(poster.id);
 
-  const bg = isPast
-    ? "bg-gray-200 border-gray-400"
-    : variant === "starred"
-      ? "bg-yellow-50 border-yellow-200"
-      : "bg-white border-gray-200";
+  const bg = variant === "starred"
+    ? "bg-yellow-50 border-yellow-200"
+    : "bg-white border-gray-200";
 
   return (
     <div className={`rounded-lg shadow-sm hover:shadow-md transition-shadow p-4 border ${bg}`}>
-      <Link href={`/view/${poster.id}`} className="block">
+      {/* Clickable card → view slides */}
+      <Link href={`/view/${poster.id}`} className="block group">
         <div className="flex items-start justify-between gap-3">
-          <div className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 flex-1">
+          <div className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 flex-1 group-hover:text-blue-600 transition-colors">
             {poster.title}
           </div>
           <EngagementBadge talkId={poster.id} />
@@ -93,64 +94,48 @@ export default function PosterCard({
           <div className="flex-1" />
         )}
 
-        {/* Icon actions */}
-        <div className="flex items-center gap-1 shrink-0">
-          {/* ⭐ Schedule — before session only, toggleable */}
-          {!isPast && (
-            <button
-              onClick={() => onToggleStar(poster.id)}
-              className={`p-1.5 rounded-md transition-colors ${
-                isStarred
-                  ? "text-amber-500 bg-amber-50"
-                  : "text-gray-900 hover:text-amber-500 hover:bg-amber-50"
-              }`}
-              title={isStarred ? "Remove from schedule" : "Add to schedule"}
-            >
-              <StarIcon filled={isStarred} />
-            </button>
-          )}
-
-          {/* 👁 View — always visible */}
-          <Link
-            href={`/view/${poster.id}`}
-            className="p-1.5 rounded-md text-gray-900 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-            title="View slides"
+        {/* Three independent icon toggles — always visible */}
+        <div className="flex items-center gap-0.5 shrink-0">
+          {/* ⭐ Interested */}
+          <button
+            onClick={() => onToggleStar(poster.id)}
+            className={`p-1.5 rounded-md transition-colors ${
+              isStarred
+                ? "text-amber-500 bg-amber-50"
+                : "text-gray-900 hover:text-amber-500 hover:bg-amber-50"
+            }`}
+            title={isStarred ? "Interested ✓" : "Mark as interested"}
           >
-            <EyeIcon />
-          </Link>
+            <StarIcon filled={isStarred} />
+          </button>
 
-          {/* 📚 Library — during/after session, toggleable independently */}
-          {isPast && (
-            <button
-              onClick={toggleSave}
-              className={`p-1.5 rounded-md transition-colors ${
-                saved
-                  ? "text-blue-600 bg-blue-50"
-                  : "text-gray-900 hover:text-blue-600 hover:bg-blue-50"
-              }`}
-              title={saved ? "Remove from library" : "Save to library"}
-            >
-              <BookIcon filled={saved} />
-            </button>
-          )}
+          {/* 👁 Attend */}
+          <button
+            onClick={toggleAttend}
+            className={`p-1.5 rounded-md transition-colors ${
+              attended
+                ? "text-emerald-600 bg-emerald-50"
+                : "text-gray-900 hover:text-emerald-600 hover:bg-emerald-50"
+            }`}
+            title={attended ? "Attending ✓" : "I will attend / I attended"}
+          >
+            <EyeIcon filled={attended} />
+          </button>
+
+          {/* 📚 Library */}
+          <button
+            onClick={toggleSave}
+            className={`p-1.5 rounded-md transition-colors ${
+              saved
+                ? "text-blue-600 bg-blue-50"
+                : "text-gray-900 hover:text-blue-600 hover:bg-blue-50"
+            }`}
+            title={saved ? "In library ✓" : "Save to library"}
+          >
+            <BookIcon filled={saved} />
+          </button>
         </div>
       </div>
-
-      {/* Inline attendance checkbox — after saving to library */}
-      {isPast && saved && (
-        <div className="mt-2 flex items-center gap-2 text-xs text-gray-600 bg-blue-50 rounded-md px-3 py-2">
-          <span className="text-blue-700 font-medium">Saved ✓</span>
-          <label className="flex items-center gap-1.5 ml-1 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={attended}
-              onChange={(e) => setAttended(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span>I attended this talk</span>
-          </label>
-        </div>
-      )}
     </div>
   );
 }
