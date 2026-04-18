@@ -43,19 +43,29 @@ export default function MyTalksPage() {
 
   const posterById = useMemo(() => new Map(posters.map(p => [p.id, p])), [posters]);
 
-  // ─── SCHEDULE DATA (upcoming starred OR attended talks, session-grouped) ──
-  const scheduledPosters = useMemo(() => {
-    // Union of starred and attended poster IDs
-    const scheduledIds = new Set([...starredPosterIds, ...attendedIds]);
-    return posters.filter(p => scheduledIds.has(p.id));
+  // ─── SCHEDULE DATA ─────────────────────────────────────────────────
+  // "All" tab: shows starred OR attended (union)
+  const allScheduledPosters = useMemo(() => {
+    const ids = new Set([...starredPosterIds, ...attendedIds]);
+    return posters.filter(p => ids.has(p.id));
   }, [posters, starredPosterIds, attendedIds]);
 
-  const upcoming = useMemo(() => {
-    return scheduledPosters.filter(p => {
+  const allUpcoming = useMemo(() => {
+    return allScheduledPosters.filter(p => {
       const session = (p as unknown as { session?: SessionLike }).session;
       return sessionTimingAt(session, demoNow) !== "past";
     });
-  }, [scheduledPosters, demoNow]);
+  }, [allScheduledPosters, demoNow]);
+
+  // "Schedule" tab: shows only attended talks
+  const attendedUpcoming = useMemo(() => {
+    return posters
+      .filter(p => attendedIds.includes(p.id))
+      .filter(p => {
+        const session = (p as unknown as { session?: SessionLike }).session;
+        return sessionTimingAt(session, demoNow) !== "past";
+      });
+  }, [posters, attendedIds, demoNow]);
 
   // Conflict detection — per-talk time slices within sessions
   const conflicts = useMemo(() => {
@@ -134,7 +144,7 @@ export default function MyTalksPage() {
     return { groups: [...map.values()], withoutSession };
   }
 
-  const upcomingGrouped = groupBySession(upcoming);
+  // No fixed upcomingGrouped — computed inside renderScheduleSection
 
   // ─── LIBRARY DATA (flat lists) ─────────────────────────────────────
   const savedPosters = useMemo(() =>
@@ -177,18 +187,19 @@ export default function MyTalksPage() {
     );
   }
 
-  function renderScheduleSection() {
-    if (upcoming.length === 0) return null;
+  function renderScheduleSection(talks: typeof posters) {
+    if (talks.length === 0) return null;
+    const grouped = groupBySession(talks);
     return (
       <div>
         <div className="flex items-baseline justify-between mb-4 pb-2 border-b-2 border-blue-200">
           <h2 className="text-xl font-bold text-gray-700">
-            Schedule <span className="text-gray-400 font-normal text-base">({upcoming.length})</span>
+            Schedule <span className="text-gray-400 font-normal text-base">({talks.length})</span>
           </h2>
         </div>
 
         <div className="space-y-6">
-          {upcomingGrouped.groups.map(({ session, posters: sessionPosters }) => (
+          {grouped.groups.map(({ session, posters: sessionPosters }) => (
             <div key={session.id}>
               <div className="mb-3">
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "#1a2e5a" }}>
@@ -204,10 +215,10 @@ export default function MyTalksPage() {
               {renderScheduleCards(sessionPosters)}
             </div>
           ))}
-          {upcomingGrouped.withoutSession.length > 0 && (
+          {grouped.withoutSession.length > 0 && (
             <div>
               <div className="mb-3"><span className="text-sm font-medium text-gray-400">Other</span></div>
-              {renderScheduleCards(upcomingGrouped.withoutSession)}
+              {renderScheduleCards(grouped.withoutSession)}
             </div>
           )}
         </div>
@@ -357,13 +368,14 @@ export default function MyTalksPage() {
           </div>
         ) : (
           <div className="space-y-10">
-            {/* Schedule section — shown on All and Schedule tabs */}
-            {(tab === "all" || tab === "schedule") && renderScheduleSection()}
+            {/* Schedule section — All tab shows starred+attended, Schedule tab shows attended only */}
+            {tab === "all" && renderScheduleSection(allUpcoming)}
+            {tab === "schedule" && renderScheduleSection(attendedUpcoming)}
 
             {/* Empty state for schedule tab */}
-            {tab === "schedule" && upcoming.length === 0 && (
+            {tab === "schedule" && attendedUpcoming.length === 0 && (
               <div className="bg-white rounded-lg border border-gray-200 p-6 text-center text-sm text-gray-500">
-                No upcoming talks scheduled. Star talks from the conference to add them here.
+                No talks scheduled. Use the 🪑 icon to mark talks you plan to attend.
               </div>
             )}
 
