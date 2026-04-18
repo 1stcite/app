@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePosters, type Poster } from "@/app/lib/usePosters";
 import PosterCard from "@/app/components/PosterCard";
 import EngagementBadge from "@/app/components/EngagementBadge";
+import TalkRow from "@/app/components/TalkRow";
 import { useConference } from "@/app/lib/conferenceContext";
 import Footer from "@/app/components/Footer";
 import { useDemoClock } from "@/app/lib/demoClock";
@@ -236,23 +237,11 @@ export default function MyTalksPage() {
           </h2>
         </div>
 
-        {/* Saved talks — flat list */}
+        {/* Saved talks — flat list with interactive icons */}
         {savedPosters.length > 0 ? (
           <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
             {savedPosters.map(poster => (
-              <div key={poster.id} className="p-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <Link href={`/view/${poster.id}`}>
-                      <p className="font-medium text-gray-900 leading-snug hover:text-blue-700 transition-colors">
-                        {poster.title}
-                      </p>
-                    </Link>
-                    {poster.author && <p className="text-sm text-gray-500 mt-0.5">{poster.author}</p>}
-                  </div>
-                  <EngagementBadge talkId={poster.id} />
-                </div>
-              </div>
+              <TalkRow key={poster.id} poster={poster} isStarred={starredPosterIds.includes(poster.id)} onToggleStar={toggleStar} />
             ))}
           </div>
         ) : (
@@ -273,37 +262,9 @@ export default function MyTalksPage() {
               Talks you starred or attended but haven&apos;t saved to your library yet.
             </p>
             <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
-              {unsavedInteracted.map(poster => {
-                const isStarred = starredPosterIds.includes(poster.id);
-                const isAttended = attendedIds.includes(poster.id);
-                return (
-                  <div key={poster.id} className="p-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <Link href={`/view/${poster.id}`}>
-                          <p className="font-medium text-gray-900 leading-snug hover:text-blue-700 transition-colors">
-                            {poster.title}
-                          </p>
-                        </Link>
-                        {poster.author && <p className="text-sm text-gray-500 mt-0.5">{poster.author}</p>}
-                        <div className="flex gap-1.5 mt-1.5">
-                          {isStarred && (
-                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                              ★ Interested
-                            </span>
-                          )}
-                          {isAttended && (
-                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              Attended
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <EngagementBadge talkId={poster.id} />
-                    </div>
-                  </div>
-                );
-              })}
+              {unsavedInteracted.map(poster => (
+                <TalkRow key={poster.id} poster={poster} isStarred={starredPosterIds.includes(poster.id)} onToggleStar={toggleStar} />
+              ))}
             </div>
           </div>
         )}
