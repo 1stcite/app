@@ -143,10 +143,11 @@ const AUDIENCE_TIMELINE = [
   { time: "Week 4", viewers: 156 },
 ];
 
+// Audience metrics segmented by field (mock — will come from ORCID data)
 const AUDIENCE_METRICS = {
-  all: { label: "All Attendees", viewers: 847, engagement: 14820, saves: 312, comments: 97, medianViewMin: 5.8 },
-  senior: { label: "Senior (10+ yrs)", viewers: 312, engagement: 6240, saves: 148, comments: 52, medianViewMin: 7.2 },
-  junior: { label: "Junior (<10 yrs)", viewers: 535, engagement: 8580, saves: 164, comments: 45, medianViewMin: 4.9 },
+  all:       { label: "All Attendees",  viewers: 847, medianViewMin: 5.8, saves: 312, comments: 97, engagement: 14820 },
+  physicians:{ label: "Physicians",     viewers: 489, medianViewMin: 6.4, saves: 192, comments: 58, engagement: 8940 },
+  neuro:     { label: "Neuroscientists",viewers: 358, medianViewMin: 5.0, saves: 120, comments: 39, engagement: 5880 },
 };
 
 // ── Sub-components ──────────────────────────────────────────────────────────
@@ -470,8 +471,8 @@ export default function InsightsPage() {
         {activeTab === 'audience' && (
           <div className="space-y-6">
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-              <h2 className="text-sm font-semibold text-gray-900 mb-1">Audience Metrics by Seniority</h2>
-              <p className="text-xs text-gray-500 mb-5">Based on ORCID publication history. Senior = 10+ years of indexed publications.</p>
+              <h2 className="text-sm font-semibold text-gray-900 mb-1">Audience Metrics by Field</h2>
+              <p className="text-xs text-gray-500 mb-5">Based on ORCID publication profiles. Field classification derived from indexed publication keywords.</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -484,18 +485,17 @@ export default function InsightsPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {([
-                      ['Viewers', (g: typeof AUDIENCE_METRICS.all) => g.viewers.toLocaleString()],
-                      ['Engagement', (g: typeof AUDIENCE_METRICS.all) => g.engagement.toLocaleString()],
-                      ['Saves', (g: typeof AUDIENCE_METRICS.all) => String(g.saves)],
-                      ['Comments', (g: typeof AUDIENCE_METRICS.all) => String(g.comments)],
-                      ['Median view time', (g: typeof AUDIENCE_METRICS.all) => `${g.medianViewMin} m`],
-                      ['Eng / viewer', (g: typeof AUDIENCE_METRICS.all) => (g.engagement / g.viewers).toFixed(1)],
-                      ['Save rate', (g: typeof AUDIENCE_METRICS.all) => `${Math.round(g.saves / g.viewers * 100)}%`],
+                      ['Viewers',         (g: typeof AUDIENCE_METRICS.all) => g.viewers.toLocaleString()],
+                      ['Median view time',(g: typeof AUDIENCE_METRICS.all) => `${g.medianViewMin} m`],
+                      ['Saves',           (g: typeof AUDIENCE_METRICS.all) => String(g.saves)],
+                      ['Save rate',       (g: typeof AUDIENCE_METRICS.all) => `${Math.round(g.saves / g.viewers * 100)}%`],
+                      ['Comments',        (g: typeof AUDIENCE_METRICS.all) => String(g.comments)],
+                      ['Engagement Index',(g: typeof AUDIENCE_METRICS.all) => g.engagement.toLocaleString()],
                     ] as [string, (g: typeof AUDIENCE_METRICS.all) => string][]).map(([label, fn]) => (
                       <tr key={label}>
-                        <td className="py-2.5 pr-4 text-gray-700">{label}</td>
+                        <td className={`py-2.5 pr-4 ${label === 'Engagement Index' ? 'text-gray-900 font-medium' : 'text-gray-700'}`}>{label}</td>
                         {Object.values(AUDIENCE_METRICS).map(g => (
-                          <td key={g.label} className="py-2.5 px-4 text-right font-medium text-gray-900">{fn(g)}</td>
+                          <td key={g.label} className={`py-2.5 px-4 text-right font-medium ${label === 'Engagement Index' ? 'text-blue-700' : 'text-gray-900'}`}>{fn(g)}</td>
                         ))}
                       </tr>
                     ))}
@@ -508,18 +508,21 @@ export default function InsightsPage() {
               <h2 className="text-sm font-semibold text-gray-900 mb-3">What This Tells the Program Committee</h2>
               <div className="space-y-3 text-sm text-gray-700 leading-relaxed">
                 <p>
-                  Senior attendees spend {AUDIENCE_METRICS.senior.medianViewMin} minutes per talk versus {AUDIENCE_METRICS.junior.medianViewMin} for
-                  junior attendees, and save at a {Math.round(AUDIENCE_METRICS.senior.saves / AUDIENCE_METRICS.senior.viewers * 100)}% rate
-                  versus {Math.round(AUDIENCE_METRICS.junior.saves / AUDIENCE_METRICS.junior.viewers * 100)}% — deeper engagement per person.
+                  Physicians spend {AUDIENCE_METRICS.physicians.medianViewMin} minutes per talk versus {AUDIENCE_METRICS.neuro.medianViewMin} for
+                  neuroscientists, and save at a {Math.round(AUDIENCE_METRICS.physicians.saves / AUDIENCE_METRICS.physicians.viewers * 100)}% rate
+                  versus {Math.round(AUDIENCE_METRICS.neuro.saves / AUDIENCE_METRICS.neuro.viewers * 100)}%. The higher save rate among physicians
+                  suggests clinical content has stronger lasting value for that audience.
                 </p>
                 <p>
-                  When save rates diverge significantly on specific talks, it signals content
-                  that resonates differently by career stage — useful for planning tracks and workshops.
+                  When save rates or comment rates diverge significantly on specific talks, it signals content
+                  that resonates differently by field — useful for planning tracks, joint sessions, and
+                  translational workshops that bridge clinical practice and basic science.
                 </p>
                 <p>
-                  Engagement per viewer ({(AUDIENCE_METRICS.senior.engagement / AUDIENCE_METRICS.senior.viewers).toFixed(1)} senior
-                  vs {(AUDIENCE_METRICS.junior.engagement / AUDIENCE_METRICS.junior.viewers).toFixed(1)} junior) captures
-                  the intensity of interaction independent of headcount.
+                  The Engagement Index ({AUDIENCE_METRICS.physicians.engagement.toLocaleString()} physicians
+                  vs {AUDIENCE_METRICS.neuro.engagement.toLocaleString()} neuroscientists) is a composite that
+                  combines scheduled attendance, saves, and comments into a single attention measure.
+                  It appears last because it is derived from the counts above.
                 </p>
               </div>
             </div>
@@ -527,9 +530,9 @@ export default function InsightsPage() {
             <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl shadow-sm p-6 text-white">
               <h2 className="text-sm font-semibold mb-3">Coming Next</h2>
               <div className="space-y-2 text-sm text-gray-300">
-                <p>• <strong className="text-white">Per-talk seniority breakdown</strong> — which talks drew disproportionate senior vs junior saves and comments.</p>
-                <p>• <strong className="text-white">Field segmentation</strong> — engagement by subspecialty derived from ORCID publication profiles.</p>
-                <p>• <strong className="text-white">Geographic analysis</strong> — regional engagement patterns correlated with seniority and field.</p>
+                <p>• <strong className="text-white">Per-talk field breakdown</strong> — which talks drew disproportionate physician vs neuroscientist engagement.</p>
+                <p>• <strong className="text-white">Career stage segmentation</strong> — students, early-career researchers, and faculty as a separate lens.</p>
+                <p>• <strong className="text-white">Geographic analysis</strong> — regional engagement patterns by field and career stage.</p>
               </div>
             </div>
           </div>
