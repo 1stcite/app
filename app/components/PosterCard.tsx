@@ -5,6 +5,7 @@ import type { Poster } from "@/app/lib/usePosters";
 import EngagementBadge from "@/app/components/EngagementBadge";
 import { useLibrary } from "@/app/lib/useLibrary";
 import { useAttend } from "@/app/lib/useAttend";
+import { sessionTimingAt, type SessionLike } from "@/app/lib/sessionTiming";
 
 function firstAuthor(author: string) {
   const a = String(author || "").trim();
@@ -67,13 +68,19 @@ export default function PosterCard({
   isStarred,
   onToggleStar,
   variant = "default",
+  now,
 }: PosterCardProps) {
   const { saved, toggleSave } = useLibrary(poster.id);
   const { attended, toggleAttend } = useAttend(poster.id);
+  const session = (poster as unknown as { session?: SessionLike }).session ?? undefined;
+  const timing = sessionTimingAt(session, now ?? new Date());
+  const isPast = timing === "past";
 
-  const bg = variant === "starred"
-    ? "bg-yellow-50 border-yellow-200"
-    : "bg-white border-gray-200";
+  const bg = isPast
+    ? "bg-gray-200 border-gray-400"
+    : variant === "starred"
+      ? "bg-yellow-50 border-yellow-200"
+      : "bg-white border-gray-200";
 
   return (
     <div className={`rounded-lg shadow-sm hover:shadow-md transition-shadow p-4 border ${bg}`}>
