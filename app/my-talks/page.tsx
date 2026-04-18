@@ -188,14 +188,14 @@ export default function MyTalksPage() {
     );
   }
 
-  function renderScheduleSection(talks: typeof posters) {
+  function renderScheduleSection(talks: typeof posters, heading: string) {
     if (talks.length === 0) return null;
     const grouped = groupBySession(talks);
     return (
       <div>
         <div className="flex items-baseline justify-between mb-4 pb-2 border-b-2 border-blue-200">
           <h2 className="text-xl font-bold text-gray-700">
-            Schedule <span className="text-gray-400 font-normal text-base">({talks.length})</span>
+            {heading} <span className="text-gray-400 font-normal text-base">({talks.length})</span>
           </h2>
         </div>
 
@@ -330,8 +330,8 @@ export default function MyTalksPage() {
         ) : (
           <div className="space-y-10">
             {/* Schedule section — All tab shows starred+attended, Schedule tab shows attended only */}
-            {tab === "all" && renderScheduleSection(allUpcoming)}
-            {tab === "schedule" && renderScheduleSection(attendedUpcoming)}
+            {tab === "all" && renderScheduleSection(allUpcoming, "Upcoming")}
+            {tab === "schedule" && renderScheduleSection(attendedUpcoming, "Schedule")}
 
             {/* Empty state for schedule tab */}
             {tab === "schedule" && attendedUpcoming.length === 0 && (
