@@ -40,6 +40,9 @@ type Talk = {
   commenters: number;
   slideData: SlideData[];
   viewsOverTime: ViewPoint[];
+  // Per-segment saves (mock — will come from ORCID field classification)
+  physicianSaves: number;
+  neuroSaves: number;
 };
 
 type Session = {
@@ -106,27 +109,27 @@ const SESSIONS: Session[] = [
     id: "s5", name: "Parallel Session 5: Update on Neuromodulation",
     chair: "Zoltan Mari & Jinyoung Youn", location: "Northside Ballroom", color: "#2563eb", time: "11:00 – 12:30",
     talks: [
-      { id: "5a", title: "MR-guided Focused Ultrasound", author: "Gordon Baltuch", engagement: 427, saves: 28, savesAttended: 19, viewers: 312, medianViewMin: 6.8, comments: 7, commenters: 5, slideData: makeSlides(10, 1), viewsOverTime: makeViewsOverTime(1, 312) },
-      { id: "5b", title: "Deep Brain Stimulation", author: "Alexandra Boogers", engagement: 243, saves: 12, savesAttended: 8, viewers: 198, medianViewMin: 5.2, comments: 4, commenters: 3, slideData: makeSlides(12, 2), viewsOverTime: makeViewsOverTime(2, 198) },
-      { id: "5c", title: "Neuromodulatory Neurostimulation: TMS, tDCS, and Beyond", author: "Robert Chen", engagement: 239, saves: 14, savesAttended: 9, viewers: 187, medianViewMin: 4.9, comments: 5, commenters: 4, slideData: makeSlides(8, 3), viewsOverTime: makeViewsOverTime(3, 187) },
+      { id: "5a", title: "MR-guided Focused Ultrasound", author: "Gordon Baltuch", engagement: 427, saves: 28, savesAttended: 19, viewers: 312, medianViewMin: 6.8, comments: 7, commenters: 5, slideData: makeSlides(10, 1), viewsOverTime: makeViewsOverTime(1, 312), physicianSaves: 22, neuroSaves: 6 },
+      { id: "5b", title: "Deep Brain Stimulation", author: "Alexandra Boogers", engagement: 243, saves: 12, savesAttended: 8, viewers: 198, medianViewMin: 5.2, comments: 4, commenters: 3, slideData: makeSlides(12, 2), viewsOverTime: makeViewsOverTime(2, 198), physicianSaves: 9, neuroSaves: 3 },
+      { id: "5c", title: "Neuromodulatory Neurostimulation: TMS, tDCS, and Beyond", author: "Robert Chen", engagement: 239, saves: 14, savesAttended: 9, viewers: 187, medianViewMin: 4.9, comments: 5, commenters: 4, slideData: makeSlides(8, 3), viewsOverTime: makeViewsOverTime(3, 187), physicianSaves: 4, neuroSaves: 10 },
     ],
   },
   {
     id: "s6", name: "Parallel Session 6: Defining and Treating Atypical Parkinsonism",
     chair: "Karen Frei & Anhar Hassan", location: "Grand Ballroom – Salon D", color: "#7c3aed", time: "11:00 – 12:30",
     talks: [
-      { id: "6a", title: "Differentiating PSP, MSA, and Corticobasal Syndrome", author: "Ai-Huey Tan", engagement: 496, saves: 42, savesAttended: 31, viewers: 298, medianViewMin: 7.3, comments: 16, commenters: 12, slideData: makeSlides(14, 4), viewsOverTime: makeViewsOverTime(4, 298) },
-      { id: "6b", title: "Therapeutic Approaches to Atypical Parkinsonism", author: "Huw Morris", engagement: 227, saves: 15, savesAttended: 11, viewers: 174, medianViewMin: 5.1, comments: 3, commenters: 2, slideData: makeSlides(10, 5), viewsOverTime: makeViewsOverTime(5, 174) },
-      { id: "6c", title: "Debate: Is Neuropathology the Gold Standard for Diagnosis?", author: "Paola Sandroni & Glenda Halliday", engagement: 429, saves: 35, savesAttended: 22, viewers: 264, medianViewMin: 8.1, comments: 14, commenters: 11, slideData: makeSlides(8, 6), viewsOverTime: makeViewsOverTime(6, 264) },
+      { id: "6a", title: "Differentiating PSP, MSA, and Corticobasal Syndrome", author: "Ai-Huey Tan", engagement: 496, saves: 42, savesAttended: 31, viewers: 298, medianViewMin: 7.3, comments: 16, commenters: 12, slideData: makeSlides(14, 4), viewsOverTime: makeViewsOverTime(4, 298), physicianSaves: 18, neuroSaves: 24 },
+      { id: "6b", title: "Therapeutic Approaches to Atypical Parkinsonism", author: "Huw Morris", engagement: 227, saves: 15, savesAttended: 11, viewers: 174, medianViewMin: 5.1, comments: 3, commenters: 2, slideData: makeSlides(10, 5), viewsOverTime: makeViewsOverTime(5, 174), physicianSaves: 11, neuroSaves: 4 },
+      { id: "6c", title: "Debate: Is Neuropathology the Gold Standard for Diagnosis?", author: "Paola Sandroni & Glenda Halliday", engagement: 429, saves: 35, savesAttended: 22, viewers: 264, medianViewMin: 8.1, comments: 14, commenters: 11, slideData: makeSlides(8, 6), viewsOverTime: makeViewsOverTime(6, 264), physicianSaves: 14, neuroSaves: 21 },
     ],
   },
   {
     id: "w3", name: "Workshop 3: Botulinum Toxin Injection Workshop",
     chair: "Marie Saint-Hilaire & Roy Alcalay", location: "Grand Ballroom – Salons A-C", color: "#059669", time: "11:00 – 12:30",
     talks: [
-      { id: "w3a", title: "Clinical Utility of Botulinum Neurotoxins", author: "Alberto Albanese", engagement: 302, saves: 22, savesAttended: 14, viewers: 215, medianViewMin: 4.4, comments: 5, commenters: 4, slideData: makeSlides(10, 7), viewsOverTime: makeViewsOverTime(7, 215) },
-      { id: "w3b", title: "Techniques for Muscle Localization", author: "Katharine Alter", engagement: 362, saves: 28, savesAttended: 18, viewers: 249, medianViewMin: 5.9, comments: 8, commenters: 6, slideData: makeSlides(12, 8), viewsOverTime: makeViewsOverTime(8, 249) },
-      { id: "w3c", title: "Injection Demonstration Video Cases", author: "Jaroslaw Slawek & David Simpson", engagement: 642, saves: 52, savesAttended: 38, viewers: 412, medianViewMin: 9.2, comments: 18, commenters: 14, slideData: makeSlides(6, 9), viewsOverTime: makeViewsOverTime(9, 412) },
+      { id: "w3a", title: "Clinical Utility of Botulinum Neurotoxins", author: "Alberto Albanese", engagement: 302, saves: 22, savesAttended: 14, viewers: 215, medianViewMin: 4.4, comments: 5, commenters: 4, slideData: makeSlides(10, 7), viewsOverTime: makeViewsOverTime(7, 215), physicianSaves: 18, neuroSaves: 4 },
+      { id: "w3b", title: "Techniques for Muscle Localization", author: "Katharine Alter", engagement: 362, saves: 28, savesAttended: 18, viewers: 249, medianViewMin: 5.9, comments: 8, commenters: 6, slideData: makeSlides(12, 8), viewsOverTime: makeViewsOverTime(8, 249), physicianSaves: 21, neuroSaves: 7 },
+      { id: "w3c", title: "Injection Demonstration Video Cases", author: "Jaroslaw Slawek & David Simpson", engagement: 642, saves: 52, savesAttended: 38, viewers: 412, medianViewMin: 9.2, comments: 18, commenters: 14, slideData: makeSlides(6, 9), viewsOverTime: makeViewsOverTime(9, 412), physicianSaves: 38, neuroSaves: 14 },
     ],
   },
 ];
@@ -501,6 +504,46 @@ export default function InsightsPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+
+            {/* Top talks by segment — side by side */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+                <h2 className="text-sm font-semibold text-gray-900 mb-3">Top Talks — Physicians</h2>
+                <div className="space-y-2.5">
+                  {[...ALL_TALKS].sort((a, b) => b.physicianSaves - a.physicianSaves).slice(0, 4).map((t, i) => (
+                    <div key={t.id} className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-gray-400 w-4 text-right">{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 truncate">{t.title}</div>
+                        <div className="text-xs text-gray-500">{t.author}</div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-sm font-semibold text-gray-900">{t.physicianSaves}</div>
+                        <div className="text-[10px] text-gray-400">saves</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+                <h2 className="text-sm font-semibold text-gray-900 mb-3">Top Talks — Neuroscientists</h2>
+                <div className="space-y-2.5">
+                  {[...ALL_TALKS].sort((a, b) => b.neuroSaves - a.neuroSaves).slice(0, 4).map((t, i) => (
+                    <div key={t.id} className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-gray-400 w-4 text-right">{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 truncate">{t.title}</div>
+                        <div className="text-xs text-gray-500">{t.author}</div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-sm font-semibold text-gray-900">{t.neuroSaves}</div>
+                        <div className="text-[10px] text-gray-400">saves</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
