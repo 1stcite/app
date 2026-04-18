@@ -28,12 +28,17 @@ export default function MyTalksPage() {
     fetch("/api/conference").then(r => r.json()).then(c => { if (c?.logo) setLogo(c.logo); }).catch(() => {});
   }, [ctxLogo]);
 
-  // Fetch attend + library data
+  // Fetch attend + library data — poll to keep conflicts in sync with toggles
   useEffect(() => {
-    fetch("/api/attend").then(r => r.json())
-      .then(d => setAttendedIds((d || []).map((x: { posterId: string }) => x.posterId))).catch(() => {});
-    fetch("/api/library").then(r => r.json())
-      .then(d => setSavedIds((d || []).map((x: { posterId: string }) => x.posterId))).catch(() => {});
+    function refresh() {
+      fetch("/api/attend").then(r => r.json())
+        .then(d => setAttendedIds((d || []).map((x: { posterId: string }) => x.posterId))).catch(() => {});
+      fetch("/api/library").then(r => r.json())
+        .then(d => setSavedIds((d || []).map((x: { posterId: string }) => x.posterId))).catch(() => {});
+    }
+    refresh();
+    const interval = setInterval(refresh, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   const posterById = useMemo(() => new Map(posters.map(p => [p.id, p])), [posters]);
