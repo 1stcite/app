@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import type { Poster } from "@/app/lib/usePosters";
 import EngagementBadge from "@/app/components/EngagementBadge";
@@ -13,8 +14,24 @@ function firstAuthor(author: string) {
   return a.split(/[,;]+/)[0].trim();
 }
 
+/* ── Toast hook ──────────────────────────────────────────────────────── */
+
+function useToast() {
+  const [msg, setMsg] = useState<string | null>(null);
+  const show = useCallback((text: string) => {
+    setMsg(text);
+  }, []);
+  useEffect(() => {
+    if (!msg) return;
+    const t = setTimeout(() => setMsg(null), 1500);
+    return () => clearTimeout(t);
+  }, [msg]);
+  return { msg, show };
+}
+
 /* ── Icons ───────────────────────────────────────────────────────────── */
 
+/** Star — same outline/filled as before */
 function StarIcon({ filled }: { filled: boolean }) {
   return filled ? (
     <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
@@ -27,29 +44,65 @@ function StarIcon({ filled }: { filled: boolean }) {
   );
 }
 
-function EyeIcon({ filled }: { filled: boolean }) {
-  return filled ? (
-    <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-      <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-      <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-    </svg>
-  ) : (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.64 0 8.577 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.64 0-8.577-3.007-9.963-7.178z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+/** Person sitting in a chair — attend */
+function AttendIcon({ filled }: { filled: boolean }) {
+  // Simple person-in-chair silhouette
+  return (
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"}
+      stroke={filled ? "none" : "currentColor"} strokeWidth={filled ? 0 : 1.5}>
+      {/* Head */}
+      <circle cx="12" cy="5" r="2.5" />
+      {/* Body sitting */}
+      <path strokeLinecap="round" strokeLinejoin="round"
+        d="M9 10h6l1 5h-8l1-5z" />
+      {/* Legs */}
+      <path strokeLinecap="round" strokeLinejoin="round"
+        d="M10 15v4M14 15v2.5h2" />
+      {/* Chair back */}
+      <path strokeLinecap="round" strokeLinejoin="round"
+        d="M7 8v9" />
+      {/* Chair seat */}
+      <path strokeLinecap="round" strokeLinejoin="round"
+        d="M7 15h10" />
+      {/* Chair legs */}
+      <path strokeLinecap="round" strokeLinejoin="round"
+        d="M7 17v2M17 15v4" />
     </svg>
   );
 }
 
-function BookIcon({ filled }: { filled: boolean }) {
-  return filled ? (
-    <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-      <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0z" />
+/** Books on a shelf — library. Same icon filled/unfilled, just color changes */
+function BooksIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"}
+      stroke={filled ? "none" : "currentColor"} strokeWidth={filled ? 0 : 1.5}>
+      {/* Shelf */}
+      <path strokeLinecap="round" d="M3 20h18" />
+      {/* Book 1 — tall, slight lean */}
+      <rect x="5" y="6" width="3" height="14" rx="0.5"
+        transform="rotate(-2 6.5 13)" />
+      {/* Book 2 — medium */}
+      <rect x="9" y="8" width="2.5" height="12" rx="0.5" />
+      {/* Book 3 — tall */}
+      <rect x="12.5" y="5" width="3" height="15" rx="0.5"
+        transform="rotate(1 14 12.5)" />
+      {/* Book 4 — short, leaning */}
+      <rect x="16.5" y="10" width="2.5" height="10" rx="0.5"
+        transform="rotate(3 17.75 15)" />
     </svg>
-  ) : (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-    </svg>
+  );
+}
+
+/* ── Toast component ─────────────────────────────────────────────────── */
+
+function Toast({ msg }: { msg: string | null }) {
+  if (!msg) return null;
+  return (
+    <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-50 animate-fade-toast">
+      <div className="bg-gray-900 text-white text-[11px] font-medium px-2.5 py-1 rounded-md shadow-lg whitespace-nowrap">
+        {msg}
+      </div>
+    </div>
   );
 }
 
@@ -76,6 +129,10 @@ export default function PosterCard({
   const timing = sessionTimingAt(session, now ?? new Date());
   const isPast = timing === "past";
 
+  const starToast = useToast();
+  const attendToast = useToast();
+  const libraryToast = useToast();
+
   const bg = isPast
     ? "bg-gray-200 border-gray-400"
     : variant === "starred"
@@ -84,6 +141,17 @@ export default function PosterCard({
 
   return (
     <div className={`rounded-lg shadow-sm hover:shadow-md transition-shadow p-4 border ${bg}`}>
+      {/* Toast animation style */}
+      <style>{`
+        @keyframes fadeToast {
+          0% { opacity: 0; transform: translate(-50%, 4px); }
+          15% { opacity: 1; transform: translate(-50%, 0); }
+          85% { opacity: 1; transform: translate(-50%, 0); }
+          100% { opacity: 0; transform: translate(-50%, -4px); }
+        }
+        .animate-fade-toast { animation: fadeToast 1.5s ease-in-out forwards; }
+      `}</style>
+
       {/* Clickable card → view slides */}
       <Link href={`/view/${poster.id}`} className="block group">
         <div className="flex items-start justify-between gap-3">
@@ -101,46 +169,64 @@ export default function PosterCard({
           <div className="flex-1" />
         )}
 
-        {/* Three independent icon toggles — always visible */}
+        {/* Three independent icon toggles with toasts */}
         <div className="flex items-center gap-0.5 shrink-0">
           {/* ⭐ Interested */}
-          <button
-            onClick={() => onToggleStar(poster.id)}
-            className={`p-1.5 rounded-md transition-colors ${
-              isStarred
-                ? "text-amber-500 bg-amber-50"
-                : "text-gray-900 hover:text-amber-500 hover:bg-amber-50"
-            }`}
-            title={isStarred ? "Interested ✓" : "Mark as interested"}
-          >
-            <StarIcon filled={isStarred} />
-          </button>
+          <div className="relative">
+            <Toast msg={starToast.msg} />
+            <button
+              onClick={() => {
+                onToggleStar(poster.id);
+                if (!isStarred) starToast.show("Interested");
+              }}
+              className={`p-1.5 rounded-md transition-colors ${
+                isStarred
+                  ? "text-amber-500 bg-amber-50"
+                  : "text-gray-900 hover:text-amber-500 hover:bg-amber-50"
+              }`}
+              title="Interested"
+            >
+              <StarIcon filled={isStarred} />
+            </button>
+          </div>
 
-          {/* 👁 Attend */}
-          <button
-            onClick={toggleAttend}
-            className={`p-1.5 rounded-md transition-colors ${
-              attended
-                ? "text-emerald-600 bg-emerald-50"
-                : "text-gray-900 hover:text-emerald-600 hover:bg-emerald-50"
-            }`}
-            title={attended ? "Attending ✓" : "I will attend / I attended"}
-          >
-            <EyeIcon filled={attended} />
-          </button>
+          {/* 🪑 Attend */}
+          <div className="relative">
+            <Toast msg={attendToast.msg} />
+            <button
+              onClick={() => {
+                toggleAttend();
+                if (!attended) attendToast.show("Attend");
+              }}
+              className={`p-1.5 rounded-md transition-colors ${
+                attended
+                  ? "text-emerald-600 bg-emerald-50"
+                  : "text-gray-900 hover:text-emerald-600 hover:bg-emerald-50"
+              }`}
+              title="Attend"
+            >
+              <AttendIcon filled={attended} />
+            </button>
+          </div>
 
-          {/* 📚 Library */}
-          <button
-            onClick={toggleSave}
-            className={`p-1.5 rounded-md transition-colors ${
-              saved
-                ? "text-blue-600 bg-blue-50"
-                : "text-gray-900 hover:text-blue-600 hover:bg-blue-50"
-            }`}
-            title={saved ? "In library ✓" : "Save to library"}
-          >
-            <BookIcon filled={saved} />
-          </button>
+          {/* 📚 Save to Library */}
+          <div className="relative">
+            <Toast msg={libraryToast.msg} />
+            <button
+              onClick={() => {
+                toggleSave();
+                if (!saved) libraryToast.show("Save to Library");
+              }}
+              className={`p-1.5 rounded-md transition-colors ${
+                saved
+                  ? "text-blue-600 bg-blue-50"
+                  : "text-gray-900 hover:text-blue-600 hover:bg-blue-50"
+              }`}
+              title="Save to Library"
+            >
+              <BooksIcon filled={saved} />
+            </button>
+          </div>
         </div>
       </div>
     </div>
