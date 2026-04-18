@@ -12,19 +12,6 @@ import { sessionTimingAt, type SessionLike } from "@/app/lib/sessionTiming";
 
 type FilterTab = "all" | "schedule" | "library";
 
-/** Check if two sessions conflict — different sessions with overlapping times. */
-function sessionsConflict(
-  a: { id?: string; date?: string; startTime?: string; endTime?: string },
-  b: { id?: string; date?: string; startTime?: string; endTime?: string }
-): boolean {
-  if (a.id && b.id && a.id === b.id) return false;
-  if (!a.date || !b.date || a.date !== b.date) return false;
-  if (!a.startTime || !b.startTime) return false;
-  const aEnd = a.endTime || "23:59";
-  const bEnd = b.endTime || "23:59";
-  return a.startTime < bEnd && b.startTime < aEnd;
-}
-
 export default function MyTalksPage() {
   const { logo: ctxLogo } = useConference();
   const { loading, posters, starredPosterIds, starredPosters, toggleStar } = usePosters();
@@ -59,22 +46,69 @@ export default function MyTalksPage() {
     });
   }, [starredPosters, demoNow]);
 
-  // Conflict detection among attended talks
+  // Conflict detection — per-talk time slices within sessions
   const conflicts = useMemo(() => {
-    const attended = posters
-      .filter(p => attendedIds.includes(p.id))
-      .map(p => ({ poster: p, session: (p as unknown as { session?: SessionLike & { id?: string } }).session }))
-      .filter(x => x.session?.date && x.session?.startTime);
-    const ids = new Set<string>();
-    for (let i = 0; i < attended.length; i++) {
-      for (let j = i + 1; j < attended.length; j++) {
-        if (sessionsConflict(attended[i].session!, attended[j].session!)) {
-          ids.add(attended[i].poster.id);
-          ids.add(attended[j].poster.id);
+    // Group ALL posters by session to compute per-talk time slices
+    const sessionTalks = new Map<string, typeof posters>();
+    for (const p of posters) {
+      const sid = (p as any).sessionId;
+      if (!sid) continue;
+      if (!sessionTalks.has(sid)) sessionTalks.set(sid, []);
+      sessionTalks.get(sid)!.push(p);
+    }
+    // Sort each session's talks by sortOrder
+    for (const talks of sessionTalks.values()) {
+      talks.sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    }
+
+    // Parse "HH:MM" to minutes since midnight
+    function toMin(t: string): number {
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + (m || 0);
+    }
+
+    // Compute per-talk time range based on position within session
+    function talkTimeRange(posterId: string): { date: string; start: number; end: number; sessionId: string } | null {
+      for (const [sid, talks] of sessionTalks.entries()) {
+        const idx = talks.findIndex(t => t.id === posterId);
+        if (idx === -1) continue;
+        const session = (talks[0] as any).session as SessionLike & { id?: string } | undefined;
+        if (!session?.date || !session?.startTime) return null;
+        const sessStart = toMin(session.startTime);
+        const sessEnd = session.endTime ? toMin(session.endTime) : sessStart + 90;
+        const slotDuration = (sessEnd - sessStart) / talks.length;
+        return {
+          date: session.date,
+          start: sessStart + idx * slotDuration,
+          end: sessStart + (idx + 1) * slotDuration,
+          sessionId: sid,
+        };
+      }
+      return null;
+    }
+
+    // Check attended talks for overlapping time slices across different sessions
+    const attendedRanges = attendedIds
+      .map(id => ({ id, range: talkTimeRange(id) }))
+      .filter((x): x is { id: string; range: NonNullable<ReturnType<typeof talkTimeRange>> } => x.range !== null);
+
+    const conflictIds = new Set<string>();
+    for (let i = 0; i < attendedRanges.length; i++) {
+      for (let j = i + 1; j < attendedRanges.length; j++) {
+        const a = attendedRanges[i].range;
+        const b = attendedRanges[j].range;
+        // Same session = sequential, not a conflict
+        if (a.sessionId === b.sessionId) continue;
+        // Different date = no conflict
+        if (a.date !== b.date) continue;
+        // Check time overlap
+        if (a.start < b.end && b.start < a.end) {
+          conflictIds.add(attendedRanges[i].id);
+          conflictIds.add(attendedRanges[j].id);
         }
       }
     }
-    return ids;
+    return conflictIds;
   }, [posters, attendedIds]);
 
   function groupBySession(items: typeof starredPosters) {
@@ -141,12 +175,6 @@ export default function MyTalksPage() {
             Schedule <span className="text-gray-400 font-normal text-base">({upcoming.length})</span>
           </h2>
         </div>
-
-        {conflicts.size > 0 && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
-            <strong>⚠ Schedule conflict:</strong> {conflicts.size} talks you plan to attend overlap in time.
-          </div>
-        )}
 
         <div className="space-y-6">
           {upcomingGrouped.groups.map(({ session, posters: sessionPosters }) => (
