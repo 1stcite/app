@@ -43,13 +43,19 @@ export default function MyTalksPage() {
 
   const posterById = useMemo(() => new Map(posters.map(p => [p.id, p])), [posters]);
 
-  // ─── SCHEDULE DATA (upcoming starred talks, session-grouped) ───────
+  // ─── SCHEDULE DATA (upcoming starred OR attended talks, session-grouped) ──
+  const scheduledPosters = useMemo(() => {
+    // Union of starred and attended poster IDs
+    const scheduledIds = new Set([...starredPosterIds, ...attendedIds]);
+    return posters.filter(p => scheduledIds.has(p.id));
+  }, [posters, starredPosterIds, attendedIds]);
+
   const upcoming = useMemo(() => {
-    return starredPosters.filter(p => {
+    return scheduledPosters.filter(p => {
       const session = (p as unknown as { session?: SessionLike }).session;
       return sessionTimingAt(session, demoNow) !== "past";
     });
-  }, [starredPosters, demoNow]);
+  }, [scheduledPosters, demoNow]);
 
   // Conflict detection — per-talk time slices within sessions
   const conflicts = useMemo(() => {

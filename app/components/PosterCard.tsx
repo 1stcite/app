@@ -174,7 +174,11 @@ export default function PosterCard({
             <button
               onClick={() => {
                 toggleAttend();
-                if (!attended) attendToast.show("Attend");
+                if (!attended) {
+                  attendToast.show("Attend");
+                  // Auto-star if not already interested
+                  if (!isStarred) onToggleStar(poster.id);
+                }
               }}
               className={`p-1.5 rounded-md transition-colors ${
                 attended
