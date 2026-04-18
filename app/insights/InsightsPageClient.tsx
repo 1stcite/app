@@ -19,15 +19,12 @@ const CONFERENCE = {
 
 type SlideData = {
   slide: number;
-  dwell: number;
-  comments: number;
-  questions: number;
+  dwellSec: number; // average seconds spent on this slide
 };
 
-type SentimentSummary = {
-  praise: number;
-  neutral: number;
-  critical: number;
+type ViewPoint = {
+  label: string;
+  viewers: number;
 };
 
 type Talk = {
@@ -42,7 +39,7 @@ type Talk = {
   comments: number;
   commenters: number;
   slideData: SlideData[];
-  sentiment: SentimentSummary;
+  viewsOverTime: ViewPoint[];
 };
 
 type Session = {
@@ -57,17 +54,51 @@ type Session = {
 
 function makeSlides(count: number, seed: number): SlideData[] {
   return Array.from({ length: count }, (_, i) => {
-    const h = ((seed * 31 + i * 17) % 100);
-    const c = ((seed * 13 + i * 23) % 7);
-    const q = Math.min(c, ((seed + i * 11) % 4));
-    return { slide: i + 1, dwell: 30 + h, comments: c, questions: q };
+    // Simulate realistic dwell: title slide short, content slides vary, conclusion short
+    const base = i === 0 ? 8 : i === count - 1 ? 12 : 20;
+    const variation = ((seed * 31 + i * 17) % 30);
+    return { slide: i + 1, dwellSec: base + variation };
   });
 }
 
-function makeSentiment(seed: number, total: number): SentimentSummary {
-  const p = Math.round(total * (0.4 + (seed % 5) * 0.08));
-  const c = Math.round(total * (0.05 + (seed % 3) * 0.05));
-  return { praise: p, neutral: total - p - c, critical: c };
+function makeViewsOverTime(seed: number, totalViewers: number): ViewPoint[] {
+  // Pattern varies by seed: some talks have early burst, some grow, some steady
+  const pattern = seed % 3;
+  const scale = totalViewers / 100;
+  if (pattern === 0) {
+    // Early burst, gradual decline (most common — live talk)
+    return [
+      { label: "Live", viewers: Math.round(72 * scale) },
+      { label: "1h", viewers: Math.round(45 * scale) },
+      { label: "Day 1", viewers: Math.round(28 * scale) },
+      { label: "Day 2", viewers: Math.round(18 * scale) },
+      { label: "Day 3", viewers: Math.round(12 * scale) },
+      { label: "Week 2", viewers: Math.round(22 * scale) },
+      { label: "Week 4", viewers: Math.round(8 * scale) },
+    ];
+  } else if (pattern === 1) {
+    // Slow build — word of mouth / social sharing
+    return [
+      { label: "Live", viewers: Math.round(25 * scale) },
+      { label: "1h", viewers: Math.round(30 * scale) },
+      { label: "Day 1", viewers: Math.round(42 * scale) },
+      { label: "Day 2", viewers: Math.round(55 * scale) },
+      { label: "Day 3", viewers: Math.round(48 * scale) },
+      { label: "Week 2", viewers: Math.round(65 * scale) },
+      { label: "Week 4", viewers: Math.round(35 * scale) },
+    ];
+  } else {
+    // Steady — workshop / reference material
+    return [
+      { label: "Live", viewers: Math.round(40 * scale) },
+      { label: "1h", viewers: Math.round(35 * scale) },
+      { label: "Day 1", viewers: Math.round(38 * scale) },
+      { label: "Day 2", viewers: Math.round(32 * scale) },
+      { label: "Day 3", viewers: Math.round(30 * scale) },
+      { label: "Week 2", viewers: Math.round(28 * scale) },
+      { label: "Week 4", viewers: Math.round(22 * scale) },
+    ];
+  }
 }
 
 const SESSIONS: Session[] = [
@@ -75,27 +106,27 @@ const SESSIONS: Session[] = [
     id: "s5", name: "Parallel Session 5: Update on Neuromodulation",
     chair: "Zoltan Mari & Jinyoung Youn", location: "Northside Ballroom", color: "#2563eb", time: "11:00 – 12:30",
     talks: [
-      { id: "5a", title: "MR-guided Focused Ultrasound", author: "Gordon Baltuch", engagement: 427, saves: 28, savesAttended: 19, viewers: 312, medianViewMin: 6.8, comments: 7, commenters: 5, slideData: makeSlides(10, 1), sentiment: makeSentiment(1, 7) },
-      { id: "5b", title: "Deep Brain Stimulation", author: "Alexandra Boogers", engagement: 243, saves: 12, savesAttended: 8, viewers: 198, medianViewMin: 5.2, comments: 4, commenters: 3, slideData: makeSlides(12, 2), sentiment: makeSentiment(2, 4) },
-      { id: "5c", title: "Neuromodulatory Neurostimulation: TMS, tDCS, and Beyond", author: "Robert Chen", engagement: 239, saves: 14, savesAttended: 9, viewers: 187, medianViewMin: 4.9, comments: 5, commenters: 4, slideData: makeSlides(8, 3), sentiment: makeSentiment(3, 5) },
+      { id: "5a", title: "MR-guided Focused Ultrasound", author: "Gordon Baltuch", engagement: 427, saves: 28, savesAttended: 19, viewers: 312, medianViewMin: 6.8, comments: 7, commenters: 5, slideData: makeSlides(10, 1), viewsOverTime: makeViewsOverTime(1, 312) },
+      { id: "5b", title: "Deep Brain Stimulation", author: "Alexandra Boogers", engagement: 243, saves: 12, savesAttended: 8, viewers: 198, medianViewMin: 5.2, comments: 4, commenters: 3, slideData: makeSlides(12, 2), viewsOverTime: makeViewsOverTime(2, 198) },
+      { id: "5c", title: "Neuromodulatory Neurostimulation: TMS, tDCS, and Beyond", author: "Robert Chen", engagement: 239, saves: 14, savesAttended: 9, viewers: 187, medianViewMin: 4.9, comments: 5, commenters: 4, slideData: makeSlides(8, 3), viewsOverTime: makeViewsOverTime(3, 187) },
     ],
   },
   {
     id: "s6", name: "Parallel Session 6: Defining and Treating Atypical Parkinsonism",
     chair: "Karen Frei & Anhar Hassan", location: "Grand Ballroom – Salon D", color: "#7c3aed", time: "11:00 – 12:30",
     talks: [
-      { id: "6a", title: "Differentiating PSP, MSA, and Corticobasal Syndrome", author: "Ai-Huey Tan", engagement: 496, saves: 42, savesAttended: 31, viewers: 298, medianViewMin: 7.3, comments: 16, commenters: 12, slideData: makeSlides(14, 4), sentiment: makeSentiment(4, 16) },
-      { id: "6b", title: "Therapeutic Approaches to Atypical Parkinsonism", author: "Huw Morris", engagement: 227, saves: 15, savesAttended: 11, viewers: 174, medianViewMin: 5.1, comments: 3, commenters: 2, slideData: makeSlides(10, 5), sentiment: makeSentiment(5, 3) },
-      { id: "6c", title: "Debate: Is Neuropathology the Gold Standard for Diagnosis?", author: "Paola Sandroni & Glenda Halliday", engagement: 429, saves: 35, savesAttended: 22, viewers: 264, medianViewMin: 8.1, comments: 14, commenters: 11, slideData: makeSlides(8, 6), sentiment: makeSentiment(6, 14) },
+      { id: "6a", title: "Differentiating PSP, MSA, and Corticobasal Syndrome", author: "Ai-Huey Tan", engagement: 496, saves: 42, savesAttended: 31, viewers: 298, medianViewMin: 7.3, comments: 16, commenters: 12, slideData: makeSlides(14, 4), viewsOverTime: makeViewsOverTime(4, 298) },
+      { id: "6b", title: "Therapeutic Approaches to Atypical Parkinsonism", author: "Huw Morris", engagement: 227, saves: 15, savesAttended: 11, viewers: 174, medianViewMin: 5.1, comments: 3, commenters: 2, slideData: makeSlides(10, 5), viewsOverTime: makeViewsOverTime(5, 174) },
+      { id: "6c", title: "Debate: Is Neuropathology the Gold Standard for Diagnosis?", author: "Paola Sandroni & Glenda Halliday", engagement: 429, saves: 35, savesAttended: 22, viewers: 264, medianViewMin: 8.1, comments: 14, commenters: 11, slideData: makeSlides(8, 6), viewsOverTime: makeViewsOverTime(6, 264) },
     ],
   },
   {
     id: "w3", name: "Workshop 3: Botulinum Toxin Injection Workshop",
     chair: "Marie Saint-Hilaire & Roy Alcalay", location: "Grand Ballroom – Salons A-C", color: "#059669", time: "11:00 – 12:30",
     talks: [
-      { id: "w3a", title: "Clinical Utility of Botulinum Neurotoxins", author: "Alberto Albanese", engagement: 302, saves: 22, savesAttended: 14, viewers: 215, medianViewMin: 4.4, comments: 5, commenters: 4, slideData: makeSlides(10, 7), sentiment: makeSentiment(7, 5) },
-      { id: "w3b", title: "Techniques for Muscle Localization", author: "Katharine Alter", engagement: 362, saves: 28, savesAttended: 18, viewers: 249, medianViewMin: 5.9, comments: 8, commenters: 6, slideData: makeSlides(12, 8), sentiment: makeSentiment(8, 8) },
-      { id: "w3c", title: "Injection Demonstration Video Cases", author: "Jaroslaw Slawek & David Simpson", engagement: 642, saves: 52, savesAttended: 38, viewers: 412, medianViewMin: 9.2, comments: 18, commenters: 14, slideData: makeSlides(6, 9), sentiment: makeSentiment(9, 18) },
+      { id: "w3a", title: "Clinical Utility of Botulinum Neurotoxins", author: "Alberto Albanese", engagement: 302, saves: 22, savesAttended: 14, viewers: 215, medianViewMin: 4.4, comments: 5, commenters: 4, slideData: makeSlides(10, 7), viewsOverTime: makeViewsOverTime(7, 215) },
+      { id: "w3b", title: "Techniques for Muscle Localization", author: "Katharine Alter", engagement: 362, saves: 28, savesAttended: 18, viewers: 249, medianViewMin: 5.9, comments: 8, commenters: 6, slideData: makeSlides(12, 8), viewsOverTime: makeViewsOverTime(8, 249) },
+      { id: "w3c", title: "Injection Demonstration Video Cases", author: "Jaroslaw Slawek & David Simpson", engagement: 642, saves: 52, savesAttended: 38, viewers: 412, medianViewMin: 9.2, comments: 18, commenters: 14, slideData: makeSlides(6, 9), viewsOverTime: makeViewsOverTime(9, 412) },
     ],
   },
 ];
@@ -174,56 +205,60 @@ function EngagementChart({ data }: { data: typeof AUDIENCE_TIMELINE }) {
   );
 }
 
-function SlideCommentBar({ slides }: { slides: SlideData[] }) {
-  const maxComments = Math.max(...slides.map(s => s.comments), 1);
+function SlideDwellBar({ slides }: { slides: SlideData[] }) {
+  const maxDwell = Math.max(...slides.map(s => s.dwellSec));
   return (
     <div className="space-y-0.5">
-      {slides.map(s => (
-        <div key={s.slide} className="flex items-center gap-2">
-          <span className="text-[10px] text-gray-400 w-4 text-right shrink-0">{s.slide}</span>
-          <div className="flex-1 h-4 bg-gray-100 rounded-sm overflow-hidden flex">
-            {(s.comments - s.questions) > 0 && (
-              <div className="h-full bg-blue-400" style={{ width: `${((s.comments - s.questions) / maxComments) * 100}%` }} />
-            )}
-            {s.questions > 0 && (
-              <div className="h-full bg-amber-400" style={{ width: `${(s.questions / maxComments) * 100}%` }} />
-            )}
+      {slides.map(s => {
+        const pct = Math.round((s.dwellSec / maxDwell) * 100);
+        // Color intensity based on relative dwell
+        const intensity = s.dwellSec / maxDwell;
+        const color = intensity > 0.7 ? '#2563eb' : intensity > 0.4 ? '#60a5fa' : '#bfdbfe';
+        return (
+          <div key={s.slide} className="flex items-center gap-2">
+            <span className="text-[10px] text-gray-400 w-4 text-right shrink-0">{s.slide}</span>
+            <div className="flex-1 h-4 bg-gray-100 rounded-sm overflow-hidden">
+              <div className="h-full rounded-sm" style={{ width: `${pct}%`, background: color }} />
+            </div>
+            <span className="text-[10px] text-gray-400 w-6 text-right shrink-0">{s.dwellSec}s</span>
           </div>
-          <span className="text-[10px] text-gray-400 w-3 text-right shrink-0">{s.comments || ''}</span>
-        </div>
-      ))}
-      <div className="flex gap-3 mt-2">
-        <span className="flex items-center gap-1 text-[10px] text-gray-500"><span className="w-3 h-3 rounded-sm bg-blue-400" /> Comments</span>
-        <span className="flex items-center gap-1 text-[10px] text-gray-500"><span className="w-3 h-3 rounded-sm bg-amber-400" /> Questions</span>
-      </div>
+        );
+      })}
+      <p className="text-[10px] text-gray-400 mt-1">Average seconds per viewer on each slide</p>
     </div>
   );
 }
 
-function SentimentBar({ sentiment }: { sentiment: SentimentSummary }) {
-  const total = sentiment.praise + sentiment.neutral + sentiment.critical;
-  if (total === 0) return null;
+function TalkViewsChart({ data }: { data: ViewPoint[] }) {
+  const max = Math.max(...data.map(d => d.viewers), 1);
+  const w = 100 / (data.length - 1);
+  const points = data.map((d, i) => `${i * w},${100 - (d.viewers / max) * 85}`).join(' ');
+  const area = `0,100 ${points} 100,100`;
+
+  // Detect pattern
+  const firstHalf = data.slice(0, Math.ceil(data.length / 2)).reduce((s, d) => s + d.viewers, 0);
+  const secondHalf = data.slice(Math.ceil(data.length / 2)).reduce((s, d) => s + d.viewers, 0);
+  const pattern = secondHalf > firstHalf * 1.2 ? "Growing over time" :
+                  firstHalf > secondHalf * 1.5 ? "Early burst, tapering off" : "Steady engagement";
+
   return (
     <div>
-      <div className="flex h-5 rounded-full overflow-hidden">
-        {sentiment.praise > 0 && (
-          <div className="bg-emerald-400 flex items-center justify-center text-[10px] text-white font-medium"
-            style={{ width: `${(sentiment.praise / total) * 100}%` }}>{sentiment.praise}</div>
-        )}
-        {sentiment.neutral > 0 && (
-          <div className="bg-gray-300 flex items-center justify-center text-[10px] text-gray-700 font-medium"
-            style={{ width: `${(sentiment.neutral / total) * 100}%` }}>{sentiment.neutral}</div>
-        )}
-        {sentiment.critical > 0 && (
-          <div className="bg-red-400 flex items-center justify-center text-[10px] text-white font-medium"
-            style={{ width: `${(sentiment.critical / total) * 100}%` }}>{sentiment.critical}</div>
-        )}
+      <div className="relative h-28">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+          <defs>
+            <linearGradient id="talk-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2563eb" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="#2563eb" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+          <polygon points={area} fill="url(#talk-grad)" />
+          <polyline points={points} fill="none" stroke="#2563eb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+        <div className="absolute bottom-0 left-0 right-0 flex justify-between text-[9px] text-gray-400 px-0.5">
+          {data.map(d => <span key={d.label}>{d.label}</span>)}
+        </div>
       </div>
-      <div className="flex gap-3 mt-1.5">
-        <span className="flex items-center gap-1 text-[10px] text-gray-500"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-400" /> Praise</span>
-        <span className="flex items-center gap-1 text-[10px] text-gray-500"><span className="w-2.5 h-2.5 rounded-sm bg-gray-300" /> Neutral</span>
-        <span className="flex items-center gap-1 text-[10px] text-gray-500"><span className="w-2.5 h-2.5 rounded-sm bg-red-400" /> Critical</span>
-      </div>
+      <p className="text-[10px] text-gray-500 mt-2 italic">{pattern}</p>
     </div>
   );
 }
@@ -392,17 +427,16 @@ export default function InsightsPage() {
                             {isTalkExpanded && (
                               <div className="px-5 pb-5 pt-2 border-t bg-gray-50/50">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  {/* Slide dwell time */}
                                   <div>
-                                    <div className="text-xs font-semibold text-gray-700 mb-2">Comments by Slide</div>
-                                    <SlideCommentBar slides={talk.slideData} />
+                                    <div className="text-xs font-semibold text-gray-700 mb-2">Time Spent per Slide</div>
+                                    <SlideDwellBar slides={talk.slideData} />
                                   </div>
-                                  <div className="border border-dashed border-gray-300 rounded-lg p-3 bg-white/50">
-                                    <div className="flex items-center gap-2 mb-3">
-                                      <span className="text-xs font-semibold text-gray-700">Comment Sentiment</span>
-                                      <span className="text-[9px] font-semibold bg-red-100 text-red-800 px-1.5 py-0.5 rounded uppercase">Author only</span>
-                                    </div>
-                                    <p className="text-[10px] text-gray-400 mb-3">All comments including notes-to-author, excluding personal notes</p>
-                                    <SentimentBar sentiment={talk.sentiment} />
+
+                                  {/* Views over time */}
+                                  <div>
+                                    <div className="text-xs font-semibold text-gray-700 mb-2">Views Over Time</div>
+                                    <TalkViewsChart data={talk.viewsOverTime} />
                                   </div>
                                 </div>
                                 <div className="grid grid-cols-5 gap-4 mt-4 pt-3 border-t text-center text-xs">
