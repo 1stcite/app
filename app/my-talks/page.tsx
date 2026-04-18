@@ -9,21 +9,36 @@ import Footer from "@/app/components/Footer";
 import { useDemoClock } from "@/app/lib/demoClock";
 import { sessionTimingAt, type SessionLike } from "@/app/lib/sessionTiming";
 
+type AttendRecord = { posterId: string };
+
+/** Check if two time ranges overlap. Times are "HH:MM" strings on the same date. */
+function timesOverlap(
+  a: { date?: string; startTime?: string; endTime?: string },
+  b: { date?: string; startTime?: string; endTime?: string }
+): boolean {
+  if (!a.date || !b.date || a.date !== b.date) return false;
+  if (!a.startTime || !b.startTime) return false;
+  const aEnd = a.endTime || "23:59";
+  const bEnd = b.endTime || "23:59";
+  return a.startTime < bEnd && b.startTime < aEnd;
+}
+
 export default function MyTalksPage() {
   const { logo: LOGO } = useConference();
-  const { loading, starredPosterIds, starredPosters, toggleStar } = usePosters();
+  const { loading, posters, starredPosterIds, starredPosters, toggleStar } = usePosters();
   const { now: demoNow } = useDemoClock();
 
-  const [unreviewedCount, setUnreviewedCount] = useState(0);
-  const [libraryCount, setLibraryCount] = useState(0);
+  const [attendedIds, setAttendedIds] = useState<string[]>([]);
   const [pastCollapsed, setPastCollapsed] = useState(false);
 
   useEffect(() => {
-    fetch("/api/saves?state=unreviewed").then(r => r.json()).then(d => setUnreviewedCount(d?.length || 0));
-    fetch("/api/saves?state=in_library").then(r => r.json()).then(d => setLibraryCount(d?.length || 0));
-  }, [starredPosterIds]);
+    fetch("/api/attend")
+      .then(r => r.json())
+      .then((data: AttendRecord[]) => setAttendedIds((data || []).map(d => d.posterId)))
+      .catch(() => {});
+  }, []);
 
-  // Split into Upcoming vs Past based on session timing at demoNow
+  // Split starred talks into Upcoming vs Past
   const { upcoming, past } = useMemo(() => {
     const up: typeof starredPosters = [];
     const ps: typeof starredPosters = [];
@@ -36,7 +51,34 @@ export default function MyTalksPage() {
     return { upcoming: up, past: ps };
   }, [starredPosters, demoNow]);
 
-  // Within each bucket, group by session
+  // Detect scheduling conflicts among attended talks
+  const conflicts = useMemo(() => {
+    // Get attended posters with session data
+    const attendedPosters = posters
+      .filter(p => attendedIds.includes(p.id))
+      .map(p => ({
+        poster: p,
+        session: (p as unknown as { session?: SessionLike }).session,
+      }))
+      .filter(x => x.session?.date && x.session?.startTime);
+
+    const conflictPosterIds = new Set<string>();
+
+    for (let i = 0; i < attendedPosters.length; i++) {
+      for (let j = i + 1; j < attendedPosters.length; j++) {
+        const a = attendedPosters[i];
+        const b = attendedPosters[j];
+        if (timesOverlap(a.session!, b.session!)) {
+          conflictPosterIds.add(a.poster.id);
+          conflictPosterIds.add(b.poster.id);
+        }
+      }
+    }
+
+    return conflictPosterIds;
+  }, [posters, attendedIds]);
+
+  // Group by session
   function groupBySession(items: typeof starredPosters) {
     const withSession = items.filter(p => (p as any).session);
     const withoutSession = items.filter(p => !(p as any).session);
@@ -52,7 +94,6 @@ export default function MyTalksPage() {
   const upcomingGrouped = groupBySession(upcoming);
   const pastGrouped = groupBySession(past);
 
-  // Auto-collapse Past if there are many items
   useEffect(() => {
     if (past.length > 12) setPastCollapsed(true);
   }, [past.length]);
@@ -61,14 +102,22 @@ export default function MyTalksPage() {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map(poster => (
-          <PosterCard
-            key={poster._id}
-            poster={poster}
-            isStarred={starredPosterIds.includes(poster.id)}
-            onToggleStar={toggleStar}
-            variant={variant}
-            now={demoNow}
-          />
+          <div key={poster._id}>
+            {/* Conflict warning */}
+            {conflicts.has(poster.id) && (
+              <div className="mb-1 px-2 py-1 bg-red-50 border border-red-200 rounded-md text-xs text-red-700 flex items-center gap-1.5">
+                <span className="font-semibold">⚠ Conflict</span>
+                <span>— overlaps with another talk you plan to attend</span>
+              </div>
+            )}
+            <PosterCard
+              poster={poster}
+              isStarred={starredPosterIds.includes(poster.id)}
+              onToggleStar={toggleStar}
+              variant={variant}
+              now={demoNow}
+            />
+          </div>
         ))}
       </div>
     );
@@ -77,7 +126,7 @@ export default function MyTalksPage() {
   function renderGrouped(grouped: ReturnType<typeof groupBySession>) {
     return (
       <div className="space-y-6">
-        {grouped.groups.map(({ session, posters }) => (
+        {grouped.groups.map(({ session, posters: sessionPosters }) => (
           <div key={session.id}>
             <div className="mb-3">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{background:"#1a2e5a"}}>
@@ -90,7 +139,7 @@ export default function MyTalksPage() {
                 {session.location && <span>📍 {session.location}</span>}
               </div>
             </div>
-            {renderSessionCards(posters)}
+            {renderSessionCards(sessionPosters)}
           </div>
         ))}
         {grouped.withoutSession.length > 0 && (
@@ -110,7 +159,6 @@ export default function MyTalksPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto p-4 md:p-8 max-w-6xl">
-
         {/* Header */}
         <div className="flex items-center gap-2 mb-4 min-w-0">
           <h1 className="text-xl md:text-3xl font-bold text-gray-500 whitespace-nowrap">My Talks</h1>
@@ -120,38 +168,25 @@ export default function MyTalksPage() {
           >
             Conference
           </Link>
+          <Link
+            href="/library"
+            className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50 whitespace-nowrap shrink-0"
+          >
+            My Library
+          </Link>
           <div className="flex-1" />
           <Link href="/" className="shrink-0">
             <img src={LOGO} alt="" className="h-8 md:h-16 w-auto max-w-[80px] md:max-w-[160px] object-contain" />
           </Link>
         </div>
 
-        {/* Action bar */}
-        <div className="flex flex-wrap items-center gap-2 mb-6">
-          <Link
-            href="/review"
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium ${
-              unreviewedCount > 0
-                ? "bg-blue-600 text-white hover:bg-blue-700"
-                : "bg-gray-100 text-gray-400 cursor-not-allowed"
-            }`}
-            onClick={e => { if (unreviewedCount === 0) e.preventDefault(); }}
-          >
-            Review saves by session
-            {unreviewedCount > 0 && (
-              <span className="bg-white/25 px-1.5 rounded text-xs">{unreviewedCount}</span>
-            )}
-          </Link>
-          <Link
-            href="/library"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-          >
-            📚 My Library
-            {libraryCount > 0 && (
-              <span className="bg-gray-100 px-1.5 rounded text-xs">{libraryCount}</span>
-            )}
-          </Link>
-        </div>
+        {/* Conflict banner */}
+        {conflicts.size > 0 && (
+          <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
+            <strong>⚠ Schedule conflict:</strong> You&apos;ve marked {conflicts.size} talks
+            as &quot;Attend&quot; that overlap in time. Look for the conflict warnings below.
+          </div>
+        )}
 
         {loading ? (
           <div className="text-center py-12">
@@ -161,7 +196,7 @@ export default function MyTalksPage() {
           <div className="text-center py-12 bg-white rounded-lg shadow">
             <p className="text-xl text-gray-600">No talks yet</p>
             <p className="text-sm text-gray-400 mt-2">
-              Schedule talks from the{" "}
+              Mark talks as interested from the{" "}
               <Link href="/" className="underline">conference view</Link>{" "}
               to build your list.
             </p>
