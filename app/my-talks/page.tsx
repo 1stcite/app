@@ -26,9 +26,21 @@ function sessionsConflict(
 }
 
 export default function MyTalksPage() {
-  const { logo: LOGO } = useConference();
+  const { logo: ctxLogo } = useConference();
   const { loading, posters, starredPosterIds, starredPosters, toggleStar } = usePosters();
   const { now: demoNow } = useDemoClock();
+
+  const [LOGO, setLogo] = useState(ctxLogo);
+  useEffect(() => {
+    if (ctxLogo && ctxLogo !== '/1stcite-logo.png') {
+      setLogo(ctxLogo);
+      return;
+    }
+    fetch('/api/conference')
+      .then(r => r.json())
+      .then(c => { if (c?.logo) setLogo(c.logo); })
+      .catch(() => {});
+  }, [ctxLogo]);
 
   const [attendedIds, setAttendedIds] = useState<string[]>([]);
   const [pastCollapsed, setPastCollapsed] = useState(false);
