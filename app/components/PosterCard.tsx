@@ -18,9 +18,7 @@ function firstAuthor(author: string) {
 
 function useToast() {
   const [msg, setMsg] = useState<string | null>(null);
-  const show = useCallback((text: string) => {
-    setMsg(text);
-  }, []);
+  const show = useCallback((text: string) => { setMsg(text); }, []);
   useEffect(() => {
     if (!msg) return;
     const t = setTimeout(() => setMsg(null), 1500);
@@ -29,9 +27,19 @@ function useToast() {
   return { msg, show };
 }
 
+function Toast({ msg }: { msg: string | null }) {
+  if (!msg) return null;
+  return (
+    <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-50 animate-fade-toast">
+      <div className="bg-gray-900 text-white text-[11px] font-medium px-2.5 py-1 rounded-md shadow-lg whitespace-nowrap">
+        {msg}
+      </div>
+    </div>
+  );
+}
+
 /* ── Icons ───────────────────────────────────────────────────────────── */
 
-/** Star — same outline/filled as before */
 function StarIcon({ filled }: { filled: boolean }) {
   return filled ? (
     <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
@@ -44,65 +52,36 @@ function StarIcon({ filled }: { filled: boolean }) {
   );
 }
 
-/** Person sitting in a chair — attend */
-function AttendIcon({ filled }: { filled: boolean }) {
-  // Simple person-in-chair silhouette
+/** Chair icon — from SVGRepo, wooden chair profile */
+function ChairIcon({ filled, color }: { filled: boolean; color: string }) {
   return (
-    <svg className="w-5 h-5" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"}
-      stroke={filled ? "none" : "currentColor"} strokeWidth={filled ? 0 : 1.5}>
-      {/* Head */}
-      <circle cx="12" cy="5" r="2.5" />
-      {/* Body sitting */}
-      <path strokeLinecap="round" strokeLinejoin="round"
-        d="M9 10h6l1 5h-8l1-5z" />
-      {/* Legs */}
-      <path strokeLinecap="round" strokeLinejoin="round"
-        d="M10 15v4M14 15v2.5h2" />
-      {/* Chair back */}
-      <path strokeLinecap="round" strokeLinejoin="round"
-        d="M7 8v9" />
-      {/* Chair seat */}
-      <path strokeLinecap="round" strokeLinejoin="round"
-        d="M7 15h10" />
-      {/* Chair legs */}
-      <path strokeLinecap="round" strokeLinejoin="round"
-        d="M7 17v2M17 15v4" />
+    <svg className="w-5 h-5" viewBox="-19.82 0 122.88 122.88"
+      fill={filled ? color : "none"}
+      stroke={filled ? "none" : "currentColor"}
+      strokeWidth={filled ? 0 : 6}
+    >
+      <path d="M3.28,0h8.62c1.76,0,2.92,1.46,3.2,3.2c3.26,20.54,5.02,41.07,4.93,61.61H79c2.33,0,4.23,1.91,4.23,4.23v8.55 h-3.38v43.71c0,0.7-0.58,1.29-1.29,1.29H67.26c-0.71,0-1.29-0.58-1.29-1.29v-19.02H17.71c-0.7,5.8-1.57,11.6-2.61,17.4 c-0.31,1.73-1.44,3.2-3.2,3.2H3.28c-1.76,0-3.69-1.51-3.2-3.2c11.36-39.56,9-78.23,0-116.48C-0.33,1.49,1.52,0,3.28,0L3.28,0z M65.97,96.4v-18.8H19.85c-0.26,8-0.81,10.81-1.67,18.8H65.97L65.97,96.4z" />
     </svg>
   );
 }
 
-/** Books on a shelf — library. Same icon filled/unfilled, just color changes */
-function BooksIcon({ filled }: { filled: boolean }) {
+/** Disc / floppy save icon */
+function DiscIcon({ filled, color }: { filled: boolean; color: string }) {
+  if (filled) {
+    return (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill={color} stroke="none">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <rect x="7" y="3" width="10" height="7" rx="1" fill="white" opacity="0.9" />
+        <rect x="5" y="14" width="14" height="5" rx="1.5" fill="white" opacity="0.3" />
+      </svg>
+    );
+  }
   return (
-    <svg className="w-5 h-5" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"}
-      stroke={filled ? "none" : "currentColor"} strokeWidth={filled ? 0 : 1.5}>
-      {/* Shelf */}
-      <path strokeLinecap="round" d="M3 20h18" />
-      {/* Book 1 — tall, slight lean */}
-      <rect x="5" y="6" width="3" height="14" rx="0.5"
-        transform="rotate(-2 6.5 13)" />
-      {/* Book 2 — medium */}
-      <rect x="9" y="8" width="2.5" height="12" rx="0.5" />
-      {/* Book 3 — tall */}
-      <rect x="12.5" y="5" width="3" height="15" rx="0.5"
-        transform="rotate(1 14 12.5)" />
-      {/* Book 4 — short, leaning */}
-      <rect x="16.5" y="10" width="2.5" height="10" rx="0.5"
-        transform="rotate(3 17.75 15)" />
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <rect x="3" y="3" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="7" y="3" width="10" height="7" rx="1" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="5" y="14" width="14" height="5" rx="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
-  );
-}
-
-/* ── Toast component ─────────────────────────────────────────────────── */
-
-function Toast({ msg }: { msg: string | null }) {
-  if (!msg) return null;
-  return (
-    <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-50 animate-fade-toast">
-      <div className="bg-gray-900 text-white text-[11px] font-medium px-2.5 py-1 rounded-md shadow-lg whitespace-nowrap">
-        {msg}
-      </div>
-    </div>
   );
 }
 
@@ -141,7 +120,6 @@ export default function PosterCard({
 
   return (
     <div className={`rounded-lg shadow-sm hover:shadow-md transition-shadow p-4 border ${bg}`}>
-      {/* Toast animation style */}
       <style>{`
         @keyframes fadeToast {
           0% { opacity: 0; transform: translate(-50%, 4px); }
@@ -205,11 +183,11 @@ export default function PosterCard({
               }`}
               title="Attend"
             >
-              <AttendIcon filled={attended} />
+              <ChairIcon filled={attended} color="#059669" />
             </button>
           </div>
 
-          {/* 📚 Save to Library */}
+          {/* 💾 Save to Library */}
           <div className="relative">
             <Toast msg={libraryToast.msg} />
             <button
@@ -224,7 +202,7 @@ export default function PosterCard({
               }`}
               title="Save to Library"
             >
-              <BooksIcon filled={saved} />
+              <DiscIcon filled={saved} color="#2563eb" />
             </button>
           </div>
         </div>
