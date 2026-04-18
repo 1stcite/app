@@ -106,8 +106,26 @@ function useVisualViewportSize() {
 //*************POSTERVIEWER FUNCTION *************************
 export default function PosterViewer({ posterId }: { posterId: string }) {
   const router = useRouter();
-  const { logo: siteLogo, name: siteName } = useConference();
+  const { logo: ctxLogo, name: ctxName } = useConference();
   const { now: demoNow } = useDemoClock();
+
+  // Conference logo: context may return default on dynamic-import pages, so fetch fallback
+  const [siteLogo, setSiteLogo] = useState(ctxLogo);
+  const [siteName, setSiteName] = useState(ctxName);
+  useEffect(() => {
+    if (ctxLogo && ctxLogo !== '/1stcite-logo.png') {
+      setSiteLogo(ctxLogo);
+      setSiteName(ctxName);
+      return;
+    }
+    fetch('/api/conference')
+      .then(r => r.json())
+      .then(c => {
+        if (c?.logo) setSiteLogo(c.logo);
+        if (c?.name) setSiteName(c.name);
+      })
+      .catch(() => {});
+  }, [ctxLogo, ctxName]);
 
   // --- refs used by mobile zoom ---
   const zoomSurfaceRef = useRef<HTMLDivElement | null>(null);
