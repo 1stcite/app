@@ -11,11 +11,13 @@ import { sessionTimingAt, type SessionLike } from "@/app/lib/sessionTiming";
 
 type AttendRecord = { posterId: string };
 
-/** Check if two time ranges overlap. Times are "HH:MM" strings on the same date. */
-function timesOverlap(
-  a: { date?: string; startTime?: string; endTime?: string },
-  b: { date?: string; startTime?: string; endTime?: string }
+/** Check if two sessions overlap in time. Only conflicts if different sessions. */
+function sessionsConflict(
+  a: { id?: string; date?: string; startTime?: string; endTime?: string },
+  b: { id?: string; date?: string; startTime?: string; endTime?: string }
 ): boolean {
+  // Same session = sequential talks, not a conflict
+  if (a.id && b.id && a.id === b.id) return false;
   if (!a.date || !b.date || a.date !== b.date) return false;
   if (!a.startTime || !b.startTime) return false;
   const aEnd = a.endTime || "23:59";
@@ -58,7 +60,7 @@ export default function MyTalksPage() {
       .filter(p => attendedIds.includes(p.id))
       .map(p => ({
         poster: p,
-        session: (p as unknown as { session?: SessionLike }).session,
+        session: (p as unknown as { session?: SessionLike & { id?: string } }).session,
       }))
       .filter(x => x.session?.date && x.session?.startTime);
 
@@ -68,7 +70,7 @@ export default function MyTalksPage() {
       for (let j = i + 1; j < attendedPosters.length; j++) {
         const a = attendedPosters[i];
         const b = attendedPosters[j];
-        if (timesOverlap(a.session!, b.session!)) {
+        if (sessionsConflict(a.session!, b.session!)) {
           conflictPosterIds.add(a.poster.id);
           conflictPosterIds.add(b.poster.id);
         }
