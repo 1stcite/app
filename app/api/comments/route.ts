@@ -122,10 +122,13 @@ export async function DELETE(req: NextRequest) {
 
     const db = await getDb();
 
-    const result = await db.collection("comments").deleteOne({
-      _id: new ObjectId(id),
-      userId: user._id,
-    });
+    // Admin can delete any comment; regular users can only delete their own
+    const filter: Record<string, unknown> = { _id: new ObjectId(id) };
+    if (!user.isAdmin) {
+      filter.userId = user._id;
+    }
+
+    const result = await db.collection("comments").deleteOne(filter);
 
     if (result.deletedCount === 0) {
       return NextResponse.json(
