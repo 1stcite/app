@@ -25,6 +25,7 @@ type CommentsPanelProps = {
   loading: boolean;
   comments: Comment[];
   sessionUserId?: string;
+  isAdmin?: boolean;
   onOpenAdd: () => void;
   onDelete: (c: Comment) => void;
   onReply: (parentId: string, text: string) => Promise<void>;
@@ -37,12 +38,14 @@ function CommentThread({
   comment,
   replies,
   sessionUserId,
+  isAdmin,
   onDelete,
   onReply,
 }: {
   comment: Comment;
   replies: Comment[];
   sessionUserId?: string;
+  isAdmin?: boolean;
   onDelete: (c: Comment) => void;
   onReply: (parentId: string, text: string) => Promise<void>;
 }) {
@@ -78,7 +81,7 @@ function CommentThread({
               {replying ? 'Cancel' : 'Reply'}
             </button>
           ) : <span />}
-          {sessionUserId && String(comment.userId) === String(sessionUserId) && (
+          {sessionUserId && (isAdmin || String(comment.userId) === String(sessionUserId)) && (
             <button
               type="button"
               className="text-xs text-red-700 hover:underline"
@@ -121,7 +124,7 @@ function CommentThread({
                 <span>{(reply.timestamp instanceof Date ? reply.timestamp : new Date(reply.timestamp as any)).toLocaleString()}</span>
               </div>
               <div className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{reply.text}</div>
-              {sessionUserId && String(reply.userId) === String(sessionUserId) && (
+              {sessionUserId && (isAdmin || String(reply.userId) === String(sessionUserId)) && (
                 <div className="mt-1 flex justify-end">
                   <button
                     type="button"
@@ -145,6 +148,7 @@ export default function CommentsPanel({
   loading,
   comments,
   sessionUserId,
+  isAdmin,
   onOpenAdd,
   onDelete,
   onReply,
@@ -234,6 +238,7 @@ export default function CommentsPanel({
                 comment={c}
                 replies={repliesFor(getId(c))}
                 sessionUserId={sessionUserId}
+                isAdmin={isAdmin}
                 onDelete={onDelete}
                 onReply={onReply}
               />

@@ -876,6 +876,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 loading={loadingComments}
                 comments={pageComments}
                 sessionUserId={sessionUserId}
+                isAdmin={isAdmin}
                 onOpenAdd={openCommentComposer}
                 onDelete={handleDeleteComment}
                 onReply={handleReplyComment}
@@ -1018,6 +1019,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                   loading={loadingComments}
                   comments={pageComments}
                   sessionUserId={sessionUserId}
+                  isAdmin={isAdmin}
                   onOpenAdd={openCommentComposer}
                   onDelete={handleDeleteComment}
                   onReply={handleReplyComment}
