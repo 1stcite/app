@@ -277,41 +277,48 @@ export default function MyTalksPage() {
   const hasAnything = starredPosterIds.length > 0 || attendedIds.length > 0 || savedIds.length > 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto p-4 md:p-8 max-w-6xl">
-        {/* Header */}
-        <div className="flex items-center gap-2 mb-4 min-w-0">
-          <h1 className="text-xl md:text-3xl font-bold text-gray-500 whitespace-nowrap">My Talks</h1>
-          <Link href="/"
-            className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50 whitespace-nowrap shrink-0">
-            Conference
-          </Link>
-          <div className="flex-1" />
-          <Link href="/" className="shrink-0">
-            <img src={LOGO} alt="" className="h-8 md:h-16 w-auto max-w-[80px] md:max-w-[160px] object-contain" />
-          </Link>
-        </div>
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* Sticky header + tabs */}
+      <div className="shrink-0 bg-gray-50 border-b border-gray-200">
+        <div className="container mx-auto px-4 md:px-8 pt-4 md:pt-6 pb-3 max-w-6xl">
+          <div className="flex items-center gap-2 mb-3 min-w-0">
+            <h1 className="text-xl md:text-3xl font-bold text-gray-500 whitespace-nowrap">My Talks</h1>
+            <Link href="/"
+              className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50 whitespace-nowrap shrink-0">
+              Conference
+            </Link>
+            <div className="flex-1" />
+            <Link href="/" className="shrink-0">
+              <img src={LOGO} alt="" className="h-8 md:h-16 w-auto max-w-[80px] md:max-w-[160px] object-contain" />
+            </Link>
+          </div>
 
-        {/* Filter tabs */}
-        <div className="flex gap-1 mb-6 bg-gray-200 p-1 rounded-lg w-fit">
-          {([
-            { key: "all" as FilterTab, label: "All" },
-            { key: "schedule" as FilterTab, label: "Schedule" },
-            { key: "library" as FilterTab, label: "Library" },
-          ]).map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                tab === key
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+          {/* Filter tabs */}
+          <div className="flex gap-1 bg-gray-200 p-1 rounded-lg w-fit">
+            {([
+              { key: "all" as FilterTab, label: "All" },
+              { key: "schedule" as FilterTab, label: "Schedule" },
+              { key: "library" as FilterTab, label: "Library" },
+            ]).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  tab === key
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
+      </div>
+
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="container mx-auto px-4 md:px-8 py-4 max-w-6xl">
 
         {loading ? (
           <div className="text-center py-12">
@@ -353,6 +360,7 @@ export default function MyTalksPage() {
         )}
 
         <Footer />
+        </div>
       </div>
     </div>
   );
