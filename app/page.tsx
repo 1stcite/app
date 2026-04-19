@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { usePosters, type Poster } from "@/app/lib/usePosters";
 import PosterCard from "@/app/components/PosterCard";
@@ -140,39 +140,52 @@ export default function HomePage() {
     ? posters.filter(p => !(p as any).sessionId)
     : [];
 
+  // Save/restore scroll position
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const saved = sessionStorage.getItem('conf-scroll');
+    if (saved) el.scrollTop = parseInt(saved, 10);
+    const onScroll = () => sessionStorage.setItem('conf-scroll', String(el.scrollTop));
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [loading]);
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto p-4 md:p-8 max-w-6xl overflow-x-hidden">
-
-        {/* Header */}
-        <div className="flex items-center gap-2 mb-6 min-w-0">
-          <h1 className="text-xl md:text-3xl font-bold text-gray-500 whitespace-nowrap">Presentations</h1>
-          <Link
-            href="/my-talks"
-            className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50 whitespace-nowrap shrink-0"
-          >
-            My Talks
-          </Link>
-          <div className="flex-1" />
-          {signedIn === false && (
-            <Link href="/login" className="text-sm text-blue-600 font-medium hover:underline whitespace-nowrap shrink-0 mr-2">
-              Sign in
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* Sticky header */}
+      <div className="shrink-0 bg-gray-50 border-b border-gray-200">
+        <div className="container mx-auto px-4 md:px-8 pt-4 md:pt-6 pb-3 max-w-6xl">
+          {/* Top row */}
+          <div className="flex items-center gap-2 mb-3 min-w-0">
+            <h1 className="text-xl md:text-3xl font-bold text-gray-500 whitespace-nowrap">Presentations</h1>
+            <Link
+              href="/my-talks"
+              className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50 whitespace-nowrap shrink-0"
+            >
+              My Talks
             </Link>
-          )}
-          <Link href="/" className="shrink-0">
-            <img src={LOGO} alt="" className="h-8 md:h-16 w-auto max-w-[80px] md:max-w-[160px] object-contain" />
-          </Link>
-        </div>
+            <div className="flex-1" />
+            {signedIn === false && (
+              <Link href="/login" className="text-sm text-blue-600 font-medium hover:underline whitespace-nowrap shrink-0 mr-2">
+                Sign in
+              </Link>
+            )}
+            <Link href="/" className="shrink-0">
+              <img src={LOGO} alt="" className="h-8 md:h-16 w-auto max-w-[80px] md:max-w-[160px] object-contain" />
+            </Link>
+          </div>
 
-        {/* Search + conference filter */}
-        <div className="mb-6 flex flex-wrap gap-3">
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by title, author, or abstract…"
-            className="flex-1 min-w-[200px] max-w-xl px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
+          {/* Search */}
+          <div className="flex flex-wrap gap-3">
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by title, author, or abstract…"
+              className="flex-1 min-w-[200px] max-w-xl px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
           {IS_REPO && conferences.length > 0 && (
             <select
               value={conference}
@@ -186,6 +199,12 @@ export default function HomePage() {
             </select>
           )}
         </div>
+        </div>
+      </div>
+
+      {/* Scrollable content area */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="container mx-auto px-4 md:px-8 py-4 max-w-6xl">
 
         {searchActive && (
           <p className="mb-4 text-sm text-gray-500">
@@ -308,6 +327,7 @@ export default function HomePage() {
           </div>
         )}
       <Footer />
+      </div>
       </div>
     </div>
   );
