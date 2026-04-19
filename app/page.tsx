@@ -155,7 +155,7 @@ export default function HomePage() {
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Sticky header */}
-      <div className="shrink-0 bg-gray-50 border-b border-gray-200">
+      <div className="shrink-0 bg-gray-50 border-b border-gray-200" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="container mx-auto px-4 md:px-8 pt-4 md:pt-6 pb-3 max-w-6xl">
           {/* Top row */}
           <div className="flex items-center gap-2 mb-3 min-w-0">
