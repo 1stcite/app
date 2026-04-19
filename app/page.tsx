@@ -159,12 +159,19 @@ export default function HomePage() {
         <div className="container mx-auto px-4 md:px-8 pt-4 md:pt-6 pb-3 max-w-6xl">
           {/* Top row */}
           <div className="flex items-center gap-2 mb-3 min-w-0">
-            <h1 className="text-xl md:text-3xl font-bold text-gray-500 whitespace-nowrap">Presentations</h1>
+            <h1 className="text-xl md:text-3xl font-bold text-gray-500 whitespace-nowrap">Conference</h1>
             <Link
               href="/my-talks"
               className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 bg-white text-sm hover:bg-gray-50 whitespace-nowrap shrink-0"
             >
               My Talks
+            </Link>
+            <Link
+              href="/help"
+              className="w-7 h-7 rounded-full border border-gray-300 bg-white text-gray-500 hover:text-blue-600 hover:border-blue-300 flex items-center justify-center text-sm font-semibold shrink-0"
+              title="Help"
+            >
+              ?
             </Link>
             <div className="flex-1" />
             {signedIn === false && (
