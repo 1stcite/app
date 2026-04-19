@@ -7,6 +7,7 @@ import PosterCard from "@/app/components/PosterCard";
 import { useConference } from "@/app/lib/conferenceContext";
 import Footer from "@/app/components/Footer";
 import { useDemoClock } from "@/app/lib/demoClock";
+import { useRouter } from "next/navigation";
 
 function normalize(s: string) {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
@@ -76,6 +77,14 @@ export default function HomePage() {
   const [searchResults, setSearchResults] = useState<Poster[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+
+  // Check auth state
+  useEffect(() => {
+    fetch("/api/me").then(r => r.json())
+      .then(d => setSignedIn(Boolean(d?.signedIn)))
+      .catch(() => setSignedIn(false));
+  }, []);
 
   useEffect(() => {
     if (!IS_REPO) return;
@@ -145,6 +154,11 @@ export default function HomePage() {
             My Talks
           </Link>
           <div className="flex-1" />
+          {signedIn === false && (
+            <Link href="/login" className="text-sm text-blue-600 font-medium hover:underline whitespace-nowrap shrink-0 mr-2">
+              Sign in
+            </Link>
+          )}
           <Link href="/" className="shrink-0">
             <img src={LOGO} alt="" className="h-8 md:h-16 w-auto max-w-[80px] md:max-w-[160px] object-contain" />
           </Link>
@@ -192,7 +206,7 @@ export default function HomePage() {
           filtered.length === 0 ? null : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {filtered.map((poster) => (
-                <PosterCard
+                <PosterCard signedIn={signedIn ?? true}
                   key={poster._id}
                   poster={poster}
                   isStarred={starredPosterIds.includes(poster.id)}
@@ -237,7 +251,7 @@ export default function HomePage() {
                             <p className="text-xs text-gray-400 px-1">No talks assigned yet</p>
                           ) : (
                             sessionPosters.map((poster) => (
-                              <PosterCard
+                              <PosterCard signedIn={signedIn ?? true}
                                 key={poster._id}
                                 poster={poster}
                                 isStarred={starredPosterIds.includes(poster.id)}
@@ -262,7 +276,7 @@ export default function HomePage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {unscheduled.map((poster) => (
-                    <PosterCard
+                    <PosterCard signedIn={signedIn ?? true}
                       key={poster._id}
                       poster={poster}
                       isStarred={starredPosterIds.includes(poster.id)}
@@ -283,7 +297,7 @@ export default function HomePage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {filtered.map((poster) => (
-              <PosterCard
+              <PosterCard signedIn={signedIn ?? true}
                 key={poster._id}
                 poster={poster}
                 isStarred={starredPosterIds.includes(poster.id)}

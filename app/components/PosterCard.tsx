@@ -93,6 +93,7 @@ type PosterCardProps = {
   onToggleStar: (posterId: string) => void;
   variant?: "default" | "starred";
   now?: Date;
+  signedIn?: boolean;
 };
 
 export default function PosterCard({
@@ -101,6 +102,7 @@ export default function PosterCard({
   onToggleStar,
   variant = "default",
   now,
+  signedIn = true,
 }: PosterCardProps) {
   const { saved, toggleSave } = useLibrary(poster.id);
   const { attended, toggleAttend } = useAttend(poster.id);
@@ -111,6 +113,7 @@ export default function PosterCard({
   const starToast = useToast();
   const attendToast = useToast();
   const libraryToast = useToast();
+  const loginToast = useToast();
 
   const bg = isPast
     ? "bg-gray-200 border-gray-400"
@@ -149,11 +152,19 @@ export default function PosterCard({
 
         {/* Three independent icon toggles with toasts */}
         <div className="flex items-center gap-0.5 shrink-0">
+          {/* Login toast — shared across all icons */}
+          {!signedIn && (
+            <div className="relative">
+              <Toast msg={loginToast.msg} />
+            </div>
+          )}
+
           {/* ⭐ Interested */}
           <div className="relative">
-            <Toast msg={starToast.msg} />
+            {signedIn && <Toast msg={starToast.msg} />}
             <button
               onClick={() => {
+                if (!signedIn) { loginToast.show("Sign in to interact"); return; }
                 onToggleStar(poster.id);
                 if (!isStarred) starToast.show("Interested");
               }}
@@ -170,13 +181,13 @@ export default function PosterCard({
 
           {/* 🪑 Attend */}
           <div className="relative">
-            <Toast msg={attendToast.msg} />
+            {signedIn && <Toast msg={attendToast.msg} />}
             <button
               onClick={() => {
+                if (!signedIn) { loginToast.show("Sign in to interact"); return; }
                 toggleAttend();
                 if (!attended) {
                   attendToast.show("Attend");
-                  // Auto-star if not already interested
                   if (!isStarred) onToggleStar(poster.id);
                 }
               }}
@@ -193,9 +204,10 @@ export default function PosterCard({
 
           {/* 💾 Save to Library */}
           <div className="relative">
-            <Toast msg={libraryToast.msg} />
+            {signedIn && <Toast msg={libraryToast.msg} />}
             <button
               onClick={() => {
+                if (!signedIn) { loginToast.show("Sign in to interact"); return; }
                 toggleSave();
                 if (!saved) libraryToast.show("Save to Library");
               }}
