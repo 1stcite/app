@@ -16,6 +16,9 @@ import { useConference } from '@/app/lib/conferenceContext';
 import EngagementPanel from '@/app/components/EngagementPanel';
 import { useDemoClock } from '@/app/lib/demoClock';
 import { sessionTimingAt, type SessionLike } from '@/app/lib/sessionTiming';
+import { StarIcon, ChairIcon, DiscIcon } from '@/app/components/EngagementIcons';
+import { useAttend } from '@/app/lib/useAttend';
+import { useLibrary } from '@/app/lib/useLibrary';
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -108,6 +111,8 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
   const router = useRouter();
   const { logo: ctxLogo, name: ctxName } = useConference();
   const { now: demoNow } = useDemoClock();
+  const { attended, toggleAttend } = useAttend(posterId);
+  const { saved: librarySaved, toggleSave: toggleLibrary } = useLibrary(posterId);
 
   // Conference logo: context may return default on dynamic-import pages, so fetch fallback
   const [siteLogo, setSiteLogo] = useState(ctxLogo);
@@ -722,6 +727,37 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 </div>
               </div>
 
+              {/* Engagement toggles — same as card view */}
+              <div className="flex items-center gap-0.5 shrink-0">
+                <button
+                  onClick={() => toggleStar(posterId, isStarred)}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    isStarred ? "text-amber-500 bg-amber-50" : "text-gray-400 hover:text-amber-500 hover:bg-amber-50"
+                  }`}
+                  title="Interested"
+                >
+                  <StarIcon filled={isStarred} />
+                </button>
+                <button
+                  onClick={toggleAttend}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    attended ? "text-emerald-600 bg-emerald-50" : "text-gray-400 hover:text-emerald-600 hover:bg-emerald-50"
+                  }`}
+                  title="Attend"
+                >
+                  <ChairIcon filled={attended} color="#059669" />
+                </button>
+                <button
+                  onClick={toggleLibrary}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    librarySaved ? "text-blue-600 bg-blue-50" : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                  }`}
+                  title="Save to Library"
+                >
+                  <DiscIcon filled={librarySaved} color="#2563eb" />
+                </button>
+              </div>
+
               {!sessionUserId && !loadingComments && (
                 <Link href="/login" className="shrink-0 text-xs text-blue-600 font-medium hover:underline whitespace-nowrap">
                   Sign in
@@ -748,13 +784,35 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
   <div className="text-sm font-medium text-gray-900">
     Slide {pageNumber} / {numPages || '?'}
   </div>
-  <button
-    onClick={() => toggleStar(posterId, isStarred)}
-    className="px-3 py-1.5 rounded-md border border-gray-300 bg-white text-sm text-gray-900 hover:bg-gray-50"
-    title={isStarred ? "Remove star" : "Star this presentation"}
-  >
-    {isStarred ? "★ Starred" : "☆ Star"}
-  </button>
+  <div className="flex items-center gap-0.5">
+    <button
+      onClick={() => toggleStar(posterId, isStarred)}
+      className={`p-1.5 rounded-md transition-colors ${
+        isStarred ? "text-amber-500 bg-amber-50" : "text-gray-900 hover:text-amber-500 hover:bg-amber-50"
+      }`}
+      title="Interested"
+    >
+      <StarIcon filled={isStarred} />
+    </button>
+    <button
+      onClick={toggleAttend}
+      className={`p-1.5 rounded-md transition-colors ${
+        attended ? "text-emerald-600 bg-emerald-50" : "text-gray-900 hover:text-emerald-600 hover:bg-emerald-50"
+      }`}
+      title="Attend"
+    >
+      <ChairIcon filled={attended} color="#059669" />
+    </button>
+    <button
+      onClick={toggleLibrary}
+      className={`p-1.5 rounded-md transition-colors ${
+        librarySaved ? "text-blue-600 bg-blue-50" : "text-gray-900 hover:text-blue-600 hover:bg-blue-50"
+      }`}
+      title="Save to Library"
+    >
+      <DiscIcon filled={librarySaved} color="#2563eb" />
+    </button>
+  </div>
 </div>
           {/* Viewer container */}
           <div
