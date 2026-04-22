@@ -727,8 +727,8 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 </div>
               </div>
 
-              {/* Engagement toggles — same as card view */}
-              <div className="flex items-center gap-0.5 shrink-0">
+              {/* Engagement toggles — desktop only (mobile has them in the portrait header row) */}
+              <div className="hidden lg:flex items-center gap-0.5 shrink-0">
                 <button
                   onClick={() => toggleStar(posterId, isStarred)}
                   className={`p-1.5 rounded-md transition-colors ${
