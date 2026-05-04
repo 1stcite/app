@@ -48,9 +48,9 @@ async function getConferenceConfig(subdomain: string): Promise<ConferenceConfig>
 
 function extractSubdomainFromHost(host: string): string {
   const hostname = host.split(":")[0].split(",")[0].trim(); // handle x-forwarded-host lists
+  if (/^(www\.)?presentrxiv\.(org|vercel\.app)$/.test(hostname)) return "presentrxiv";
   const m = hostname.match(/^(.+)\.1stcite\.(app|com)$/) ?? hostname.match(/^(.+)\.presentrxiv\.org$/);
   if (m) return m[1];
-  if (/^presentrxiv\.(org|vercel\.app)$/.test(hostname)) return "presentrxiv";
   return "";
 }
 

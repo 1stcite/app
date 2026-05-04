@@ -21,7 +21,8 @@ function extractSubdomain(req: NextRequest): string {
     /^presentrxiv\.vercel\.app$/,
   ];
 
-  if (/^presentrxiv\.(org|vercel\.app)$/.test(hostname)) return "presentrxiv";
+  // www.presentrxiv.org and presentrxiv.org both resolve to the repo
+  if (/^(www\.)?presentrxiv\.(org|vercel\.app)$/.test(hostname)) return "presentrxiv";
 
   for (const pattern of patterns) {
     const match = hostname.match(pattern);

@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
       $text: { $search: q },
       deletedAt: { $exists: false },
     };
-    if (subdomain && subdomain !== "presentrxiv") {
+    if (subdomain && subdomain !== "presentrxiv" && subdomain !== "www") {
       const conf = await db.collection("conferences").findOne({ subdomain, active: true });
       const sourceId = conf?.sourceId ?? subdomain;
       filter.source = sourceId;

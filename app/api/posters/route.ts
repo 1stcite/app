@@ -12,7 +12,7 @@ export async function GET() {
     const subdomain = headersList.get("x-subdomain") ?? process.env.NEXT_PUBLIC_SITE_ID ?? "";
 
     const filter: Record<string, any> = { deletedAt: { $exists: false } };
-    if (subdomain && subdomain !== "presentrxiv") {
+    if (subdomain && subdomain !== "presentrxiv" && subdomain !== "www") {
       // Look up sourceId from conferences collection
       const conf = await db.collection("conferences").findOne({ subdomain, active: true });
       const sourceId = conf?.sourceId ?? subdomain;
