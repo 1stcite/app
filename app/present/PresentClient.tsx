@@ -83,6 +83,10 @@ export default function PresentClient({ conferenceName, logo, open, codeRequired
   }
 
   const header = (
+    <>
+    <a href="/" className="inline-block mb-4 text-sm text-blue-600 hover:underline">
+      ← Back to the conference
+    </a>
     <div className="flex items-center gap-3 mb-6">
       <img src={logo} alt="" className="h-12 w-auto object-contain" />
       <div>
@@ -90,6 +94,7 @@ export default function PresentClient({ conferenceName, logo, open, codeRequired
         <h1 className="text-2xl font-bold text-gray-900">Share your talk</h1>
       </div>
     </div>
+    </>
   );
 
   if (!open) {
@@ -171,6 +176,11 @@ export default function PresentClient({ conferenceName, logo, open, codeRequired
             flip through it on their phones, ask questions on specific slides, and ask to follow up with you.
           </p>
           <ul className="list-disc pl-5 space-y-1 text-gray-600">
+            <li>
+              <strong>Upload your slide deck saved as a PDF</strong> (in PowerPoint or Keynote: File → Export → PDF),
+              one slide per page. A poster saved as a single-page PDF won&apos;t display well here.
+            </li>
+            <li>Easiest from a laptop, where your deck is.</li>
             <li>Optional and free. Upload a trimmed version if some slides shouldn&apos;t leave the room.</li>
             <li>Shared with {conferenceName} attendees on the conference site, not posted elsewhere.</li>
             <li>
@@ -219,7 +229,7 @@ export default function PresentClient({ conferenceName, logo, open, codeRequired
             />
           </Field>
 
-          <Field label={`Slide deck (PDF, up to ${MAX_PDF_MB} MB)`}>
+          <Field label={`Slide deck as PDF (up to ${MAX_PDF_MB} MB)`}>
             <div
               onClick={() => fileRef.current?.click()}
               onDragOver={(e) => e.preventDefault()}

@@ -835,7 +835,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
           }
         >
           {/* Portrait header row */}
-          <div className="flex items-center gap-3 w-full">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 w-full">
   <div className="text-sm font-medium text-gray-900">
     Slide {pageNumber} / {numPages || '?'}
   </div>
@@ -868,19 +868,21 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
       <DiscIcon filled={librarySaved} color="#2563eb" />
     </button>
   </div>
-  {canEdit && (
-    <div className="ml-auto">
-      <ViewSwitch current="attendee" presenterHref={`/presenter/${posterId}`} compact />
-    </div>
-  )}
+  {(canEdit || !isPresenter) && (
+    <div className="w-full flex items-center justify-between gap-2">
+  {canEdit ? (
+    <ViewSwitch current="attendee" presenterHref={`/presenter/${posterId}`} compact />
+  ) : <span />}
   {!isPresenter && (
-    <div className={canEdit ? '' : 'ml-auto'}>
+    <div>
       <FollowUpButton
         posterId={posterId}
         presenterName={poster.presenterName}
         signedIn={Boolean(sessionUserId)}
         compact
       />
+    </div>
+  )}
     </div>
   )}
 </div>
