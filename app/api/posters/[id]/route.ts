@@ -3,6 +3,7 @@ import { getDb } from "@/app/lib/db";
 import { getSessionUser } from "@/app/lib/auth";
 import { canManagePoster, liveFilter } from "@/app/lib/guards";
 import { publicPoster } from "@/app/lib/presenter";
+import { getRequireLogin } from "@/app/lib/config";
 
 // GET — fetch single poster by id (hidden once taken down or past its live window)
 export async function GET(
@@ -10,6 +11,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  if (await getRequireLogin()) {
+    const viewer = await getSessionUser().catch(() => null);
+    if (!viewer) return NextResponse.json({ error: "Login required" }, { status: 401 });
+  }
   const db = await getDb();
   const poster = await db
     .collection("posters")

@@ -4,9 +4,15 @@ import { getSessionUser } from "@/app/lib/auth";
 import { extractPdfText } from "@/app/lib/extractPdfText";
 import { getRequestSourceId, liveFilter } from "@/app/lib/guards";
 import { publicPoster } from "@/app/lib/presenter";
+import { getRequireLogin } from "@/app/lib/config";
 
 export async function GET() {
   try {
+    // Attendees-only conferences: no session, no talk list
+    if (await getRequireLogin()) {
+      const viewer = await getSessionUser().catch(() => null);
+      if (!viewer) return NextResponse.json({ error: "Login required" }, { status: 401 });
+    }
     const db = await getDb();
     // Get conference config from x-subdomain header (set by middleware)
     const { headers } = await import("next/headers");

@@ -47,6 +47,8 @@ const PRIVATE_CONFERENCE_FIELDS = ["accessCode", "presenterCode"] as const;
 
 export function publicConference<T extends Record<string, unknown>>(conf: T): T {
   const copy: Record<string, unknown> = { ...conf };
+  // Let the login page know a code is needed without revealing it
+  copy.accessCodeRequired = Boolean(conf.accessCode);
   for (const f of PRIVATE_CONFERENCE_FIELDS) delete copy[f];
   return copy as T;
 }

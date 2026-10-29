@@ -2,15 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useConference } from "@/app/lib/conferenceContext";
 
 export default function LoginClient() {
   const router = useRouter();
   const sp = useSearchParams();
+  const conf = useConference();
 
   const next = useMemo(() => sp.get("next") || "/", [sp]);
+  const codeRequired = Boolean(conf.accessCodeRequired);
 
   const [displayName, setDisplayName] = useState("");
-  const [accessCode, setAccessCode] = useState("");
+  const [accessCode, setAccessCode] = useState(sp.get("code") ?? "");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -25,10 +28,10 @@ export default function LoginClient() {
         body: JSON.stringify({ displayName, accessCode }),
       });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j?.error || "Login failed");
+      if (!r.ok) throw new Error(j?.error || "Sign-in failed");
       router.replace(next);
-    } catch (err: any) {
-      setError(err?.message || "Login failed");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Sign-in failed");
     } finally {
       setLoading(false);
     }
@@ -36,36 +39,50 @@ export default function LoginClient() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-xl shadow-sm border p-6 space-y-4">
-        <h1 className="text-2xl font-semibold">Attendee Login</h1>
+      <div className="w-full max-w-md bg-white rounded-xl shadow-sm border p-6 space-y-5">
+        <div className="flex items-center gap-3">
+          {conf.logo && <img src={conf.logo} alt="" className="h-10 w-auto object-contain" />}
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900">{conf.name}</h1>
+            <p className="text-sm text-gray-500">
+              {codeRequired ? "Talks are open to registered attendees." : "Sign in to ask questions and save talks."}
+            </p>
+          </div>
+        </div>
 
         <form onSubmit={onSubmit} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Display name</label>
+            <label className="block text-sm font-medium text-gray-700" htmlFor="displayName">Your name</label>
             <input
+              id="displayName"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               className="mt-1 w-full rounded-md border px-3 py-2"
-              placeholder="Your name"
+              placeholder="First and last name"
               autoComplete="name"
+              required
             />
+            <p className="mt-1 text-xs text-gray-500">Presenters see this name when you ask a question.</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Access code (optional)</label>
-            <input
-              value={accessCode}
-              onChange={(e) => setAccessCode(e.target.value)}
-              className="mt-1 w-full rounded-md border px-3 py-2"
-              placeholder="Leave blank if not required"
-              autoComplete="off"
-            />
-          </div>
+          {codeRequired && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700" htmlFor="accessCode">Attendee access code</label>
+              <input
+                id="accessCode"
+                value={accessCode}
+                onChange={(e) => setAccessCode(e.target.value)}
+                className="mt-1 w-full rounded-md border px-3 py-2"
+                placeholder="From your registration email or badge"
+                autoComplete="off"
+                autoCapitalize="none"
+                required
+              />
+            </div>
+          )}
 
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded p-2">
-              {error}
-            </div>
+            <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded p-2">{error}</div>
           )}
 
           <button
