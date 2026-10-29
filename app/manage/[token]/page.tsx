@@ -9,5 +9,5 @@ export const metadata = {
 
 export default async function ManagePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  return <ManageClient token={token} />;
+  return <ManageClient access={{ kind: "token", token }} />;
 }

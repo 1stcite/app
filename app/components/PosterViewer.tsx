@@ -20,6 +20,7 @@ import { StarIcon, ChairIcon, DiscIcon } from '@/app/components/EngagementIcons'
 import { useAttend } from '@/app/lib/useAttend';
 import { useLibrary } from '@/app/lib/useLibrary';
 import FollowUpButton from '@/app/components/FollowUpButton';
+import ViewSwitch from '@/app/components/ViewSwitch';
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -785,6 +786,11 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 >
                   <DiscIcon filled={librarySaved} color="#2563eb" />
                 </button>
+                {canEdit && (
+                  <span className="ml-2">
+                    <ViewSwitch current="attendee" presenterHref={`/presenter/${posterId}`} />
+                  </span>
+                )}
                 {!isPresenter && (
                   <span className="ml-1.5">
                     <FollowUpButton
@@ -851,8 +857,13 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
       <DiscIcon filled={librarySaved} color="#2563eb" />
     </button>
   </div>
-  {!isPresenter && (
+  {canEdit && (
     <div className="ml-auto">
+      <ViewSwitch current="attendee" presenterHref={`/presenter/${posterId}`} compact />
+    </div>
+  )}
+  {!isPresenter && (
+    <div className={canEdit ? '' : 'ml-auto'}>
       <FollowUpButton
         posterId={posterId}
         presenterName={poster.presenterName}

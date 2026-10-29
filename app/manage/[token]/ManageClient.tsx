@@ -4,6 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useConference } from "@/app/lib/conferenceContext";
 import { uploadPdf } from "@/app/lib/uploadPdf";
 import type { PresenterReport } from "@/app/lib/report";
+import ViewSwitch from "@/app/components/ViewSwitch";
+
+/** How this page was reached: the private link, or signed in (presenter or organizer). */
+export type ManageAccess = { kind: "token"; token: string } | { kind: "session"; id: string };
 
 type Talk = {
   id: string;
@@ -17,6 +21,7 @@ type Talk = {
   uploadedAt: string;
   liveUntil: string | null;
   takenDown: boolean;
+  takenDownBy: string | null;
 };
 
 const fmtDate = (s: string | null | undefined) =>
@@ -29,7 +34,8 @@ function csvCell(v: string | undefined) {
   return /[",\n]/.test(s) ? `"${s}"` : s;
 }
 
-export default function ManageClient({ token }: { token: string }) {
+export default function ManageClient({ access }: { access: ManageAccess }) {
+  const api = access.kind === "token" ? `/api/manage/${access.token}` : `/api/presenter/${access.id}`;
   const conf = useConference();
   const [talk, setTalk] = useState<Talk | null>(null);
   const [report, setReport] = useState<PresenterReport | null>(null);
@@ -43,7 +49,7 @@ export default function ManageClient({ token }: { token: string }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
-    const r = await fetch(`/api/manage/${token}`, { cache: "no-store" });
+    const r = await fetch(api, { cache: "no-store" });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) {
       setError(j?.error || "This link isn't valid.");
@@ -53,7 +59,7 @@ export default function ManageClient({ token }: { token: string }) {
     setReport(j.report);
     setEditTitle(j.talk.title);
     setEditAbstract(j.talk.abstract);
-  }, [token]);
+  }, [api]);
 
   useEffect(() => {
     load();
@@ -63,7 +69,7 @@ export default function ManageClient({ token }: { token: string }) {
     setBusy(label);
     setNotice(null);
     try {
-      const r = await fetch(`/api/manage/${token}`, {
+      const r = await fetch(api, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
@@ -84,7 +90,11 @@ export default function ManageClient({ token }: { token: string }) {
     setBusy("replace");
     setNotice(null);
     try {
-      const fileUrl = await uploadPdf(file, { manageToken: token }, setProgress);
+      const fileUrl = await uploadPdf(
+        file,
+        access.kind === "token" ? { manageToken: access.token } : { posterId: access.id },
+        setProgress
+      );
       await patch({ fileUrl }, "replace", "Deck replaced. Questions stay attached to their slide numbers.");
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Upload failed.");
@@ -92,16 +102,23 @@ export default function ManageClient({ token }: { token: string }) {
     }
   }
 
+  /** Go to the attendee view (optionally a slide). From the private link, sign this device in first
+   *  so the presenter can answer questions and switch back. */
   async function goAnswer(page?: number) {
-    setBusy("signin");
-    const r = await fetch(`/api/manage/${token}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "signin" }),
-    });
-    const j = await r.json().catch(() => ({}));
-    setBusy(null);
-    if (r.ok && j.viewUrl) window.location.href = page ? `${j.viewUrl}?page=${page}` : j.viewUrl;
+    if (!talk) return;
+    let viewUrl = `/view/${talk.id}`;
+    if (access.kind === "token") {
+      setBusy("signin");
+      const r = await fetch(api, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "signin" }),
+      });
+      const j = await r.json().catch(() => ({}));
+      setBusy(null);
+      if (r.ok && j.viewUrl) viewUrl = j.viewUrl;
+    }
+    window.location.href = page ? `${viewUrl}?page=${page}` : viewUrl;
   }
 
   function downloadFollowups() {
@@ -158,6 +175,11 @@ export default function ManageClient({ token }: { token: string }) {
               <span className="text-gray-500">Updated {fmtDateTime(report.generatedAt)}</span>
             </div>
           </div>
+          {live && (
+            <div className="shrink-0">
+              <ViewSwitch current="presenter" onAttendee={() => goAnswer()} />
+            </div>
+          )}
         </div>
       </div>
 
@@ -166,11 +188,6 @@ export default function ManageClient({ token }: { token: string }) {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-2">
-          {live && (
-            <a href={`/view/${talk.id}`} className="rounded-md border bg-white px-3 py-2 text-sm font-medium text-gray-800">
-              See it as attendees do
-            </a>
-          )}
           {live && (
             <button
               onClick={() => goAnswer()}
@@ -374,10 +391,12 @@ export default function ManageClient({ token }: { token: string }) {
           </form>
         </Section>
 
-        <p className="text-xs text-gray-500">
-          Keep this page&apos;s link private: anyone who has it can edit or remove your talk. Lost it? The organizers can
-          issue you a new one.
-        </p>
+        {access.kind === "token" && (
+          <p className="text-xs text-gray-500">
+            Keep this page&apos;s link private: anyone who has it can edit or remove your talk. Lost it? The organizers
+            can issue you a new one.
+          </p>
+        )}
       </div>
     </main>
   );
