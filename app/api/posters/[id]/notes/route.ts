@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
 import { getSessionUser } from "@/app/lib/auth";
+import { rebuildTextContent } from "@/app/lib/textContent";
 
 export async function PATCH(
   req: NextRequest,
@@ -31,14 +32,8 @@ export async function PATCH(
       : { $unset: { [noteKey]: "" } }
   );
 
-  // Rebuild textContent from abstract + all notes for search
-  const updated = await db.collection("posters").findOne({ id });
-  const notesText = Object.values(updated?.notes ?? {}).join(" ");
-  const textContent = [updated?.abstract, notesText].filter(Boolean).join("\n");
-  await db.collection("posters").updateOne(
-    { id },
-    { $set: { textContent: textContent || undefined, textIndexedAt: new Date() } }
-  );
+  // Rebuild search text from summary + notes + PDF text
+  await rebuildTextContent(id);
 
   return NextResponse.json({ ok: true });
 }
