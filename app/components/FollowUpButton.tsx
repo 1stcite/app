@@ -112,7 +112,8 @@ export default function FollowUpButton({
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Ask {who} to follow up</h2>
               <p className="text-sm text-gray-600 mt-1">
-                Your name and these details go only to {who}. Nothing is shared publicly.
+                Your name and these details go only to {who}. Nothing is shared publicly.{" "}
+                <a href="/privacy" target="_blank" className="underline">Privacy</a>
               </p>
             </div>
             <div>

@@ -301,9 +301,13 @@ export default function ManageClient({ access }: { access: ManageAccess }) {
                     <tr key={f.id} className="border-b last:border-0 align-top">
                       <td className="py-2 pr-3">
                         <div className="font-medium text-gray-900">{f.name}</div>
-                        <a href={`mailto:${f.email}?subject=${encodeURIComponent(talk.title)}`} className="text-blue-600 hover:underline break-all">
-                          {f.email}
-                        </a>
+                        {f.email ? (
+                          <a href={`mailto:${f.email}?subject=${encodeURIComponent(talk.title)}`} className="text-blue-600 hover:underline break-all">
+                            {f.email}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-gray-500">Contact details visible to the presenter only</span>
+                        )}
                       </td>
                       <td className="py-2 pr-3 text-gray-700">
                         {f.organization}

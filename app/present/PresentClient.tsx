@@ -263,7 +263,9 @@ export default function PresentClient({ conferenceName, logo, open, codeRequired
             <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1" />
             <span>
               I&apos;m authorized to share this deck with {conferenceName} attendees, and I understand people who ask
-              questions or request a follow-up will be identified to me by name.
+              questions or request a follow-up will be identified to me by name. I agree to the{" "}
+              <a href="/terms" target="_blank" className="text-blue-600 underline">terms</a> and{" "}
+              <a href="/privacy" target="_blank" className="text-blue-600 underline">privacy</a> policy.
             </span>
           </label>
 

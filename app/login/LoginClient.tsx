@@ -95,6 +95,10 @@ export default function LoginClient() {
             {loading ? "Signing in…" : "Enter"}
           </button>
         </form>
+        <p className="text-xs text-gray-400">
+          By continuing you agree to the <a href="/terms" className="underline">terms</a> and{" "}
+          <a href="/privacy" className="underline">privacy</a> policy.
+        </p>
 
       </div>
     </div>

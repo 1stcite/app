@@ -12,6 +12,10 @@ export default function Footer() {
         Powered by
         <img src="/1stcite-logo.png" alt="1stCite" className="h-8 w-auto inline-block" />
       </Link>
+      <div className="mt-2 flex justify-center gap-4 text-xs text-gray-400">
+        <Link href="/privacy" className="hover:text-gray-600">Privacy</Link>
+        <Link href="/terms" className="hover:text-gray-600">Terms</Link>
+      </div>
     </footer>
   );
 }

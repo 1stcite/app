@@ -30,7 +30,7 @@ async function load(params: Promise<{ id: string }>) {
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const r = await load(params);
   if ("error" in r) return r.error;
-  return manageData(r.poster);
+  return manageData(r.poster, { forOrganizer: r.by === "organizer" });
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

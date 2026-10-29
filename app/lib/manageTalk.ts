@@ -22,9 +22,28 @@ function isBlobUrl(u: string): boolean {
   }
 }
 
-export async function manageData(poster: WithId<Document>) {
+/**
+ * `forOrganizer`: an organizer looking at someone else's talk. Attendee names
+ * and follow-up contact details are the presenter's alone, so organizers get
+ * the same page with people redacted to counts.
+ */
+export async function manageData(poster: WithId<Document>, opts: { forOrganizer?: boolean } = {}) {
   const numPages = Number(poster.numPages ?? 0);
   const report = await buildPresenterReport(poster.id, poster.presenterUserId, numPages);
+  if (opts.forOrganizer) {
+    const anon = (list: { name: string; at?: string }[]) => list.map((p) => ({ ...p, name: "Attendee" }));
+    report.interested = anon(report.interested);
+    report.attending = anon(report.attending);
+    report.saved = anon(report.saved);
+    report.followups = report.followups.map((f) => ({
+      ...f,
+      name: "Attendee",
+      email: "",
+      organization: undefined,
+      role: undefined,
+      note: undefined,
+    }));
+  }
   const pub = publicPoster(poster);
   return NextResponse.json({
     talk: {
