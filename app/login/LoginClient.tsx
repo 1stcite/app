@@ -16,6 +16,8 @@ export default function LoginClient() {
   const [accessCode, setAccessCode] = useState(sp.get("code") ?? "");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [organizer, setOrganizer] = useState(false);
+  const showCode = codeRequired || organizer;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -62,18 +64,20 @@ export default function LoginClient() {
               autoComplete="name"
               required
             />
-            <p className="mt-1 text-xs text-gray-500">Presenters see this name when you ask a question.</p>
+            <p className="mt-1 text-xs text-gray-500">Presenters see your name when you ask a question or mark interest in their talk.</p>
           </div>
 
-          {codeRequired && (
+          {showCode && (
             <div>
-              <label className="block text-sm font-medium text-gray-700" htmlFor="accessCode">Attendee access code</label>
+              <label className="block text-sm font-medium text-gray-700" htmlFor="accessCode">
+                {codeRequired ? "Attendee access code" : "Organizer code"}
+              </label>
               <input
                 id="accessCode"
                 value={accessCode}
                 onChange={(e) => setAccessCode(e.target.value)}
                 className="mt-1 w-full rounded-md border px-3 py-2"
-                placeholder="From your registration email or badge"
+                placeholder={codeRequired ? "From your registration email or badge" : ""}
                 autoComplete="off"
                 autoCapitalize="none"
                 required
@@ -92,6 +96,15 @@ export default function LoginClient() {
             {loading ? "Signing in…" : "Enter"}
           </button>
         </form>
+
+        {!codeRequired && !organizer && (
+          <button type="button" onClick={() => setOrganizer(true)} className="text-xs text-gray-400 hover:text-gray-600">
+            Organizer sign-in
+          </button>
+        )}
+        {codeRequired && (
+          <p className="text-xs text-gray-400">Organizers: enter your organizer code in the code field.</p>
+        )}
       </div>
     </div>
   );

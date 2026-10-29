@@ -48,7 +48,8 @@ const PRIVATE_CONFERENCE_FIELDS = ["accessCode", "presenterCode"] as const;
 export function publicConference<T extends Record<string, unknown>>(conf: T): T {
   const copy: Record<string, unknown> = { ...conf };
   // Let the login page know a code is needed without revealing it
-  copy.accessCodeRequired = Boolean(conf.accessCode);
+  // (a conference code, or the global DEMO_ACCESS_CODE fallback that demo-login also checks)
+  copy.accessCodeRequired = Boolean(conf.accessCode || process.env.DEMO_ACCESS_CODE);
   for (const f of PRIVATE_CONFERENCE_FIELDS) delete copy[f];
   return copy as T;
 }

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { uploadPdf } from '@/app/lib/uploadPdf';
 
 async function extractPdfMeta(file: File): Promise<{ title: string; author: string }> {
   try {
@@ -68,11 +69,8 @@ export default function EditPage() {
 
       // Upload new PDF if provided
       if (newFile) {
-        const formData = new FormData();
-        formData.append('file', newFile);
-        const blobRes = await fetch('/api/upload-blob', { method: 'POST', body: formData });
-        if (!blobRes.ok) throw new Error((await blobRes.json()).error || 'Upload failed');
-        fileUrl = (await blobRes.json()).url;
+        // Direct browser upload (no 4.5 MB limit); authorized for admins and this talk's presenter
+        fileUrl = await uploadPdf(newFile, { posterId: id });
       }
 
       const res = await fetch(`/api/posters/${id}`, {

@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import type { NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
 import { ObjectId } from "mongodb";
@@ -10,9 +10,32 @@ export type AuthedUser = {
   _id: ObjectId;
   displayName: string;
   isAdmin?: boolean;
+  role?: string;
 };
 
-export async function createSession(displayName: string) {
+/** Subdomain of the current request (set by middleware), if any. */
+async function requestSubdomain(): Promise<string | null> {
+  try {
+    const h = await headers();
+    return h.get("x-subdomain");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Admins are named in ADMIN_DISPLAY_NAMES *and* must enter ADMIN_ACCESS_CODE
+ * at sign-in. A display name alone never grants admin.
+ */
+export function isAdminSignIn(displayName: string, code: string): boolean {
+  const expected = process.env.ADMIN_ACCESS_CODE || "";
+  if (!expected || !code) return false;
+  const adminNames = (process.env.ADMIN_DISPLAY_NAMES || "")
+    .split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+  return adminNames.includes(displayName.trim().toLowerCase()) && code.trim() === expected;
+}
+
+export async function createSession(displayName: string, opts: { isAdmin?: boolean } = {}) {
   const name = String(displayName || "").trim();
   if (!name) throw new Error("Display name required");
 
@@ -21,20 +44,12 @@ export async function createSession(displayName: string) {
 
   const userRes = await db.collection("users").insertOne({
     displayName: name,
+    ...(opts.isAdmin ? { isAdmin: true } : {}),
     createdAt: now,
     lastSeenAt: now,
   });
 
-  const token = randomBytes(24).toString("base64url");
-  const expiresAt = new Date(now.getTime() + 1000 * 60 * 60 * 12); // 12h
-
-  await db.collection("sessions").insertOne({
-    token,
-    userId: userRes.insertedId,
-    createdAt: now,
-    expiresAt,
-  });
-
+  const { token, expiresAt } = await createSessionForUser(userRes.insertedId, 12);
   return { token, expiresAt, userId: userRes.insertedId, displayName: name };
 }
 
@@ -54,23 +69,22 @@ export async function getSessionUser(): Promise<AuthedUser | null> {
 
   if (!session) return null;
 
+  // A session belongs to the conference (subdomain) it was created on.
+  // Replaying it against another conference's API doesn't work.
+  const sub = await requestSubdomain();
+  if (session.subdomain && sub && session.subdomain !== sub) return null;
+
   const user = await db
     .collection("users")
-    .findOne({ _id: session.userId }, { projection: { displayName: 1, isAdmin: 1 } });
+    .findOne({ _id: session.userId }, { projection: { displayName: 1, isAdmin: 1, role: 1 } });
 
   if (!user) return null;
 
-  // Check env var for admin display names (comma-separated)
-  const adminNames = (process.env.ADMIN_DISPLAY_NAMES || "")
-    .split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
-  const isAdmin = user.isAdmin === true || adminNames.includes(user.displayName.toLowerCase());
+  const isAdmin = user.isAdmin === true;
 
-  await db.collection("users").updateOne(
-    { _id: user._id },
-    { $set: { lastSeenAt: now, ...(isAdmin ? { isAdmin: true } : {}) } }
-  );
+  await db.collection("users").updateOne({ _id: user._id }, { $set: { lastSeenAt: now } });
 
-  return { _id: user._id, displayName: user.displayName, isAdmin };
+  return { _id: user._id, displayName: user.displayName, isAdmin, role: user.role };
 }
 
 export async function revokeSession() {
@@ -90,12 +104,19 @@ export async function revokeSession() {
  * Create a session for an existing user (used when a presenter opens their
  * manage link, so they can answer questions as themselves in the viewer).
  */
-export async function createSessionForUser(userId: ObjectId) {
+export async function createSessionForUser(userId: ObjectId, hours = 24 * 14) {
   const db = await getDb();
   const now = new Date();
   const token = randomBytes(24).toString("base64url");
-  const expiresAt = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 14); // 14 days
-  await db.collection("sessions").insertOne({ token, userId, createdAt: now, expiresAt });
+  const expiresAt = new Date(now.getTime() + 1000 * 60 * 60 * hours);
+  const subdomain = await requestSubdomain();
+  await db.collection("sessions").insertOne({
+    token,
+    userId,
+    ...(subdomain ? { subdomain } : {}),
+    createdAt: now,
+    expiresAt,
+  });
   return { token, expiresAt };
 }
 

@@ -12,6 +12,7 @@ import { getDb } from "@/app/lib/db";
 import { createSessionForUser, setSessionCookie } from "@/app/lib/auth";
 import { findPosterByManageToken, publicPoster } from "@/app/lib/presenter";
 import { buildPresenterReport } from "@/app/lib/report";
+import { rebuildTextContent, reindexPdfInBackground } from "@/app/lib/textContent";
 
 export const dynamic = "force-dynamic";
 
@@ -74,17 +75,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ to
   if (body.abstract !== undefined) {
     const a = String(body.abstract).trim().slice(0, 4000);
     set.abstract = a;
-    set.textContent = a;
   }
   if (body.fileUrl !== undefined) {
     const u = String(body.fileUrl).trim();
     if (!isBlobUrl(u)) return NextResponse.json({ error: "Upload the new PDF first." }, { status: 400 });
     set.fileUrl = u;
     set.replacedAt = new Date();
+    unset.numPages = ""; // re-learned from the new deck
   }
 
   switch (body.action) {
     case "takedown":
+      // Already down (by the presenter or an organizer): leave it as is, so an
+      // organizer's removal can't be relabeled as the presenter's.
+      if (poster.deletedAt) return NextResponse.json({ ok: true });
       set.deletedAt = new Date();
       set.takenDownBy = "presenter";
       break;
@@ -100,6 +104,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ to
       unset.takenDownBy = "";
       break;
     case "extend": {
+      if (!poster.liveUntil) {
+        return NextResponse.json({ error: "Your talk has no end date, so there's nothing to extend." }, { status: 400 });
+      }
       const base = poster.liveUntil instanceof Date && poster.liveUntil > new Date() ? poster.liveUntil : new Date();
       set.liveUntil = new Date(base.getTime() + 30 * DAY);
       break;
@@ -115,6 +122,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ to
     { _id: poster._id },
     { $set: set, ...(Object.keys(unset).length ? { $unset: unset } : {}) }
   );
+  if (set.fileUrl) reindexPdfInBackground(poster.id, String(set.fileUrl));
+  else if (set.abstract !== undefined) await rebuildTextContent(poster.id);
   return NextResponse.json({ ok: true });
 }
 
@@ -128,6 +137,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   const presenterId = String(poster.presenterUserId ?? "");
   if (!ObjectId.isValid(presenterId)) {
     return NextResponse.json({ error: "No presenter account on this talk." }, { status: 400 });
+  }
+  // Only ever sign in as a presenter-only account, never as an organizer/admin
+  const db = await getDb();
+  const owner = await db.collection("users").findOne({ _id: new ObjectId(presenterId) }, { projection: { role: 1, isAdmin: 1 } });
+  if (!owner || owner.role !== "presenter" || owner.isAdmin) {
+    return NextResponse.json({ error: "Ask the organizers for a new presenter link." }, { status: 400 });
   }
 
   const session = await createSessionForUser(new ObjectId(presenterId));

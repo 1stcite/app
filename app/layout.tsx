@@ -30,12 +30,13 @@ async function getConferenceConfig(subdomain: string): Promise<ConferenceConfig>
     logo: "/1stcite-logo.png",
     sourceId: subdomain || "1stcite",
     isRepo: false,
+    accessCodeRequired: Boolean(process.env.DEMO_ACCESS_CODE),
   };
 
   if (!subdomain || subdomain === "1stcite") return DEFAULT;
 
   if (subdomain === "presentrxiv" || subdomain === "www") {
-    return { subdomain, name: "PresentrXiv", logo: "/presentrxiv-logo.png", sourceId: "", isRepo: true };
+    return { subdomain, name: "PresentrXiv", logo: "/presentrxiv-logo.png", sourceId: "", isRepo: true, accessCodeRequired: Boolean(process.env.DEMO_ACCESS_CODE) };
   }
 
   try {

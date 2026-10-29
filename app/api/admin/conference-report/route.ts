@@ -64,10 +64,6 @@ export async function GET(req: NextRequest) {
     countBy("library", ids),
   ]);
   const viewers = new Map(viewerRows.map((r) => [String(r._id), Number(r.n)]));
-  const distinct = await db
-    .collection("views")
-    .aggregate([{ $match: { posterId: { $in: ids } } }, { $group: { _id: "$viewerKey" } }, { $count: "n" }])
-    .toArray();
 
   const now = new Date();
   const rows: Row[] = posters.map((p) => ({
@@ -87,6 +83,14 @@ export async function GET(req: NextRequest) {
   }));
 
   const live = rows.filter((r) => r.status === "live");
+  const distinct = await db
+    .collection("views")
+    .aggregate([
+      { $match: { posterId: { $in: live.map((r) => r.id) } } },
+      { $group: { _id: "$viewerKey" } },
+      { $count: "n" },
+    ])
+    .toArray();
   const totals = {
     talks: live.length,
     selfUploaded: live.filter((r) => r.selfUploaded).length,

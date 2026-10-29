@@ -4,6 +4,7 @@ import { getSessionUser } from "@/app/lib/auth";
 import { canManagePoster, liveFilter } from "@/app/lib/guards";
 import { publicPoster } from "@/app/lib/presenter";
 import { getRequireLogin } from "@/app/lib/config";
+import { rebuildTextContent, reindexPdfInBackground } from "@/app/lib/textContent";
 
 // GET — fetch single poster by id (hidden once taken down or past its live window)
 export async function GET(
@@ -58,6 +59,12 @@ export async function PATCH(
   );
 
   if (!result) return NextResponse.json({ error: "Poster not found" }, { status: 404 });
+  if (update.fileUrl && update.fileUrl !== existing.fileUrl) {
+    await db.collection("posters").updateOne({ id }, { $unset: { numPages: "" } });
+    reindexPdfInBackground(id, String(update.fileUrl));
+  } else if (update.abstract !== undefined) {
+    await rebuildTextContent(id);
+  }
   return NextResponse.json(publicPoster(result));
 }
 
@@ -77,6 +84,9 @@ export async function DELETE(
     return NextResponse.json({ error: "Only the presenter or an admin can remove this talk" }, { status: 403 });
   }
 
-  await db.collection("posters").updateOne({ id }, { $set: { deletedAt: new Date() } });
+  await db.collection("posters").updateOne(
+    { id },
+    { $set: { deletedAt: new Date(), takenDownBy: user.isAdmin ? "organizer" : "presenter" } }
+  );
   return NextResponse.json({ ok: true });
 }

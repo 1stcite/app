@@ -16,7 +16,7 @@ import { getDb } from "@/app/lib/db";
 import { createSessionForUser, setSessionCookie } from "@/app/lib/auth";
 import { defaultLiveUntil, getRequestConference } from "@/app/lib/guards";
 import { codesMatch, hashToken, newManageToken } from "@/app/lib/presenter";
-import { extractPdfText } from "@/app/lib/extractPdfText";
+import { reindexPdfInBackground } from "@/app/lib/textContent";
 
 export const runtime = "nodejs";
 
@@ -98,14 +98,7 @@ export async function POST(req: NextRequest) {
 
   await db.collection("posters").insertOne(poster);
 
-  if (!abstract) {
-    extractPdfText(fileUrl)
-      .then(async (textContent) => {
-        if (!textContent) return;
-        await db.collection("posters").updateOne({ id }, { $set: { textContent, textIndexedAt: new Date() } });
-      })
-      .catch((e) => console.error("PDF text extraction failed for", id, e));
-  }
+  reindexPdfInBackground(id, fileUrl);
 
   // Sign the presenter in on this device so they can answer questions as themselves.
   const session = await createSessionForUser(userRes.insertedId);
