@@ -19,6 +19,7 @@ import { sessionTimingAt, type SessionLike } from '@/app/lib/sessionTiming';
 import { StarIcon, ChairIcon, DiscIcon } from '@/app/components/EngagementIcons';
 import { useAttend } from '@/app/lib/useAttend';
 import { useLibrary } from '@/app/lib/useLibrary';
+import FollowUpButton from '@/app/components/FollowUpButton';
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -41,6 +42,7 @@ type Poster = {
   abstract?: string;
   notes?: Record<string, string>;
   presenterUserId?: string;
+  presenterName?: string;
 };
 
 /**
@@ -512,6 +514,31 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
     setPageNumber((prev) => (prev < 1 ? 1 : prev > numPages ? numPages : prev));
   }
 
+  // Deep link: /view/<id>?page=N opens on slide N (used by the presenter page)
+  useEffect(() => {
+    const p = Number(new URLSearchParams(window.location.search).get('page'));
+    if (Number.isInteger(p) && p > 0) setPageNumber(p);
+  }, []);
+
+  // Record a slide view once someone has stayed on it briefly.
+  // Feeds the presenter's slide-by-slide report.
+  useEffect(() => {
+    if (!numPages || !posterId) return;
+    const page = pageNumber;
+    const t = setTimeout(() => {
+      fetch('/api/views', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ posterId, page, numPages }),
+        keepalive: true,
+      }).catch(() => {});
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [posterId, pageNumber, numPages]);
+
+  const isPresenter = Boolean(sessionUserId && poster?.presenterUserId && String(poster.presenterUserId) === sessionUserId);
+  const canEdit = isAdmin || isPresenter;
+
 
   async function addComment(targetPage: number, text: string, visibilityType: VisibilityType) {
     const trimmed = text.trim();
@@ -722,7 +749,9 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                   <div className="truncate text-base font-semibold text-gray-900">{poster.title || 'Untitled'}</div>
                   <div className="flex items-center gap-3">
                     <span className="truncate text-xs text-gray-700">{poster.author ? `by ${poster.author}` : ''}</span>
-                    <Link href={`/edit/${poster.id}`} className="text-xs text-blue-500 hover:underline whitespace-nowrap shrink-0">Edit</Link>
+                    {canEdit && (
+                      <Link href={`/edit/${poster.id}`} className="text-xs text-blue-500 hover:underline whitespace-nowrap shrink-0">Edit</Link>
+                    )}
                   </div>
                 </div>
               </div>
@@ -756,6 +785,15 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 >
                   <DiscIcon filled={librarySaved} color="#2563eb" />
                 </button>
+                {!isPresenter && (
+                  <span className="ml-1.5">
+                    <FollowUpButton
+                      posterId={posterId}
+                      presenterName={poster.presenterName}
+                      signedIn={Boolean(sessionUserId)}
+                    />
+                  </span>
+                )}
               </div>
 
               {!sessionUserId && !loadingComments && (
@@ -813,6 +851,16 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
       <DiscIcon filled={librarySaved} color="#2563eb" />
     </button>
   </div>
+  {!isPresenter && (
+    <div className="ml-auto">
+      <FollowUpButton
+        posterId={posterId}
+        presenterName={poster.presenterName}
+        signedIn={Boolean(sessionUserId)}
+        compact
+      />
+    </div>
+  )}
 </div>
           {/* Viewer container */}
           <div
