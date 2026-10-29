@@ -21,6 +21,7 @@ import { useAttend } from '@/app/lib/useAttend';
 import { useLibrary } from '@/app/lib/useLibrary';
 import FollowUpButton from '@/app/components/FollowUpButton';
 import ViewSwitch from '@/app/components/ViewSwitch';
+import SlideNotes from '@/app/components/SlideNotes';
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -461,17 +462,17 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
     }
   }
 
-  async function handleSaveNote(note: string) {
+  async function handleSaveNote(note: string, page: number = commentTargetPage) {
     try {
       await fetch(`/api/posters/${posterId}/notes`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ page: commentTargetPage, note }),
+        body: JSON.stringify({ page, note }),
       });
       // Update local poster state so note reflects immediately
       setPoster((prev) => prev ? {
         ...prev,
-        notes: { ...prev.notes, [commentTargetPage]: note },
+        notes: { ...prev.notes, [page]: note },
       } : prev);
     } catch (e) {
       console.error('Save note failed:', e);
@@ -585,6 +586,16 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
     const w = centerMeasure.rect.width || 0;
     return Math.max(320, Math.floor(w - 48));
   }, [centerMeasure.rect.width]);
+
+  // Desktop slide: fill the reading column, but keep a 16:9 slide within ~62%
+  // of the window height so the notes start in view below it.
+  const desktopSlideWidth = useMemo(() => {
+    const byWidth = Math.max(320, Math.floor((centerMeasure.rect.width || 0) - 24));
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 900;
+    const byHeight = Math.floor(vh * 0.62 * (16 / 9));
+    return Math.min(byWidth, Math.max(480, byHeight));
+  }, [centerMeasure.rect.width]);
+  const thumbWidthDesktop = 128;
 
   // Mobile measured width (from the actual viewer box)
   const mobileW = mobileMeasure.rect.width || 0;
@@ -1022,102 +1033,67 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
         )}
 
         {/**************** DESKTOP ***********/}
-        {/* DESKTOP (resizable panels) */}
+        {/* DESKTOP: slide, presenter notes and comments in one reading column;
+            slide thumbnails in a narrow resizable column on the right. */}
         <div className="hidden lg:block lg:px-4 lg:py-4 lg:h-[calc(100vh-76px)]">
           <Group orientation="horizontal" className="h-full w-full">
-            {/* LEFT (wide): slide on top, thumbnails grid below */}
-            <Panel defaultSize="70%" minSize="45%" maxSize="80%" className="min-w-0 h-full">
-              <div className="min-w-0 h-full grid grid-rows-[auto_minmax(0,1fr)] gap-3">
-                {/* Top: slide viewer */}
-                <div
-                  ref={centerMeasure.ref}
-                  className="min-w-0 rounded-lg border bg-white overflow-hidden"
-                  style={{ maxHeight: 'calc(100vh - 76px - 240px - 12px)' }} // leave ~240px + gap for grid
-                >
-                  <div className="h-full min-h-0 overflow-x-auto overflow-y-auto" style={{ touchAction: 'none' }}>
-
-
-                    <div className="p-3">
-                      <div className="mx-auto w-full">
-                        <div className="w-full flex justify-left">
-                          <Page
-                            pageNumber={pageNumber}
-                            width={centerPageWidth}
-                            renderTextLayer={false}
-                            renderAnnotationLayer={false}
-                            className="mx-auto"
-                          />
-                        </div>
-                      </div>
-                    </div>
+            {/* LEFT (wide): slide → presenter notes → comments, scrolling together */}
+            <Panel defaultSize="76%" minSize="55%" maxSize="88%" className="min-w-0 h-full">
+              <div className="h-full overflow-y-auto pr-2 space-y-3" style={{ scrollbarGutter: 'stable' }}>
+                {/* Slide */}
+                <div ref={centerMeasure.ref} className="min-w-0 rounded-lg border bg-white overflow-hidden">
+                  <div className="p-3 flex justify-center" style={{ touchAction: 'none' }}>
+                    <Page
+                      pageNumber={pageNumber}
+                      width={desktopSlideWidth}
+                      renderTextLayer={false}
+                      renderAnnotationLayer={false}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between border-t px-3 py-2 text-sm text-gray-600">
+                    <button
+                      type="button"
+                      disabled={pageNumber <= 1}
+                      onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
+                      className="rounded-md border px-3 py-1 disabled:opacity-40"
+                    >
+                      ← Previous
+                    </button>
+                    <span>Slide {pageNumber} of {numPages || '?'}</span>
+                    <button
+                      type="button"
+                      disabled={numPages === 0 || pageNumber >= numPages}
+                      onClick={() => setPageNumber((p) => Math.min(numPages, p + 1))}
+                      className="rounded-md border px-3 py-1 disabled:opacity-40"
+                    >
+                      Next →
+                    </button>
                   </div>
                 </div>
 
-                {/* Bottom: thumbnails grid (no header/buttons) */}
-                <div className="rounded-lg border bg-white overflow-hidden min-h-0">
-                  {numPages > 0 ? (
-                    <div className="h-full overflow-y-auto p-3" style={{ scrollbarGutter: 'stable' }}>
-                      <div className="grid grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
-                        {/* Abstract tile — only when abstract exists */}
-                        {poster && (
-                          <button
-                            type="button"
-                            onClick={() => setAbstractOpen(true)}
-                            className="relative rounded-lg border border-gray-200 bg-blue-50 hover:bg-blue-100 overflow-hidden text-left p-2 flex flex-col items-center justify-center gap-1 aspect-[4/3]"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span className="text-xs text-blue-600 font-medium">Abstract</span>
-                          </button>
-                        )}
-                        {Array.from({ length: numPages }).map((_, idx) => {
-                          const p = idx + 1;
-                          const active = p === pageNumber;
+                {/* Presenter notes: room to write (or read) the whole talk, slide by slide */}
+                <SlideNotes
+                  page={pageNumber}
+                  note={poster?.notes?.[pageNumber] ?? ''}
+                  isPresenter={canEdit}
+                  onSave={handleSaveNote}
+                  size="full"
+                />
 
-                          return (
-                            <button
-                              key={p}
-                              type="button"
-                              onClick={() => setPageNumber(p)}
-                              className={[
-                                'relative rounded-lg border bg-white hover:bg-gray-50 overflow-hidden text-left',
-                                active ? 'border-blue-600 ring-1 ring-blue-200' : 'border-gray-200',
-                              ].join(' ')}
-                            >
-                              {commentCounts[p] > 0 && (
-                                <div className="absolute bottom-3 right-3 flex items-center gap-1 text-gray-900 text-xs font-medium">
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-3.5 w-3.5"
-                                    viewBox="0 0 20 20"
-                                    fill="currentColor"
-                                  >
-                                    <path d="M18 10c0 3.866-3.582 7-8 7a8.84 8.84 0 01-3.716-.78L2 17l1.02-3.06A6.73 6.73 0 012 10c0-3.866 3.582-7 8-7s8 3.134 8 7z" />
-                                  </svg>
-                                  {commentCounts[p]}
-                                </div>
-                              )}
-
-                              <div className="p-2">
-                                <div className="flex justify-center items-center">
-                                  <Page
-                                    pageNumber={p}
-                                    width={150}
-                                    renderTextLayer={false}
-                                    renderAnnotationLayer={false}
-                                  />
-                                </div>
-                                <div className="mt-2 text-xs text-gray-600 text-left">
-                                  Slide {p}
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : null}
+                {/* Comments for this slide */}
+                <div className="rounded-lg border overflow-hidden bg-white">
+                  <CommentsPanel
+                    page={pageNumber}
+                    numPages={numPages || 0}
+                    loading={loadingComments}
+                    comments={pageComments}
+                    sessionUserId={sessionUserId}
+                    isAdmin={isAdmin}
+                    onOpenAdd={openCommentComposer}
+                    onDelete={handleDeleteComment}
+                    onReply={handleReplyComment}
+                    hideNotes
+                  />
                 </div>
               </div>
             </Panel>
@@ -1127,23 +1103,52 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
               <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] bg-gray-200 group-hover:bg-gray-300" />
             </Separator>
 
-            {/* RIGHT (narrow): comments only */}
-            <Panel defaultSize="30%" minSize="20%" maxSize="55%" className="min-w-0 h-full">
-              <div className="min-w-0 h-full rounded-lg border overflow-hidden bg-white">
-                <CommentsPanel
-                  page={pageNumber}
-                  numPages={numPages || 0}
-                  loading={loadingComments}
-                  comments={pageComments}
-                  sessionUserId={sessionUserId}
-                  isAdmin={isAdmin}
-                  onOpenAdd={openCommentComposer}
-                  onDelete={handleDeleteComment}
-                  onReply={handleReplyComment}
-                  slideNote={poster?.notes?.[commentTargetPage] ?? ''}
-                  isPresenter={!!sessionUserId && (isAdmin || (!!poster?.presenterUserId && sessionUserId === poster.presenterUserId))}
-                  onSaveNote={handleSaveNote}
-                />
+            {/* RIGHT (narrow): slide thumbnails */}
+            <Panel defaultSize="24%" minSize="12%" maxSize="45%" className="min-w-0 h-full">
+              <div className="h-full rounded-lg border bg-white overflow-y-auto p-2" style={{ scrollbarGutter: 'stable' }}>
+                {numPages > 0 && (
+                  <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))' }}>
+                    {poster && (
+                      <button
+                        type="button"
+                        onClick={() => setAbstractOpen(true)}
+                        className="rounded-lg border border-gray-200 bg-blue-50 hover:bg-blue-100 p-2 flex flex-col items-center justify-center gap-1 aspect-[4/3]"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span className="text-xs text-blue-600 font-medium">Abstract</span>
+                      </button>
+                    )}
+                    {Array.from({ length: numPages }).map((_, idx) => {
+                      const p = idx + 1;
+                      const active = p === pageNumber;
+                      const hasNote = Boolean(poster?.notes?.[p]?.trim());
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setPageNumber(p)}
+                          className={[
+                            'relative rounded-lg border bg-white hover:bg-gray-50 overflow-hidden text-left p-1.5',
+                            active ? 'border-blue-600 ring-1 ring-blue-200' : 'border-gray-200',
+                          ].join(' ')}
+                        >
+                          <div className="flex justify-center">
+                            <Page pageNumber={p} width={thumbWidthDesktop} renderTextLayer={false} renderAnnotationLayer={false} />
+                          </div>
+                          <div className="mt-1 flex items-center justify-between text-[11px] text-gray-600">
+                            <span>Slide {p}</span>
+                            <span className="flex items-center gap-1.5">
+                              {hasNote && <span title="Has presenter notes">📝</span>}
+                              {commentCounts[p] > 0 && <span title="Comments">💬{commentCounts[p]}</span>}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </Panel>
           </Group>

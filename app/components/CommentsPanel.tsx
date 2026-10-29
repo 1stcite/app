@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import SlideNotes from './SlideNotes';
 
 export type Comment = {
   _id?: string;
@@ -31,7 +32,8 @@ type CommentsPanelProps = {
   onReply: (parentId: string, text: string) => Promise<void>;
   slideNote?: string;
   isPresenter?: boolean;
-  onSaveNote?: (note: string) => Promise<void>;
+  onSaveNote?: (note: string, page: number) => Promise<void>;
+  hideNotes?: boolean;
 };
 
 function CommentThread({
@@ -155,19 +157,8 @@ export default function CommentsPanel({
   slideNote,
   isPresenter,
   onSaveNote,
+  hideNotes = false,
 }: CommentsPanelProps) {
-  const [noteText, setNoteText] = React.useState(slideNote ?? '');
-  const [savingNote, setSavingNote] = React.useState(false);
-
-  // Sync note text when page changes
-  React.useEffect(() => { setNoteText(slideNote ?? ''); }, [slideNote, page]);
-
-  async function handleSaveNote() {
-    if (!onSaveNote) return;
-    setSavingNote(true);
-    await onSaveNote(noteText);
-    setSavingNote(false);
-  }
   // Split into top-level and replies
   const topLevel = comments.filter((c) => !c.parentId);
   const replies = comments.filter((c) => !!c.parentId);
@@ -196,33 +187,16 @@ export default function CommentsPanel({
         className="flex-1 min-h-0 overflow-y-auto px-3 py-2"
         style={{ scrollbarGutter: 'stable', overflowAnchor: 'none' }}
       >
-        {/* Presenter note — pinned at top of scroll, styled distinctly */}
-        {(isPresenter || (slideNote && slideNote.trim())) && (
-          <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 mb-3">
-            <p className="text-xs font-semibold text-amber-700 mb-1">
-              {isPresenter ? `📝 Presenter Notes (slide ${page})` : '📝 Presenter Notes'}
-            </p>
-            {isPresenter ? (
-              <div className="space-y-1">
-                <textarea
-                  value={noteText}
-                  onChange={e => setNoteText(e.target.value)}
-                  placeholder="Add notes or narration for this slide…"
-                  rows={2}
-                  className="w-full text-xs border border-amber-200 rounded px-2 py-1.5 bg-white text-gray-800 resize-none focus:outline-none focus:ring-1 focus:ring-amber-400"
-                />
-                <button
-                  type="button"
-                  onClick={handleSaveNote}
-                  disabled={savingNote || noteText === (slideNote ?? '')}
-                  className="px-2 py-1 text-xs bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-40"
-                >
-                  {savingNote ? 'Saving…' : 'Save'}
-                </button>
-              </div>
-            ) : (
-              <p className="text-xs text-gray-700 whitespace-pre-wrap">{slideNote}</p>
-            )}
+        {/* Presenter notes (shown here on phones; on desktop they sit under the slide) */}
+        {!hideNotes && onSaveNote && (isPresenter || (slideNote && slideNote.trim())) && (
+          <div className="mb-3">
+            <SlideNotes
+              page={page}
+              note={slideNote ?? ''}
+              isPresenter={!!isPresenter}
+              onSave={onSaveNote}
+              size="compact"
+            />
           </div>
         )}
 
