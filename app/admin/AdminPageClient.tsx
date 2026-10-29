@@ -250,6 +250,9 @@ export default function AdminPage() {
               <Link href="/upload" className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
                 + Upload Presentations
               </Link>
+              <Link href="/admin/presenters" className="px-3 py-1.5 border border-blue-600 text-blue-700 text-sm font-medium rounded-md hover:bg-blue-50">
+                Presenters &amp; access
+              </Link>
               <Link href="/" className="text-sm text-blue-600 hover:underline">Open library →</Link>
             </div>
             <div className="flex items-center gap-3">
