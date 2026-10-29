@@ -174,8 +174,13 @@ export default function ManageClient({ access }: { access: ManageAccess }) {
     <main className="min-h-screen bg-gray-50 pb-16">
       {/* Header */}
       <div className="bg-white border-b">
+        <div className="mx-auto max-w-4xl px-4 pt-3">
+          <a href="/" className="text-sm text-blue-600 hover:underline">← Back to the conference</a>
+        </div>
         <div className="mx-auto max-w-4xl px-4 py-5 flex items-start gap-4">
-          <img src={conf.logo} alt="" className="h-10 w-auto object-contain shrink-0" />
+          <a href="/" title="Back to the conference" className="shrink-0">
+            <img src={conf.logo} alt="" className="h-10 w-auto object-contain" />
+          </a>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Your talk at {conf.name}</p>
             <h1 className="text-xl md:text-2xl font-bold text-gray-900">{talk.title}</h1>
@@ -364,7 +369,7 @@ export default function ManageClient({ access }: { access: ManageAccess }) {
           ) : (
             <>
               <p className="text-xs text-gray-500 mb-3">
-                People who viewed each slide. A sharp drop shows where readers stopped.
+                Views for each slide.
               </p>
               <div className="space-y-1.5">
                 {report.slides.map((s) => (

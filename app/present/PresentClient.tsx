@@ -88,7 +88,9 @@ export default function PresentClient({ conferenceName, logo, open, codeRequired
       ← Back to the conference
     </a>
     <div className="flex items-center gap-3 mb-6">
-      <img src={logo} alt="" className="h-12 w-auto object-contain" />
+      <a href="/" title="Back to the conference">
+        <img src={logo} alt="" className="h-12 w-auto object-contain" />
+      </a>
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{conferenceName}</p>
         <h1 className="text-2xl font-bold text-gray-900">Share your talk</h1>
