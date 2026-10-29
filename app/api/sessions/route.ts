@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
+import { requireAdmin } from "@/app/lib/guards";
 
 // GET /api/sessions?conferenceId=iaprd  (subdomain or sourceId both work)
 export async function GET(req: NextRequest) {
@@ -20,6 +21,8 @@ export async function GET(req: NextRequest) {
 
 // POST — create session
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const body = await req.json().catch(() => ({}));
   const { conferenceId, name, date, startTime, endTime, location, sortOrder } = body;
   if (!conferenceId || !name) {

@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { ConferenceProvider, type ConferenceConfig } from "@/app/lib/conferenceContext";
 import { getDb } from "@/app/lib/db";
 import AdminBar from "@/app/components/AdminBar";
+import { publicConference } from "@/app/lib/presenter";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -29,18 +30,26 @@ async function getConferenceConfig(subdomain: string): Promise<ConferenceConfig>
     logo: "/1stcite-logo.png",
     sourceId: subdomain || "1stcite",
     isRepo: false,
+    accessCodeRequired: Boolean(process.env.DEMO_ACCESS_CODE),
+    presenterUploadsOpen: false, // no conference record → no presenter uploads
   };
 
   if (!subdomain || subdomain === "1stcite") return DEFAULT;
 
   if (subdomain === "presentrxiv" || subdomain === "www") {
-    return { subdomain, name: "PresentrXiv", logo: "/presentrxiv-logo.png", sourceId: "", isRepo: true };
+    return { subdomain, name: "PresentrXiv", logo: "/presentrxiv-logo.png", sourceId: "", isRepo: true, accessCodeRequired: Boolean(process.env.DEMO_ACCESS_CODE) };
   }
 
   try {
     const db = await getDb();
     const conf = await db.collection("conferences").findOne({ subdomain, active: true });
-    if (conf) return conf as unknown as ConferenceConfig;
+    if (conf) {
+      // Never ship access/presenter codes to the browser. Strip Mongo's _id too
+      // (an ObjectId can't be passed to a client component).
+      const { _id, ...rest } = publicConference(conf);
+      void _id;
+      return rest as unknown as ConferenceConfig;
+    }
   } catch {}
 
   return DEFAULT;

@@ -56,8 +56,11 @@ export default function AdminBar() {
       });
       if (r.ok) {
         setMe({ ...me, viewMode: next });
-        // Reload to re-evaluate any server-rendered admin UI
-        window.location.reload();
+        // Organizer-only pages have no attendee version: switching to the
+        // attendee view takes you to the conference. Elsewhere, reload in place.
+        const organizerOnly = /^\/(insights|admin|upload|edit)(\/|$)/.test(window.location.pathname);
+        if (next === "attendee" && organizerOnly) window.location.href = "/";
+        else window.location.reload();
       }
     } finally {
       setBusy(false);

@@ -68,6 +68,16 @@ export default function MyTalksPage() {
       });
   }, [posters, attendedIds, demoNow]);
 
+  // Scheduled talks whose session is over (shown below upcoming on the Schedule tab)
+  const attendedPast = useMemo(() => {
+    return posters
+      .filter(p => attendedIds.includes(p.id))
+      .filter(p => {
+        const session = (p as unknown as { session?: SessionLike }).session;
+        return sessionTimingAt(session, demoNow) === "past";
+      });
+  }, [posters, attendedIds, demoNow]);
+
   // Conflict detection — per-talk time slices within sessions
   const conflicts = useMemo(() => {
     // Group ALL posters by session to compute per-talk time slices
@@ -339,9 +349,10 @@ export default function MyTalksPage() {
             {/* Schedule section — All tab shows starred+attended, Schedule tab shows attended only */}
             {tab === "all" && renderScheduleSection(allUpcoming, "Upcoming")}
             {tab === "schedule" && renderScheduleSection(attendedUpcoming, "Schedule")}
+            {tab === "schedule" && renderScheduleSection(attendedPast, "Already happened")}
 
             {/* Empty state for schedule tab */}
-            {tab === "schedule" && attendedUpcoming.length === 0 && (
+            {tab === "schedule" && attendedUpcoming.length === 0 && attendedPast.length === 0 && (
               <div className="bg-white rounded-lg border border-gray-200 p-6 text-center text-sm text-gray-500">
                 No talks scheduled. Use the 🪑 icon to mark talks you plan to attend.
               </div>

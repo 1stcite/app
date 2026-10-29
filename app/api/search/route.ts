@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
+import { liveFilter } from "@/app/lib/guards";
+import { getRequireLogin } from "@/app/lib/config";
+import { getSessionUser } from "@/app/lib/auth";
 
 // Ensure text index exists — MongoDB ignores this if index already exists
 async function ensureTextIndex() {
@@ -21,6 +24,12 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // Attendees-only conferences: no session, no search
+    if (await getRequireLogin()) {
+      const viewer = await getSessionUser().catch(() => null);
+      if (!viewer) return NextResponse.json({ error: "Login required" }, { status: 401 });
+    }
+
     const db = await getDb();
 
     const { headers } = await import("next/headers");
@@ -30,6 +39,7 @@ export async function GET(req: NextRequest) {
     const filter: Record<string, any> = {
       $text: { $search: q },
       deletedAt: { $exists: false },
+      ...liveFilter(),
     };
     if (subdomain && subdomain !== "presentrxiv" && subdomain !== "www") {
       const conf = await db.collection("conferences").findOne({ subdomain, active: true });

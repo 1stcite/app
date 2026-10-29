@@ -2,16 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
 import { getSessionUser } from "@/app/lib/auth";
 import { extractPdfText } from "@/app/lib/extractPdfText";
+import { getRequestSourceId, liveFilter } from "@/app/lib/guards";
+import { publicPoster } from "@/app/lib/presenter";
+import { getRequireLogin } from "@/app/lib/config";
 
 export async function GET() {
   try {
+    // Attendees-only conferences: no session, no talk list
+    if (await getRequireLogin()) {
+      const viewer = await getSessionUser().catch(() => null);
+      if (!viewer) return NextResponse.json({ error: "Login required" }, { status: 401 });
+    }
     const db = await getDb();
     // Get conference config from x-subdomain header (set by middleware)
     const { headers } = await import("next/headers");
     const headersList = await headers();
     const subdomain = headersList.get("x-subdomain") ?? process.env.NEXT_PUBLIC_SITE_ID ?? "";
 
-    const filter: Record<string, any> = { deletedAt: { $exists: false } };
+    const filter: Record<string, any> = { deletedAt: { $exists: false }, ...liveFilter() };
     if (subdomain && subdomain !== "presentrxiv" && subdomain !== "www") {
       // Look up sourceId from conferences collection
       const conf = await db.collection("conferences").findOne({ subdomain, active: true });
@@ -35,7 +43,7 @@ export async function GET() {
       sessionsMap = Object.fromEntries(sessions.map(s => [s.id, s]));
     }
     const postersWithSession = posters.map(p => ({
-      ...p,
+      ...publicPoster(p),
       session: p.sessionId ? sessionsMap[p.sessionId] ?? null : null,
     }));
 
@@ -73,11 +81,17 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Login required" }, { status: 401 });
     }
+    // Bulk upload is an organizer tool. Presenters upload through /api/present.
+    if (!user.isAdmin) {
+      return NextResponse.json({ error: "Admin only" }, { status: 403 });
+    }
 
     const db = await getDb();
     const id = Date.now().toString();
 
-    const siteId = process.env.NEXT_PUBLIC_SITE_ID;
+    // Tag the talk with the conference this request came in on (subdomain),
+    // falling back to the deployment default.
+    const siteId = await getRequestSourceId();
 
     const poster = {
       id,

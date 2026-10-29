@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { createSession, SESSION_COOKIE } from "@/app/lib/auth";
+import { createSession, isAdminSignIn, SESSION_COOKIE } from "@/app/lib/auth";
+import { getRequestConference } from "@/app/lib/guards";
+import { codesMatch } from "@/app/lib/presenter";
 
 const EXPECTED = process.env.DEMO_ACCESS_CODE || "";
 
@@ -11,11 +13,17 @@ export async function POST(req: Request) {
   if (!displayName) {
     return NextResponse.json({ error: "Display name required" }, { status: 400 });
   }
-  if (EXPECTED && accessCode !== EXPECTED) {
-    return NextResponse.json({ error: "Invalid access code" }, { status: 401 });
+  // Organizers sign in with a name listed in ADMIN_DISPLAY_NAMES
+  const asAdmin = isAdminSignIn(displayName, accessCode);
+
+  // A conference's own access code wins; otherwise fall back to the global one.
+  const conf = await getRequestConference().catch(() => null);
+  const expected = conf?.accessCode || EXPECTED;
+  if (!asAdmin && expected && !codesMatch(accessCode, expected)) {
+    return NextResponse.json({ error: "That access code doesn't match. Check your registration email." }, { status: 401 });
   }
 
-  const { token, expiresAt } = await createSession(displayName);
+  const { token, expiresAt } = await createSession(displayName, { isAdmin: asAdmin });
 
   const res = NextResponse.json({ ok: true });
 

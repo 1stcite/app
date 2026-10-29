@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
+import { getSessionUser } from "@/app/lib/auth";
+import { publicConference } from "@/app/lib/presenter";
+import { requireAdmin } from "@/app/lib/guards";
 
 export type ConferenceConfig = {
   subdomain: string;
@@ -34,7 +37,9 @@ export async function GET(req: NextRequest) {
     // Return all conferences (for admin use)
     if (all) {
       const conferences = await db.collection("conferences").find({ active: true }).toArray();
-      return NextResponse.json(conferences);
+      // Secrets (access and presenter codes) only go to admins
+      const user = await getSessionUser().catch(() => null);
+      return NextResponse.json(user?.isAdmin ? conferences : conferences.map(c => publicConference(c)));
     }
 
     // Special case: presentrxiv is always the repo
@@ -52,7 +57,7 @@ export async function GET(req: NextRequest) {
     if (subdomain) {
       const conf = await db.collection("conferences").findOne({ subdomain, active: true });
       if (conf) {
-        return NextResponse.json(conf as unknown as ConferenceConfig);
+        return NextResponse.json(publicConference(conf) as unknown as ConferenceConfig);
       }
     }
 
@@ -64,8 +69,23 @@ export async function GET(req: NextRequest) {
 
 // Admin: create or update a conference
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const body = await req.json().catch(() => ({}));
   const { subdomain, name, logo, sessionLabel, sourceId, isRepo } = body;
+
+  // Optional presenter/access settings. Only written when present in the body,
+  // so older admin forms that don't send them leave them untouched.
+  const optional: Record<string, unknown> = {};
+  if (body.requireLogin !== undefined) optional.requireLogin = Boolean(body.requireLogin);
+  if (body.accessCode !== undefined) optional.accessCode = String(body.accessCode).trim();
+  if (body.presenterCode !== undefined) optional.presenterCode = String(body.presenterCode).trim();
+  if (body.presenterUploadsOpen !== undefined) optional.presenterUploadsOpen = Boolean(body.presenterUploadsOpen);
+  if (body.endDate !== undefined) optional.endDate = String(body.endDate).trim();
+  if (body.liveDaysAfter !== undefined) {
+    const n = Number(body.liveDaysAfter);
+    if (Number.isFinite(n) && n >= 0 && n <= 3650) optional.liveDaysAfter = Math.round(n);
+  }
 
   if (!subdomain || !name || !sourceId) {
     return NextResponse.json({ error: "subdomain, name, sourceId required" }, { status: 400 });
@@ -83,6 +103,7 @@ export async function POST(req: NextRequest) {
         sourceId,
         isRepo: isRepo ?? false,
         active: true,
+        ...optional,
         updatedAt: new Date(),
       },
       $setOnInsert: { createdAt: new Date() },

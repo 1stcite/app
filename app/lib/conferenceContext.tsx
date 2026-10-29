@@ -9,6 +9,9 @@ export type ConferenceConfig = {
   sessionLabel?: string;
   sourceId: string;
   isRepo: boolean;
+  accessCodeRequired?: boolean;
+  presenterUploadsOpen?: boolean;
+  endDate?: string;
 };
 
 const DEFAULT: ConferenceConfig = {

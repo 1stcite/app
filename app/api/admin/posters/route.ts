@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
+import { requireAdmin } from "@/app/lib/guards";
 
 // Admin-only route — returns ALL posters regardless of source
 export async function GET() {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const db = await getDb();
   const posters = await db
     .collection("posters")
@@ -14,6 +17,8 @@ export async function GET() {
 
 // Update source tag or sortOrder on a single poster, or bulk reorder
 export async function PATCH(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const body = await req.json().catch(() => ({}));
 
   // Bulk reorder: { reorder: [{id, sortOrder}, ...] }
