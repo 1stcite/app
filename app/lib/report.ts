@@ -31,6 +31,7 @@ export type PresenterReport = {
     at: string;
     kind: "public" | "question";
     replies: number;
+    byPresenter: boolean;
   }[];
   followups: {
     id: string;
@@ -89,15 +90,22 @@ export async function buildPresenterReport(
       .toArray(),
   ]);
 
-  // Questions and comments (private notes excluded; presenter's own posts excluded)
+  // Questions and comments: everything except other people's private notes.
+  // The presenter's own posts are included and flagged.
   const comments = await db
     .collection("comments")
-    .find({ posterId, visibilityType: { $ne: "note" } })
+    .find({
+      posterId,
+      $or: [
+        { visibilityType: { $ne: "note" } },
+        ...(presenterUserId && ObjectId.isValid(presenterUserId) ? [{ userId: new ObjectId(presenterUserId) }] : []),
+      ],
+    })
     .sort({ timestamp: 1 })
     .toArray();
   const isPresenter = (c: Record<string, unknown>) =>
     presenterUserId != null && String(c.userId) === String(presenterUserId);
-  const topLevel = comments.filter((c) => !c.parentId && !isPresenter(c));
+  const topLevel = comments.filter((c) => !c.parentId);
   const replyCount = new Map<string, number>();
   for (const c of comments) {
     if (c.parentId) replyCount.set(String(c.parentId), (replyCount.get(String(c.parentId)) ?? 0) + 1);
@@ -105,6 +113,7 @@ export async function buildPresenterReport(
 
   const questionsBySlide = new Map<number, number>();
   for (const c of topLevel) {
+    if (isPresenter(c)) continue; // slide counts reflect audience questions
     const p = Number(c.page);
     questionsBySlide.set(p, (questionsBySlide.get(p) ?? 0) + 1);
   }
@@ -145,6 +154,7 @@ export async function buildPresenterReport(
       at: iso(c.timestamp) ?? "",
       kind: c.visibilityType === "question" ? "question" : "public",
       replies: replyCount.get(String(c._id)) ?? 0,
+      byPresenter: isPresenter(c),
     })),
     followups: followupDocs.map((f) => ({
       id: String(f._id),

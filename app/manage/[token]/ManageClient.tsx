@@ -47,6 +47,7 @@ export default function ManageClient({ access }: { access: ManageAccess }) {
   const [editAbstract, setEditAbstract] = useState("");
   const [progress, setProgress] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  const formFilled = useRef(false);
 
   const load = useCallback(async () => {
     const r = await fetch(api, { cache: "no-store" });
@@ -57,12 +58,27 @@ export default function ManageClient({ access }: { access: ManageAccess }) {
     }
     setTalk(j.talk);
     setReport(j.report);
-    setEditTitle(j.talk.title);
-    setEditAbstract(j.talk.abstract);
+    // Fill the edit form once, so background refreshes don't overwrite typing
+    if (!formFilled.current) {
+      setEditTitle(j.talk.title);
+      setEditAbstract(j.talk.abstract);
+      formFilled.current = true;
+    }
   }, [api]);
 
+  // Load now, refresh when the tab regains focus and every 30 s,
+  // so new questions and follow-ups appear without a manual reload.
   useEffect(() => {
     load();
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") load();
+    }, 30000);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      clearInterval(t);
+    };
   }, [load]);
 
   async function patch(body: Record<string, unknown>, label: string, done: string) {
@@ -152,7 +168,7 @@ export default function ManageClient({ access }: { access: ManageAccess }) {
   const maxViewers = Math.max(1, ...report.slides.map((s) => s.viewers));
   const live = !talk.takenDown;
   const questionCount = report.questions.length;
-  const unanswered = report.questions.filter((q) => q.replies === 0).length;
+  const unanswered = report.questions.filter((q) => q.replies === 0 && !q.byPresenter).length;
 
   return (
     <main className="min-h-screen bg-gray-50 pb-16">
@@ -246,7 +262,7 @@ export default function ManageClient({ access }: { access: ManageAccess }) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Stat label="Follow-up requests" value={report.followups.length} accent />
           <Stat label="People who opened the deck" value={report.viewers} />
-          <Stat label="Questions" value={questionCount} sub={unanswered ? `${unanswered} unanswered` : undefined} />
+          <Stat label="Questions and comments" value={questionCount} sub={unanswered ? `${unanswered} unanswered` : undefined} />
           <Stat
             label="Interested · attending · saved"
             value={`${report.interested.length} · ${report.attending.length} · ${report.saved.length}`}
@@ -315,10 +331,15 @@ export default function ManageClient({ access }: { access: ManageAccess }) {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-900 whitespace-pre-wrap">{q.text}</p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {q.author} · {fmtDateTime(q.at)}
-                      {q.kind === "question" && " · private to you"}
-                      {" · "}
-                      {q.replies > 0 ? `${q.replies} repl${q.replies === 1 ? "y" : "ies"}` : "not yet answered"}
+                      {q.author}
+                      {q.byPresenter && " (you)"} · {fmtDateTime(q.at)}
+                      {q.kind === "question" && !q.byPresenter && " · private to you"}
+                      {!q.byPresenter && (
+                        <>
+                          {" · "}
+                          {q.replies > 0 ? `${q.replies} repl${q.replies === 1 ? "y" : "ies"}` : "not yet answered"}
+                        </>
+                      )}
                     </p>
                   </div>
                   {live && (
