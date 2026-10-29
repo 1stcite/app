@@ -25,6 +25,26 @@ export default function SlideNotes({
 }) {
   const [text, setText] = useState(note);
   const [status, setStatus] = useState<'idle' | 'dirty' | 'saving' | 'saved'>('idle');
+
+  // Show / hide, remembered on this device. Readers default to shown; presenters
+  // default to shown too, but a slide with no notes starts as a one-line
+  // "Add notes" bar so presenters who don't use notes aren't cluttered.
+  const prefKey = isPresenter ? 'px_notes_open_presenter' : 'px_notes_open_reader';
+  const [pref, setPref] = useState<boolean | null>(null);
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(prefKey);
+      if (v !== null) setPref(v === '1');
+    } catch {}
+  }, [prefKey]);
+  const open = pref ?? (isPresenter ? Boolean(note.trim()) : true);
+  function toggleOpen() {
+    const next = !open;
+    setPref(next);
+    try {
+      localStorage.setItem(prefKey, next ? '1' : '0');
+    } catch {}
+  }
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   // What's pending, and for which slide, so a slide change saves to the right slide
@@ -65,7 +85,7 @@ export default function SlideNotes({
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = `${Math.max(el.scrollHeight, size === 'full' ? 160 : 96)}px`;
-  }, [text, size]);
+  }, [text, size, open]);
 
   // Save on leaving the page
   useEffect(() => {
@@ -84,36 +104,54 @@ export default function SlideNotes({
 
   const trimmed = (text ?? '').trim();
 
-  if (!isPresenter) {
-    if (!trimmed) return null;
-    return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-1.5">From the presenter</p>
-        <div className={`${size === 'full' ? 'text-[15px]' : 'text-sm'} leading-relaxed text-gray-800 whitespace-pre-wrap`}>
-          {text}
-        </div>
-      </div>
-    );
-  }
+  if (!isPresenter && !trimmed) return null;
+
+  const label = isPresenter ? `Your notes for slide ${page}` : 'From the presenter';
+  const textSize = size === 'full' ? 'text-[15px]' : 'text-sm';
+  const statusLabel =
+    status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : status === 'dirty' ? 'Editing…' : 'Visible to attendees';
 
   return (
-    <div className="rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-3">
-      <div className="flex items-center justify-between mb-1.5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-          Your notes for slide {page}
-        </p>
-        <span className="text-xs text-gray-500">
-          {status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : status === 'dirty' ? 'Editing…' : 'Visible to attendees'}
+    <div className="rounded-lg border border-amber-200 bg-amber-50/60">
+      {/* Header: click to show or hide; the choice is remembered on this device */}
+      <button
+        type="button"
+        onClick={toggleOpen}
+        aria-expanded={open}
+        className="w-full flex items-center justify-between gap-3 px-4 py-2 text-left"
+      >
+        <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-700">
+          <svg
+            className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-90' : ''}`}
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden
+          >
+            <path d="M7 5l6 5-6 5V5z" />
+          </svg>
+          {isPresenter && !trimmed && !open ? `Add notes for slide ${page}` : label}
         </span>
-      </div>
-      <textarea
-        ref={taRef}
-        value={text}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={() => void flush()}
-        placeholder="Write what you'd say on this slide. Attendees read it alongside the slide. Saves automatically."
-        className={`w-full resize-none rounded-md border border-amber-200 bg-white px-3 py-2 ${size === 'full' ? 'text-[15px]' : 'text-sm'} leading-relaxed text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300`}
-      />
+        <span className="text-xs text-gray-500">
+          {open ? (isPresenter ? statusLabel : 'Hide') : 'Show'}
+        </span>
+      </button>
+
+      {open && (
+        <div className="px-4 pb-3">
+          {isPresenter ? (
+            <textarea
+              ref={taRef}
+              value={text}
+              onChange={(e) => onChange(e.target.value)}
+              onBlur={() => void flush()}
+              placeholder="Write what you'd say on this slide. Attendees read it alongside the slide. Saves automatically."
+              className={`w-full resize-none rounded-md border border-amber-200 bg-white px-3 py-2 ${textSize} leading-relaxed text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300`}
+            />
+          ) : (
+            <div className={`${textSize} leading-relaxed text-gray-800 whitespace-pre-wrap`}>{text}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
