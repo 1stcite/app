@@ -63,6 +63,18 @@ function hostFor(subdomain: string) {
   return `https://${subdomain}.${m ? m[1] : "1stcite.app"}`;
 }
 
+/** On a Vercel preview, share links that stay on the preview (with ?conf=). */
+function isPreview() {
+  return typeof window !== "undefined" && /\.vercel\.app$|^localhost/.test(window.location.hostname) &&
+    !/^(www\.)?presentrxiv\.vercel\.app$/.test(window.location.hostname);
+}
+
+function shareLink(subdomain: string, path: string, params: Record<string, string>) {
+  const base = isPreview() ? window.location.origin : hostFor(subdomain);
+  const q = new URLSearchParams({ ...params, ...(isPreview() ? { conf: subdomain } : {}) }).toString();
+  return `${base}${path}${q ? `?${q}` : ""}`;
+}
+
 export default function PresentersAdminClient() {
   const [confs, setConfs] = useState<Conference[]>([]);
   const [sub, setSub] = useState("");
@@ -78,7 +90,8 @@ export default function PresentersAdminClient() {
       .then((all: Conference[]) => {
         const list = (Array.isArray(all) ? all : []).filter((c) => !c.isRepo);
         setConfs(list);
-        const here = typeof window !== "undefined" ? window.location.host.split(".")[0] : "";
+        const fromCookie = typeof document !== "undefined" ? (document.cookie.match(/(?:^|; )px_conf=([^;]+)/)?.[1] ?? "") : "";
+        const here = isPreview() ? fromCookie : typeof window !== "undefined" ? window.location.host.split(".")[0] : "";
         const pick = list.find((c) => c.subdomain === here) ?? list[0];
         if (pick) setSub(pick.subdomain);
       })
@@ -146,7 +159,7 @@ export default function PresentersAdminClient() {
       body: JSON.stringify({ posterId }),
     });
     const j = await r.json().catch(() => ({}));
-    if (r.ok && form) setIssued((m) => ({ ...m, [posterId]: `${hostFor(form.subdomain)}${j.manageUrl}` }));
+    if (r.ok && form) setIssued((m) => ({ ...m, [posterId]: shareLink(form.subdomain, j.manageUrl, {}) }));
   }
 
   if (!form) {
@@ -157,9 +170,10 @@ export default function PresentersAdminClient() {
     );
   }
 
-  const base = hostFor(form.subdomain);
-  const presenterLink = form.presenterCode ? `${base}/present?code=${encodeURIComponent(form.presenterCode)}` : "";
-  const attendeeLink = form.accessCode ? `${base}/login?code=${encodeURIComponent(form.accessCode)}` : base;
+  const presenterLink = form.presenterCode ? shareLink(form.subdomain, "/present", { code: form.presenterCode }) : "";
+  const attendeeLink = form.accessCode
+    ? shareLink(form.subdomain, "/login", { code: form.accessCode })
+    : shareLink(form.subdomain, "/", {});
 
   return (
     <main className="min-h-screen bg-gray-50 pb-16">
