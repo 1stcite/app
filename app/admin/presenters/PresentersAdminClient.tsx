@@ -183,7 +183,7 @@ export default function PresentersAdminClient() {
     );
   }
 
-  const presenterLink = form.presenterCode ? shareLink(form.subdomain, "/present", { code: form.presenterCode }) : "";
+  const presenterLink = shareLink(form.subdomain, "/present", form.presenterCode ? { code: form.presenterCode } : {});
   const attendeeLink = form.accessCode
     ? shareLink(form.subdomain, "/login", { code: form.accessCode })
     : shareLink(form.subdomain, "/", {});
@@ -215,14 +215,14 @@ export default function PresentersAdminClient() {
                 Accept presenter uploads
               </label>
               <div>
-                <label className="block text-sm font-medium text-gray-800">Presenter code</label>
+                <label className="block text-sm font-medium text-gray-800">Presenter code (optional)</label>
                 <div className="mt-1 flex gap-2">
-                  <input value={form.presenterCode ?? ""} onChange={(e) => set("presenterCode", e.target.value)} className="input font-mono" placeholder="none: uploads off" />
+                  <input value={form.presenterCode ?? ""} onChange={(e) => set("presenterCode", e.target.value)} className="input font-mono" placeholder="none: anyone with the link can upload" />
                   <button type="button" onClick={() => set("presenterCode", generateCode(form.subdomain.slice(0, 6)))} className="shrink-0 rounded-md border px-3 text-sm">
                     Generate
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">Goes in presenter acceptance emails. Changing it locks out the old one.</p>
+                <p className="mt-1 text-xs text-gray-500">Leave blank for zero-effort sharing. Add one only if uploads need gating.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -265,7 +265,7 @@ export default function PresentersAdminClient() {
 
           <div className="rounded-lg bg-gray-50 border p-4 space-y-2 text-sm">
             <p className="font-medium text-gray-900">Links to share (save settings first)</p>
-            <LinkRow label="Presenters" value={presenterLink || "Set a presenter code to enable"} />
+            <LinkRow label="Presenters" value={form.presenterUploadsOpen === false ? "Uploads are closed" : presenterLink} />
             <LinkRow label="Attendees (QR code)" value={attendeeLink} />
           </div>
         </section>

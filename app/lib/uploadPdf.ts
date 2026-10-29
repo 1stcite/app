@@ -10,7 +10,7 @@ export const MAX_PDF_MB = 40;
  */
 export async function uploadPdf(
   file: File,
-  auth: { presenterCode?: string; manageToken?: string; posterId?: string },
+  auth: { present?: boolean; presenterCode?: string; manageToken?: string; posterId?: string },
   onProgress?: (pct: number) => void
 ): Promise<string> {
   if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") {

@@ -31,6 +31,7 @@ async function getConferenceConfig(subdomain: string): Promise<ConferenceConfig>
     sourceId: subdomain || "1stcite",
     isRepo: false,
     accessCodeRequired: Boolean(process.env.DEMO_ACCESS_CODE),
+    presenterUploadsOpen: false, // no conference record → no presenter uploads
   };
 
   if (!subdomain || subdomain === "1stcite") return DEFAULT;

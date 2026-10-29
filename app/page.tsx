@@ -68,7 +68,7 @@ function groupByTimeSlot(sessions: Session[]): TimeSlot[] {
 }
 
 export default function HomePage() {
-  const { name: LOGO_ALT, logo: LOGO, sourceId: SITE_ID, isRepo: IS_REPO } = useConference();
+  const { name: LOGO_ALT, logo: LOGO, sourceId: SITE_ID, isRepo: IS_REPO, presenterUploadsOpen } = useConference();
   const { posters, loading, starredPosterIds, toggleStar } = usePosters();
   const { now: demoNow } = useDemoClock();
   const [query, setQuery] = useState("");
@@ -185,7 +185,7 @@ export default function HomePage() {
           </div>
 
           {/* Search */}
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <input
               type="search"
               value={query}
@@ -193,6 +193,14 @@ export default function HomePage() {
               placeholder="Search by title, author, or abstract…"
               className="flex-1 min-w-[200px] max-w-xl px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
+            {!IS_REPO && presenterUploadsOpen !== false && (
+              <Link
+                href="/present"
+                className="ml-auto text-sm font-medium text-violet-700 hover:underline whitespace-nowrap"
+              >
+                Presenting? Share your talk →
+              </Link>
+            )}
           {IS_REPO && conferences.length > 0 && (
             <select
               value={conference}

@@ -8,12 +8,13 @@ type Props = {
   conferenceName: string;
   logo: string;
   open: boolean;
+  codeRequired: boolean;
   liveUntilLabel: string | null;
 };
 
 type Stage = "form" | "uploading" | "saving" | "done";
 
-export default function PresentClient({ conferenceName, logo, open, liveUntilLabel }: Props) {
+export default function PresentClient({ conferenceName, logo, open, codeRequired, liveUntilLabel }: Props) {
   const sp = useSearchParams();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -51,7 +52,7 @@ export default function PresentClient({ conferenceName, logo, open, liveUntilLab
     try {
       setStage("uploading");
       setProgress(0);
-      const fileUrl = await uploadPdf(file, { presenterCode }, setProgress);
+      const fileUrl = await uploadPdf(file, { present: true, presenterCode }, setProgress);
 
       setStage("saving");
       const r = await fetch("/api/present", {
@@ -97,8 +98,7 @@ export default function PresentClient({ conferenceName, logo, open, liveUntilLab
         <div className="mx-auto max-w-xl">
           {header}
           <div className="bg-white border rounded-xl p-6 text-gray-700">
-            Presenter uploads aren&apos;t open for this conference right now. If you received a presenter link,
-            check with the organizers.
+            Presenter uploads aren&apos;t open for this conference right now. Please check with the organizers.
           </div>
         </div>
       </main>
@@ -172,7 +172,7 @@ export default function PresentClient({ conferenceName, logo, open, liveUntilLab
           </p>
           <ul className="list-disc pl-5 space-y-1 text-gray-600">
             <li>Optional and free. Upload a trimmed version if some slides shouldn&apos;t leave the room.</li>
-            <li>Visible only to signed-in {conferenceName} attendees.</li>
+            <li>Shared with {conferenceName} attendees on the conference site, not posted elsewhere.</li>
             <li>
               You can replace it or take it down at any time
               {liveUntilLabel ? `. It comes down automatically after ${liveUntilLabel} unless you extend it.` : "."}
@@ -181,16 +181,18 @@ export default function PresentClient({ conferenceName, logo, open, liveUntilLab
         </div>
 
         <form onSubmit={onSubmit} className="bg-white border rounded-xl p-5 space-y-4">
-          <Field label="Presenter code" hint="From your acceptance email">
-            <input
-              value={presenterCode}
-              onChange={(e) => setPresenterCode(e.target.value)}
-              required
-              autoComplete="off"
-              autoCapitalize="none"
-              className="input"
-            />
-          </Field>
+          {codeRequired && (
+            <Field label="Presenter code" hint="From your acceptance email">
+              <input
+                value={presenterCode}
+                onChange={(e) => setPresenterCode(e.target.value)}
+                required
+                autoComplete="off"
+                autoCapitalize="none"
+                className="input"
+              />
+            </Field>
+          )}
 
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label="Your name">

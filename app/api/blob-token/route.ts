@@ -5,7 +5,8 @@
  * body limit). This route only decides whether to issue the upload token.
  * Allowed callers:
  *   - an admin session
- *   - a presenter holding this conference's presenter code (uploads open)
+ *   - a presenter on /present for a conference with uploads open
+ *     (plus the presenter code, if the organizers set one)
  *   - a presenter holding a valid manage-link token (replacing their deck)
  *   - a signed-in presenter replacing the deck of a talk they own (Edit page)
  */
@@ -23,7 +24,7 @@ async function isAuthorized(clientPayload: string | null): Promise<boolean> {
   const user = await getSessionUser().catch(() => null);
   if (user?.isAdmin) return true;
 
-  let payload: { presenterCode?: string; manageToken?: string; posterId?: string } = {};
+  let payload: { present?: boolean; presenterCode?: string; manageToken?: string; posterId?: string } = {};
   try {
     payload = clientPayload ? JSON.parse(clientPayload) : {};
   } catch {
@@ -41,9 +42,10 @@ async function isAuthorized(clientPayload: string | null): Promise<boolean> {
     return Boolean(poster);
   }
 
-  if (payload.presenterCode) {
+  if (payload.present || payload.presenterCode) {
     const conf = await getRequestConference();
     if (!conf || conf.presenterUploadsOpen === false) return false;
+    if (!conf.presenterCode) return true;
     return codesMatch(String(payload.presenterCode), conf.presenterCode);
   }
 

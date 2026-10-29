@@ -10,6 +10,7 @@ export type ConferenceConfig = {
   sourceId: string;
   isRepo: boolean;
   accessCodeRequired?: boolean;
+  presenterUploadsOpen?: boolean;
   endDate?: string;
 };
 

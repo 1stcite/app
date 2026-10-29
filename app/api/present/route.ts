@@ -39,13 +39,14 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
 
   const conf = await getRequestConference();
-  if (!conf || !conf.presenterCode) {
+  if (!conf) {
     return NextResponse.json({ error: "This conference isn't accepting presenter uploads." }, { status: 404 });
   }
   if (conf.presenterUploadsOpen === false) {
     return NextResponse.json({ error: "Presenter uploads are closed for this conference." }, { status: 403 });
   }
-  if (!codesMatch(clip(body.presenterCode, 64), conf.presenterCode)) {
+  // Open by default; a presenter code is only checked if the organizers set one
+  if (conf.presenterCode && !codesMatch(clip(body.presenterCode, 64), conf.presenterCode)) {
     return NextResponse.json({ error: "That presenter code doesn't match. Check your acceptance email." }, { status: 401 });
   }
 

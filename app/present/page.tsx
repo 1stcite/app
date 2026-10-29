@@ -8,7 +8,8 @@ export const metadata = { title: "Share your talk · 1stCite" };
 
 export default async function PresentPage() {
   const conf = await getRequestConference().catch(() => null);
-  const open = Boolean(conf?.presenterCode) && conf?.presenterUploadsOpen !== false;
+  // Open by default for any conference; organizers can close it or add a code.
+  const open = Boolean(conf) && conf?.presenterUploadsOpen !== false;
   const liveUntil = defaultLiveUntil(conf);
 
   return (
@@ -17,6 +18,7 @@ export default async function PresentPage() {
         conferenceName={conf?.name ?? "1stCite"}
         logo={conf?.logo ?? "/1stcite-logo.png"}
         open={open}
+        codeRequired={Boolean(conf?.presenterCode)}
         liveUntilLabel={
           liveUntil
             ? liveUntil.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
