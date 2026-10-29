@@ -40,10 +40,17 @@ export default function InsightsPageClient() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-6xl px-4 md:px-8 py-6 space-y-6">
+        <Link href="/" className="inline-block text-sm text-blue-600 hover:underline">
+          ← Back to the conference
+        </Link>
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            {conf.logo && <img src={conf.logo} alt="" className="h-12 w-auto object-contain" />}
+            {conf.logo && (
+              <Link href="/" title="Back to the conference">
+                <img src={conf.logo} alt="" className="h-12 w-auto object-contain" />
+              </Link>
+            )}
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Organizer insights</p>
               <h1 className="text-2xl font-bold text-gray-900">{conf.name}</h1>

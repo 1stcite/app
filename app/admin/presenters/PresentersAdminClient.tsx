@@ -194,7 +194,8 @@ export default function PresentersAdminClient() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="flex gap-4 text-sm">
-              <Link href="/admin" className="text-blue-600">← Admin</Link>
+              <Link href="/" className="text-blue-600">← Conference</Link>
+              <Link href="/admin" className="text-blue-600">Admin</Link>
               <Link href="/insights" className="text-blue-600">Organizer insights →</Link>
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Presenters &amp; access</h1>
