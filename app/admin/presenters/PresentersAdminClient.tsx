@@ -26,6 +26,7 @@ type Row = {
   presenterEmail?: string;
   selfUploaded: boolean;
   status: "live" | "taken down" | "expired";
+  takenDownBy?: string;
   liveUntil: string | null;
   viewers: number;
   questions: number;
@@ -160,6 +161,18 @@ export default function PresentersAdminClient() {
     });
     const j = await r.json().catch(() => ({}));
     if (r.ok && form) setIssued((m) => ({ ...m, [posterId]: shareLink(form.subdomain, j.manageUrl, {}) }));
+  }
+
+  async function setTakenDown(posterId: string, down: boolean) {
+    if (down && !confirm("Take this talk down? Attendees will no longer see it, and the presenter can't restore it.")) return;
+    const r = down
+      ? await fetch(`/api/posters/${posterId}`, { method: "DELETE" })
+      : await fetch(`/api/posters/${posterId}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ deleted: false }),
+        });
+    if (r.ok && form?.sourceId) loadReport(form.sourceId);
   }
 
   if (!form) {
@@ -299,15 +312,29 @@ export default function PresentersAdminClient() {
                             <input readOnly value={issued[r.id]} onFocus={(e) => e.currentTarget.select()} className="input mt-1 font-mono text-xs" />
                           )}
                         </td>
-                        <td className="py-2 pr-3 whitespace-nowrap text-gray-700">{r.status}</td>
+                        <td className="py-2 pr-3 whitespace-nowrap text-gray-700">
+                          {r.status}
+                          {r.takenDownBy === "presenter" && <div className="text-xs text-gray-500">by presenter</div>}
+                        </td>
                         <td className="py-2 pr-3 text-right tabular-nums">{r.viewers}</td>
                         <td className="py-2 pr-3 text-right tabular-nums">{r.questions}</td>
                         <td className="py-2 pr-3 text-right tabular-nums">{r.followups}</td>
                         <td className="py-2 pr-3 text-right tabular-nums">{r.interested}</td>
-                        <td className="py-2 pr-3 text-right whitespace-nowrap">
+                        <td className="py-2 pr-3 text-right whitespace-nowrap space-x-3">
                           {r.selfUploaded && (
                             <button onClick={() => issueLink(r.id)} className="text-xs text-blue-600 hover:underline">
                               New presenter link
+                            </button>
+                          )}
+                          {r.status === "taken down" ? (
+                            r.takenDownBy === "presenter" ? null : (
+                            <button onClick={() => setTakenDown(r.id, false)} className="text-xs text-emerald-700 hover:underline">
+                              Restore
+                            </button>
+                            )
+                          ) : (
+                            <button onClick={() => setTakenDown(r.id, true)} className="text-xs text-red-600 hover:underline">
+                              Take down
                             </button>
                           )}
                         </td>

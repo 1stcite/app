@@ -48,6 +48,13 @@ export async function PATCH(
   if (body.abstract !== undefined) update.abstract = body.abstract.toString().trim();
   if (body.fileUrl !== undefined) update.fileUrl = body.fileUrl.toString().trim();
 
+  // Organizer restore of a taken-down talk
+  if (body.deleted === false) {
+    if (!user.isAdmin) return NextResponse.json({ error: "Admin only" }, { status: 403 });
+    await db.collection("posters").updateOne({ id }, { $unset: { deletedAt: "", takenDownBy: "" } });
+    if (Object.keys(update).length === 1) return NextResponse.json({ ok: true });
+  }
+
   if (Object.keys(update).length === 1) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }

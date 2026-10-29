@@ -21,6 +21,7 @@ type Row = {
   presenterEmail?: string;
   selfUploaded: boolean;
   status: "live" | "taken down" | "expired";
+  takenDownBy?: string;
   liveUntil: string | null;
   viewers: number;
   questions: number;
@@ -74,6 +75,7 @@ export async function GET(req: NextRequest) {
     presenterEmail: p.presenterEmail,
     selfUploaded: Boolean(p.selfUploaded),
     status: p.deletedAt ? "taken down" : p.liveUntil && p.liveUntil < now ? "expired" : "live",
+    takenDownBy: p.deletedAt ? String(p.takenDownBy ?? "organizer") : undefined,
     liveUntil: p.liveUntil ? new Date(p.liveUntil).toISOString() : null,
     viewers: viewers.get(String(p.id)) ?? 0,
     questions: questions.get(String(p.id)) ?? 0,

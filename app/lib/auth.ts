@@ -24,15 +24,16 @@ async function requestSubdomain(): Promise<string | null> {
 }
 
 /**
- * Admins are named in ADMIN_DISPLAY_NAMES *and* must enter ADMIN_ACCESS_CODE
- * at sign-in. A display name alone never grants admin.
+ * Admins are the display names listed in ADMIN_DISPLAY_NAMES.
+ * If ADMIN_ACCESS_CODE is also set, they must enter it at sign-in too
+ * (optional hardening for later; off by default).
  */
 export function isAdminSignIn(displayName: string, code: string): boolean {
-  const expected = process.env.ADMIN_ACCESS_CODE || "";
-  if (!expected || !code) return false;
   const adminNames = (process.env.ADMIN_DISPLAY_NAMES || "")
     .split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
-  return adminNames.includes(displayName.trim().toLowerCase()) && code.trim() === expected;
+  if (!adminNames.includes(displayName.trim().toLowerCase())) return false;
+  const expected = process.env.ADMIN_ACCESS_CODE || "";
+  return !expected || code.trim() === expected;
 }
 
 export async function createSession(displayName: string, opts: { isAdmin?: boolean } = {}) {

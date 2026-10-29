@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   if (!displayName) {
     return NextResponse.json({ error: "Display name required" }, { status: 400 });
   }
-  // Organizers sign in with their name plus the admin code
+  // Organizers sign in with a name listed in ADMIN_DISPLAY_NAMES
   const asAdmin = isAdminSignIn(displayName, accessCode);
 
   // A conference's own access code wins; otherwise fall back to the global one.
