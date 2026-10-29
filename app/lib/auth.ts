@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import type { NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
 import { ObjectId } from "mongodb";
 import { randomBytes } from "crypto";
@@ -83,4 +84,34 @@ export async function revokeSession() {
     { token, revokedAt: { $exists: false } },
     { $set: { revokedAt: new Date() } }
   );
+}
+
+/**
+ * Create a session for an existing user (used when a presenter opens their
+ * manage link, so they can answer questions as themselves in the viewer).
+ */
+export async function createSessionForUser(userId: ObjectId) {
+  const db = await getDb();
+  const now = new Date();
+  const token = randomBytes(24).toString("base64url");
+  const expiresAt = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 14); // 14 days
+  await db.collection("sessions").insertOne({ token, userId, createdAt: now, expiresAt });
+  return { token, expiresAt };
+}
+
+/** Attach the session cookie to a response. */
+export function setSessionCookie(
+  res: NextResponse,
+  token: string,
+  expiresAt: Date
+) {
+  res.cookies.set({
+    name: SESSION_COOKIE,
+    value: token,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: Math.max(1, Math.floor((expiresAt.getTime() - Date.now()) / 1000)),
+  });
 }

@@ -53,3 +53,10 @@ textarea:focus,
 select:focus {
   outline: none;
 }
+
+/* Shared text-field style for presenter forms */
+@layer components {
+  .input {
+    @apply w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  }
+}
