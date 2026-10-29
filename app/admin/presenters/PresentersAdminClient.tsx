@@ -193,7 +193,10 @@ export default function PresentersAdminClient() {
       <div className="mx-auto max-w-5xl px-4 py-6 space-y-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <Link href="/admin" className="text-sm text-blue-600">← Admin</Link>
+            <div className="flex gap-4 text-sm">
+              <Link href="/admin" className="text-blue-600">← Admin</Link>
+              <Link href="/insights" className="text-blue-600">Organizer insights →</Link>
+            </div>
             <h1 className="text-2xl font-bold text-gray-900">Presenters &amp; access</h1>
           </div>
           <select value={sub} onChange={(e) => setSub(e.target.value)} className="rounded-md border px-3 py-2 text-sm bg-white">
