@@ -211,6 +211,11 @@ export default function PresentersAdminClient() {
 
         {/* Settings */}
         <section className="rounded-xl border bg-white p-5 space-y-5">
+          <div className="max-w-md">
+            <label className="block text-sm font-medium text-gray-800">Conference name</label>
+            <input value={form.name} onChange={(e) => set("name", e.target.value)} className="input mt-1" />
+            <p className="mt-1 text-xs text-gray-500">Shown on the sign-in, upload, presenter and insights pages.</p>
+          </div>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-3">
               <h2 className="font-semibold text-gray-900">Presenter uploads</h2>

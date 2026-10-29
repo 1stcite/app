@@ -8,6 +8,7 @@ import EngagementBadge from "@/app/components/EngagementBadge";
 import TalkRow from "@/app/components/TalkRow";
 import { useConference } from "@/app/lib/conferenceContext";
 import Footer from "@/app/components/Footer";
+import MyPresentations from "@/app/components/MyPresentations";
 import { useDemoClock } from "@/app/lib/demoClock";
 import { sessionTimingAt, type SessionLike } from "@/app/lib/sessionTiming";
 
@@ -329,6 +330,8 @@ export default function MyTalksPage() {
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <div className="container mx-auto px-4 md:px-8 py-4 max-w-6xl">
+
+        <MyPresentations />
 
         {loading ? (
           <div className="text-center py-12">

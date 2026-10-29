@@ -244,7 +244,7 @@ export default function ManageClient({ access }: { access: ManageAccess }) {
           {live ? (
             <button
               onClick={() => {
-                if (confirm("Take your talk down? Attendees will no longer see the deck or its questions. You can restore it later."))
+                if (confirm("Take your talk down? Attendees will no longer see the deck or its questions. You can restore it from this page, or from My Talks. Your report stays available here."))
                   patch({ action: "takedown" }, "takedown", "Your talk is down. Restore it any time.");
               }}
               disabled={!!busy}
