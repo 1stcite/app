@@ -179,6 +179,11 @@ export default function HomePage() {
                 Sign in
               </Link>
             )}
+            {signedIn === true && (
+              <a href="/logout" className="text-sm text-gray-500 hover:text-gray-800 hover:underline whitespace-nowrap shrink-0 mr-2">
+                Sign out
+              </a>
+            )}
             <Link href="/" className="shrink-0">
               <img src={LOGO} alt="" className="h-8 md:h-16 w-auto max-w-[80px] md:max-w-[160px] object-contain" />
             </Link>
