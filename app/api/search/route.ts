@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
+import { liveFilter } from "@/app/lib/guards";
 
 // Ensure text index exists — MongoDB ignores this if index already exists
 async function ensureTextIndex() {
@@ -30,6 +31,7 @@ export async function GET(req: NextRequest) {
     const filter: Record<string, any> = {
       $text: { $search: q },
       deletedAt: { $exists: false },
+      ...liveFilter(),
     };
     if (subdomain && subdomain !== "presentrxiv" && subdomain !== "www") {
       const conf = await db.collection("conferences").findOne({ subdomain, active: true });

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
 import { getRequireLogin } from "@/app/lib/config";
+import { requireAdmin } from "@/app/lib/guards";
 
 export async function GET() {
   const requireLogin = await getRequireLogin();
@@ -8,6 +9,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const body = await req.json().catch(() => ({}));
   const requireLogin = Boolean(body?.requireLogin);
 

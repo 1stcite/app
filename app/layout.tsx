@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { ConferenceProvider, type ConferenceConfig } from "@/app/lib/conferenceContext";
 import { getDb } from "@/app/lib/db";
 import AdminBar from "@/app/components/AdminBar";
+import { publicConference } from "@/app/lib/presenter";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -40,7 +41,13 @@ async function getConferenceConfig(subdomain: string): Promise<ConferenceConfig>
   try {
     const db = await getDb();
     const conf = await db.collection("conferences").findOne({ subdomain, active: true });
-    if (conf) return conf as unknown as ConferenceConfig;
+    if (conf) {
+      // Never ship access/presenter codes to the browser. Strip Mongo's _id too
+      // (an ObjectId can't be passed to a client component).
+      const { _id, ...rest } = publicConference(conf);
+      void _id;
+      return rest as unknown as ConferenceConfig;
+    }
   } catch {}
 
   return DEFAULT;

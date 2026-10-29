@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
 import { extractPdfText } from "@/app/lib/extractPdfText";
+import { requireAdmin } from "@/app/lib/guards";
 
 // Simple secret guard — set REINDEX_SECRET env var on Vercel, pass as ?secret=
 const SECRET = process.env.REINDEX_SECRET ?? "reindex";
@@ -8,6 +9,8 @@ const SECRET = process.env.REINDEX_SECRET ?? "reindex";
 export const maxDuration = 300; // 5 min Vercel timeout
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   if (req.nextUrl.searchParams.get("secret") !== SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

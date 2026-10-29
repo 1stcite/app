@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
+import { requireAdmin } from "@/app/lib/guards";
 
 const SECRET = process.env.REINDEX_SECRET ?? "reindex";
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   if (req.nextUrl.searchParams.get("secret") !== SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

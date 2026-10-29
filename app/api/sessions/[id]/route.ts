@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/app/lib/db";
+import { requireAdmin } from "@/app/lib/guards";
 
 // PATCH — update session
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
   const db = await getDb();
@@ -25,6 +28,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const { id } = await params;
   const db = await getDb();
   await db.collection("sessions").updateOne({ id }, { $set: { deletedAt: new Date() } });
