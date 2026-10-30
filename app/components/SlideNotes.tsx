@@ -82,8 +82,12 @@ export default function SlideNotes({
   useEffect(() => {
     const el = taRef.current;
     if (!el) return;
+    // Grow with the text up to a cap, then scroll inside, so the comments below stay close
+    const cap = Math.round(window.innerHeight * (size === 'full' ? 0.35 : 0.4));
     el.style.height = 'auto';
-    el.style.height = `${Math.max(el.scrollHeight, size === 'full' ? 160 : 96)}px`;
+    const want = Math.max(el.scrollHeight, size === 'full' ? 160 : 96);
+    el.style.height = `${Math.min(want, cap)}px`;
+    el.style.overflowY = want > cap ? 'auto' : 'hidden';
   }, [text, size, open]);
 
   // Save on leaving the page
@@ -108,7 +112,7 @@ export default function SlideNotes({
   const label = isPresenter ? `Your notes for slide ${page}` : 'From the presenter';
   const textSize = size === 'full' ? 'text-[15px]' : 'text-sm';
   // When open, long notes scroll inside the box rather than burying the comments
-  const maxH = size === 'full' ? 'max-h-[60vh]' : 'max-h-[40vh]';
+  const maxH = size === 'full' ? 'max-h-[35vh]' : 'max-h-[40vh]';
   const preview = trimmed.replace(/\s+/g, ' ');
   const statusLabel =
     status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : status === 'dirty' ? 'Editing…' : 'Visible to attendees';
@@ -144,7 +148,7 @@ export default function SlideNotes({
       </button>
 
       {open && (
-        <div className={`px-4 pb-3 ${maxH} overflow-y-auto overscroll-contain`}>
+        <div className={`px-4 pb-3 ${isPresenter ? '' : `${maxH} overflow-y-auto`}`}>
           {isPresenter && (
             <p className="mb-1 text-xs text-gray-500">{statusLabel}</p>
           )}
