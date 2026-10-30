@@ -392,7 +392,12 @@ export default function PresentersAdminClient() {
                             {r.presenterEmail && <> · {r.presenterEmail}</>}
                           </div>
                           {issued[r.id] && (
-                            <input readOnly value={issued[r.id]} onFocus={(e) => e.currentTarget.select()} className="input mt-1 font-mono text-xs" />
+                            <div className="mt-1 flex items-center gap-2">
+                              <input readOnly value={issued[r.id]} onFocus={(e) => e.currentTarget.select()} className="input font-mono text-xs" />
+                              <a href={issued[r.id]} target="_blank" rel="noreferrer" className="shrink-0 text-xs font-medium text-blue-600 hover:underline">
+                                Open
+                              </a>
+                            </div>
                           )}
                         </td>
                         <td className="py-2 pr-3 whitespace-nowrap text-gray-700">
