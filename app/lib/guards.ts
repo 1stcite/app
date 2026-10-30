@@ -40,6 +40,7 @@ export type ConferenceDoc = {
   presenterUploadsOpen?: boolean;
   endDate?: string; // YYYY-MM-DD, last day of the conference
   liveDaysAfter?: number; // how long talks stay live after endDate (default 30)
+  demoInsights?: boolean; // organizer insights show sample data (Before / After) instead of live; default on
 };
 
 /** Subdomain for the current request (set by middleware), or the site default. */

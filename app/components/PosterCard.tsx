@@ -109,6 +109,8 @@ export default function PosterCard({
   const session = (poster as unknown as { session?: SessionLike }).session ?? undefined;
   const timing = sessionTimingAt(session, now ?? new Date());
   const isPast = timing === "past";
+  // On the program but no slides posted yet
+  const awaiting = Boolean((poster as unknown as { awaitingSlides?: boolean }).awaitingSlides);
 
   const starToast = useToast();
   const attendToast = useToast();
@@ -139,9 +141,18 @@ export default function PosterCard({
           <div className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 flex-1 group-hover:text-blue-600 transition-colors">
             {poster.title}
           </div>
-          <EngagementBadge talkId={poster.id} />
+          {!awaiting && <EngagementBadge talkId={poster.id} />}
         </div>
       </Link>
+
+      {awaiting && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          <span className="text-gray-500">Slides not posted yet</span>
+          <Link href={`/present?talk=${encodeURIComponent(poster.id)}`} className="font-medium text-blue-600 hover:underline">
+            Presenting this? Add your slides
+          </Link>
+        </div>
+      )}
 
       <div className="mt-2 flex items-center justify-between gap-2">
         {poster.author ? (

@@ -761,9 +761,6 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                   <div className="truncate text-base font-semibold text-gray-900">{poster.title || 'Untitled'}</div>
                   <div className="flex items-center gap-3">
                     <span className="truncate text-xs text-gray-700">{poster.author ? `by ${poster.author}` : ''}</span>
-                    {canEdit && (
-                      <Link href={`/edit/${poster.id}`} className="text-xs text-blue-500 hover:underline whitespace-nowrap shrink-0">Edit</Link>
-                    )}
                   </div>
                 </div>
               </div>
@@ -797,7 +794,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                 >
                   <DiscIcon filled={librarySaved} color="#2563eb" />
                 </button>
-                {canEdit && (
+                {isPresenter && (
                   <span className="ml-2">
                     <ViewSwitch current="attendee" presenterHref={`/presenter/${posterId}`} />
                   </span>
@@ -859,7 +856,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
       <DiscIcon filled={librarySaved} color="#2563eb" />
     </button>
   </div>
-  {canEdit && (
+  {isPresenter && (
     <div className="w-full">
       <ViewSwitch current="attendee" presenterHref={`/presenter/${posterId}`} compact />
     </div>

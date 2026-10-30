@@ -1,4 +1,5 @@
 'use client';
+import { useConference } from '@/app/lib/conferenceContext';
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
@@ -41,6 +42,7 @@ type Session = {
 };
 
 export default function AdminPage() {
+  const here = useConference();
   const [tab, setTab] = useState<'posters' | 'sessions'>('posters');
   const [posters, setPosters] = useState<Poster[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -236,7 +238,10 @@ export default function AdminPage() {
     const idx = sources.indexOf(source);
     return idx >= 0 ? COLOR_PALETTE[idx % COLOR_PALETTE.length] : 'bg-gray-100 text-gray-500';
   };
-  const conferenceName = (sourceId: string) => conferences.find(c => c.sourceId === sourceId)?.name ?? sourceId;
+  // Several sites can share one set of talks; name it after the site you're on
+  const conferenceName = (sourceId: string) =>
+    (here.sourceId === sourceId && here.name) ||
+    (conferences.find(c => c.sourceId === sourceId)?.name ?? sourceId);
 
   return (
     <div className="min-h-screen bg-gray-50">

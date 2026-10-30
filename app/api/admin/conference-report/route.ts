@@ -20,8 +20,9 @@ type Row = {
   presenterName?: string;
   presenterEmail?: string;
   selfUploaded: boolean;
-  status: "live" | "taken down" | "expired";
+  status: "live" | "taken down" | "expired" | "awaiting slides";
   takenDownBy?: string;
+  excluded: boolean;
   liveUntil: string | null;
   viewers: number;
   questions: number;
@@ -72,10 +73,17 @@ export async function GET(req: NextRequest) {
     title: String(p.title ?? ""),
     author: String(p.author ?? ""),
     presenterName: p.presenterName,
-    presenterEmail: p.presenterEmail,
+    presenterEmail: p.presenterEmail ?? p.scheduledEmail,
     selfUploaded: Boolean(p.selfUploaded),
-    status: p.deletedAt ? "taken down" : p.liveUntil && p.liveUntil < now ? "expired" : "live",
+    status: p.deletedAt
+      ? "taken down"
+      : p.awaitingSlides
+        ? "awaiting slides"
+        : p.liveUntil && p.liveUntil < now
+          ? "expired"
+          : "live",
     takenDownBy: p.deletedAt ? String(p.takenDownBy ?? "organizer") : undefined,
+    excluded: Boolean(p.excludeFromStats),
     liveUntil: p.liveUntil ? new Date(p.liveUntil).toISOString() : null,
     viewers: viewers.get(String(p.id)) ?? 0,
     questions: questions.get(String(p.id)) ?? 0,
@@ -84,7 +92,8 @@ export async function GET(req: NextRequest) {
     saved: saved.get(String(p.id)) ?? 0,
   }));
 
-  const live = rows.filter((r) => r.status === "live");
+  // Totals leave out talks the organizers marked as tests or demos
+  const live = rows.filter((r) => r.status === "live" && !r.excluded);
   const distinct = await db
     .collection("views")
     .aggregate([
@@ -96,6 +105,7 @@ export async function GET(req: NextRequest) {
   const totals = {
     talks: live.length,
     selfUploaded: live.filter((r) => r.selfUploaded).length,
+    awaitingSlides: rows.filter((r) => r.status === "awaiting slides").length,
     distinctViewers: Number(distinct[0]?.n ?? 0), // people (or devices) who opened any deck
     deckOpens: live.reduce((a, r) => a + r.viewers, 0), // summed per talk; one person can count on many talks
     questions: live.reduce((a, r) => a + r.questions, 0),

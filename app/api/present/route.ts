@@ -2,8 +2,13 @@
  * Presenter self-upload.
  *
  * POST /api/present
- *   { presenterCode, name, email, organization?, title, abstract?, fileUrl, consent }
+ *   { presenterCode, name, email, organization?, title, abstract?, fileUrl, consent, talkId? }
  * → { posterId, manageUrl }
+ *
+ * With talkId, the slides attach to that talk on the program (imported by
+ * the organizers, with no slides yet). Without it, a new unscheduled talk is
+ * created. A program slot can be claimed only once; after that only its
+ * presenter (via their link) or the organizers can change it.
  *
  * The PDF has already been uploaded straight to Blob storage via
  * /api/blob-token. This route checks the conference's presenter code,
@@ -77,8 +82,55 @@ export async function POST(req: NextRequest) {
   });
 
   const token = newManageToken();
-  const id = `${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, "0")}`;
   const liveUntil = defaultLiveUntil(conf);
+
+  // Slides for a talk already on the program
+  const talkId = clip(body.talkId, 64);
+  if (talkId) {
+    const claimed = await db.collection("posters").findOneAndUpdate(
+      {
+        id: talkId,
+        source: conf.sourceId,
+        awaitingSlides: true,
+        deletedAt: { $exists: false },
+      },
+      {
+        $set: {
+          title,
+          author: organization ? `${name}, ${organization}` : name,
+          presenterName: name,
+          presenterOrg: organization || undefined,
+          presenterEmail: email,
+          presenterUserId: userRes.insertedId.toString(),
+          fileUrl,
+          uploadedAt: now,
+          selfUploaded: true,
+          manageTokenHash: hashToken(token),
+          ...(liveUntil ? { liveUntil } : {}),
+          ...(abstract ? { abstract, textContent: abstract, textIndexedAt: now } : {}),
+        },
+        $unset: { awaitingSlides: "" },
+      },
+      { returnDocument: "after" }
+    );
+    if (!claimed) {
+      await db.collection("users").deleteOne({ _id: userRes.insertedId });
+      return NextResponse.json(
+        {
+          error:
+            "Slides for that talk have already been posted. If it's your talk, ask the organizers for your presenter link.",
+        },
+        { status: 409 }
+      );
+    }
+    reindexPdfInBackground(talkId, fileUrl);
+    const session = await createSessionForUser(userRes.insertedId);
+    const res = NextResponse.json({ posterId: talkId, manageUrl: `/manage/${token}` }, { status: 201 });
+    setSessionCookie(res, session.token, session.expiresAt);
+    return res;
+  }
+
+  const id = `${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, "0")}`;
 
   const poster = {
     id,

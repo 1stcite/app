@@ -34,7 +34,7 @@ export function codesMatch(given: string, expected: string | undefined | null): 
 }
 
 /** Fields that must never leave the server in a public poster payload. */
-const PRIVATE_POSTER_FIELDS = ["manageTokenHash", "presenterEmail"] as const;
+const PRIVATE_POSTER_FIELDS = ["manageTokenHash", "presenterEmail", "scheduledEmail"] as const;
 
 export function publicPoster<T extends Record<string, unknown>>(poster: T): T {
   const copy: Record<string, unknown> = { ...poster };

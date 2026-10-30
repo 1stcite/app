@@ -1,6 +1,9 @@
 /**
- * Organizer insights for the current conference (subdomain).
- * GET /api/admin/insights?mode=sample|live  (admin only)
+ * Organizer insights for the current conference (subdomain). Admin only.
+ *
+ * Demo conferences (the default) show sample data:
+ *   GET /api/admin/insights?when=before|after
+ * Real conferences (demoInsights off) show live data as of now.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -16,8 +19,9 @@ export async function GET(req: NextRequest) {
   const conf = await getRequestConference();
   if (!conf) return NextResponse.json({ error: "Open this page on a conference site." }, { status: 404 });
 
-  const mode = req.nextUrl.searchParams.get("mode") === "live" ? "live" : "sample";
-  const data =
-    mode === "live" ? await liveInsights(conf.sourceId, conf.name) : await sampleInsights(conf.sourceId, conf.name);
-  return NextResponse.json(data);
+  if (conf.demoInsights === false) {
+    return NextResponse.json(await liveInsights(conf.sourceId, conf.name, new Date()));
+  }
+  const when = req.nextUrl.searchParams.get("when") === "before" ? "before" : "after";
+  return NextResponse.json(await sampleInsights(conf.sourceId, conf.name, when));
 }

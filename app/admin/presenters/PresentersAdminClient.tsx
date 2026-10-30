@@ -16,6 +16,7 @@ type Conference = {
   presenterUploadsOpen?: boolean;
   endDate?: string;
   liveDaysAfter?: number;
+  demoInsights?: boolean;
 };
 
 type Row = {
@@ -25,8 +26,9 @@ type Row = {
   presenterName?: string;
   presenterEmail?: string;
   selfUploaded: boolean;
-  status: "live" | "taken down" | "expired";
+  status: "live" | "taken down" | "expired" | "awaiting slides";
   takenDownBy?: string;
+  excluded?: boolean;
   liveUntil: string | null;
   viewers: number;
   questions: number;
@@ -39,6 +41,7 @@ type Report = {
   totals: {
     talks: number;
     selfUploaded: number;
+    awaitingSlides?: number;
     distinctViewers: number;
     deckOpens: number;
     questions: number;
@@ -76,6 +79,13 @@ function shareLink(subdomain: string, path: string, params: Record<string, strin
   return `${base}${path}${q ? `?${q}` : ""}`;
 }
 
+type ProgramPreview = {
+  rows: number;
+  sessions: number;
+  undated: number;
+  preview: { session: string; date: string; start: string; title: string; speaker: string }[];
+};
+
 type Intro = {
   id: string;
   posterId: string;
@@ -96,6 +106,11 @@ export default function PresentersAdminClient() {
   const [report, setReport] = useState<Report | null>(null);
   const [issued, setIssued] = useState<Record<string, string>>({});
   const [intros, setIntros] = useState<Intro[]>([]);
+  const [programText, setProgramText] = useState("");
+  const [programPreview, setProgramPreview] = useState<ProgramPreview | null>(null);
+  const [programMsg, setProgramMsg] = useState<string | null>(null);
+  const [programBusy, setProgramBusy] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/conference?all=1")
@@ -135,6 +150,52 @@ export default function PresentersAdminClient() {
     }
   }, [form?.sourceId, loadReport, loadIntros]);
 
+  async function sendProgram(dryRun: boolean) {
+    if (!form) return;
+    setProgramBusy(true);
+    setProgramMsg(null);
+    try {
+      const r = await fetch("/api/admin/import-program", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sourceId: form.sourceId, text: programText, dryRun }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j?.error || "Import failed");
+      if (dryRun) {
+        setProgramPreview(j);
+      } else {
+        setProgramPreview(null);
+        setProgramText("");
+        setProgramMsg(
+          `Added ${j.talksCreated} talk${j.talksCreated === 1 ? "" : "s"} and ${j.sessionsCreated} session${
+            j.sessionsCreated === 1 ? "" : "s"
+          }${j.talksUpdated ? `; updated ${j.talksUpdated}` : ""}. Presenters can now find their talk and add slides.`
+        );
+        loadReport(form.sourceId);
+      }
+    } catch (e) {
+      setProgramMsg(e instanceof Error ? e.message : "Import failed");
+    } finally {
+      setProgramBusy(false);
+    }
+  }
+
+  async function readProgramFile(f: File | undefined) {
+    if (!f) return;
+    setProgramText(await f.text());
+    setProgramPreview(null);
+  }
+
+  async function copyUploadLink(id: string) {
+    if (!form) return;
+    try {
+      await navigator.clipboard.writeText(shareLink(form.subdomain, "/present", { talk: id }));
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {}
+  }
+
   async function markIntro(id: string, done: boolean) {
     setIntros((list) => list.map((i) => (i.id === id ? { ...i, doneAt: done ? new Date().toISOString() : null } : i)));
     await fetch("/api/admin/intros", {
@@ -169,6 +230,7 @@ export default function PresentersAdminClient() {
           presenterUploadsOpen: form.presenterUploadsOpen !== false,
           endDate: form.endDate ?? "",
           liveDaysAfter: form.liveDaysAfter ?? 30,
+          demoInsights: form.demoInsights !== false,
         }),
       });
       if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || "Save failed");
@@ -190,6 +252,15 @@ export default function PresentersAdminClient() {
     });
     const j = await r.json().catch(() => ({}));
     if (r.ok && form) setIssued((m) => ({ ...m, [posterId]: shareLink(form.subdomain, j.manageUrl, {}) }));
+  }
+
+  async function setExcluded(posterId: string, excluded: boolean) {
+    await fetch(`/api/posters/${posterId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ excludeFromStats: excluded }),
+    }).catch(() => {});
+    if (form) loadReport(form.sourceId);
   }
 
   async function setTakenDown(posterId: string, down: boolean) {
@@ -276,6 +347,22 @@ export default function PresentersAdminClient() {
             </div>
 
             <div className="space-y-3">
+              <h2 className="font-semibold text-gray-900">Organizer insights</h2>
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={form.demoInsights !== false}
+                  onChange={(e) => set("demoInsights", e.target.checked)}
+                />
+                <span>
+                  Demo: show sample data (Before / After)
+                  <span className="block text-xs text-gray-500">Turn off for a real conference to show live data.</span>
+                </span>
+              </label>
+            </div>
+
+            <div className="space-y-3">
               <h2 className="font-semibold text-gray-900">Attendee access</h2>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={Boolean(form.requireLogin)} onChange={(e) => set("requireLogin", e.target.checked)} />
@@ -307,6 +394,78 @@ export default function PresentersAdminClient() {
             <LinkRow label="Attendees (QR code)" value={attendeeLink} />
           </div>
         </section>
+
+        {/* Program import */}
+        {form && (
+          <section className="rounded-xl border bg-white p-5 space-y-3">
+            <div>
+              <h2 className="font-semibold text-gray-900">Program</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Load the schedule and every talk appears on the conference site. Presenters find their talk and add
+                slides to it. One row per talk, with column names in the first row: Session, Date, Start, End, Room,
+                Title, Speaker, Organization, Email, Type (talk or poster). Only Title is required; emails are never
+                shown to attendees. Re-importing is safe and never touches talks that already have slides.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="text-sm text-blue-600 hover:underline cursor-pointer">
+                Choose a CSV file
+                <input type="file" accept=".csv,.tsv,.txt,text/csv" className="hidden" onChange={(e) => readProgramFile(e.target.files?.[0])} />
+              </label>
+              <span className="text-xs text-gray-500">or paste rows copied from a spreadsheet</span>
+            </div>
+            <textarea
+              value={programText}
+              onChange={(e) => {
+                setProgramText(e.target.value);
+                setProgramPreview(null);
+              }}
+              rows={5}
+              placeholder={"Session\tDate\tStart\tEnd\tRoom\tTitle\tSpeaker\tOrganization\tEmail"}
+              className="input font-mono text-xs"
+            />
+            {programPreview && (
+              <div className="rounded-lg border bg-gray-50 p-3 text-sm space-y-2">
+                <p className="text-gray-800">
+                  {programPreview.rows} talks in {programPreview.sessions} sessions.
+                  {programPreview.undated > 0 && (
+                    <span className="text-amber-700"> {programPreview.undated} have no date I could read.</span>
+                  )}
+                </p>
+                <ul className="text-xs text-gray-600 space-y-0.5">
+                  {programPreview.preview.map((r, i) => (
+                    <li key={i} className="truncate">
+                      {[r.date, r.start, r.session].filter(Boolean).join(" · ")}
+                      {(r.date || r.start || r.session) && " — "}
+                      <span className="text-gray-900">{r.title}</span>
+                      {r.speaker && <> ({r.speaker})</>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-3">
+              {!programPreview ? (
+                <button
+                  onClick={() => sendProgram(true)}
+                  disabled={programBusy || !programText.trim()}
+                  className="rounded-md border px-3 py-1.5 text-sm font-medium text-gray-800 disabled:opacity-50"
+                >
+                  Check
+                </button>
+              ) : (
+                <button
+                  onClick={() => sendProgram(false)}
+                  disabled={programBusy}
+                  className="rounded-md bg-blue-600 text-white px-3 py-1.5 text-sm font-medium disabled:opacity-50"
+                >
+                  Import {programPreview.rows} talks
+                </button>
+              )}
+              {programMsg && <span className="text-sm text-gray-700">{programMsg}</span>}
+            </div>
+          </section>
+        )}
 
         {/* Introduction requests */}
         {form && (
@@ -358,7 +517,15 @@ export default function PresentersAdminClient() {
           <section className="rounded-xl border bg-white p-5 space-y-4">
             <h2 className="font-semibold text-gray-900">Conference report</h2>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <Tile label="Live talks" value={report.totals.talks} sub={`${report.totals.selfUploaded} presenter-uploaded`} />
+              <Tile
+                label="Live talks"
+                value={report.totals.talks}
+                sub={
+                  report.totals.awaitingSlides
+                    ? `${report.totals.awaitingSlides} on the program without slides`
+                    : `${report.totals.selfUploaded} presenter-uploaded`
+                }
+              />
               <Tile label="People who opened a deck" value={report.totals.distinctViewers} />
               <Tile label="Deck opens (people × talks)" value={report.totals.deckOpens} />
               <Tile label="Questions" value={report.totals.questions} />
@@ -382,7 +549,12 @@ export default function PresentersAdminClient() {
                 </thead>
                 <tbody>
                   {[...report.rows]
-                    .sort((a, b) => b.followups - a.followups || b.viewers - a.viewers)
+                    .sort(
+                      (a, b) =>
+                        Number(a.status === "awaiting slides") - Number(b.status === "awaiting slides") ||
+                        b.followups - a.followups ||
+                        b.viewers - a.viewers
+                    )
                     .map((r) => (
                       <tr key={r.id} className="border-b last:border-0 align-top">
                         <td className="py-2 pr-3">
@@ -403,6 +575,7 @@ export default function PresentersAdminClient() {
                         <td className="py-2 pr-3 whitespace-nowrap text-gray-700">
                           {r.status}
                           {r.takenDownBy === "presenter" && <div className="text-xs text-gray-500">by presenter</div>}
+                          {r.excluded && <div className="text-xs text-amber-700">test talk, not counted</div>}
                         </td>
                         <td className="py-2 pr-3 text-right tabular-nums">{r.viewers}</td>
                         <td className="py-2 pr-3 text-right tabular-nums">{r.questions}</td>
@@ -412,6 +585,20 @@ export default function PresentersAdminClient() {
                           {r.selfUploaded && (
                             <button onClick={() => issueLink(r.id)} className="text-xs text-blue-600 hover:underline">
                               New presenter link
+                            </button>
+                          )}
+                          {r.status !== "awaiting slides" && (
+                            <button
+                              onClick={() => setExcluded(r.id, !r.excluded)}
+                              className="text-xs text-gray-600 hover:underline"
+                              title="Test and demo talks stay on the site but are left out of the numbers and insights"
+                            >
+                              {r.excluded ? "Count in stats" : "Mark as test"}
+                            </button>
+                          )}
+                          {r.status === "awaiting slides" && (
+                            <button onClick={() => copyUploadLink(r.id)} className="text-xs text-blue-600 hover:underline">
+                              {copiedId === r.id ? "Copied" : "Copy upload link"}
                             </button>
                           )}
                           {r.status === "taken down" ? (

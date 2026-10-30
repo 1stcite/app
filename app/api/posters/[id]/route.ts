@@ -48,6 +48,15 @@ export async function PATCH(
   if (body.abstract !== undefined) update.abstract = body.abstract.toString().trim();
   if (body.fileUrl !== undefined) update.fileUrl = body.fileUrl.toString().trim();
 
+  // Organizer: keep a test or demo talk out of the conference numbers
+  if (typeof body.excludeFromStats === "boolean") {
+    if (!user.isAdmin) return NextResponse.json({ error: "Admin only" }, { status: 403 });
+    await db
+      .collection("posters")
+      .updateOne({ id }, body.excludeFromStats ? { $set: { excludeFromStats: true } } : { $unset: { excludeFromStats: "" } });
+    if (Object.keys(update).length === 1 && body.deleted === undefined) return NextResponse.json({ ok: true });
+  }
+
   // Organizer restore of a taken-down talk
   if (body.deleted === false) {
     if (!user.isAdmin) return NextResponse.json({ error: "Admin only" }, { status: 403 });
@@ -67,7 +76,8 @@ export async function PATCH(
 
   if (!result) return NextResponse.json({ error: "Poster not found" }, { status: 404 });
   if (update.fileUrl && update.fileUrl !== existing.fileUrl) {
-    await db.collection("posters").updateOne({ id }, { $unset: { numPages: "" } });
+    // An organizer adding slides to a program slot fills it
+    await db.collection("posters").updateOne({ id }, { $unset: { numPages: "", awaitingSlides: "" } });
     reindexPdfInBackground(id, String(update.fileUrl));
   } else if (update.abstract !== undefined) {
     await rebuildTextContent(id);

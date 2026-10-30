@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
   if (body.presenterCode !== undefined) optional.presenterCode = String(body.presenterCode).trim();
   if (body.presenterUploadsOpen !== undefined) optional.presenterUploadsOpen = Boolean(body.presenterUploadsOpen);
   if (body.endDate !== undefined) optional.endDate = String(body.endDate).trim();
+  if (body.demoInsights !== undefined) optional.demoInsights = Boolean(body.demoInsights);
   if (body.liveDaysAfter !== undefined) {
     const n = Number(body.liveDaysAfter);
     if (Number.isFinite(n) && n >= 0 && n <= 3650) optional.liveDaysAfter = Math.round(n);
