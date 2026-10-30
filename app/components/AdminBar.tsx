@@ -50,6 +50,18 @@ export default function AdminBar() {
     }
   }, []);
 
+  // The insights page reports whether it's showing demo data; the Before /
+  // After switch then sits right here with the other buttons.
+  const [insights, setInsights] = useState<{ sample: boolean; when: "before" | "after" } | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => setInsights((e as CustomEvent).detail);
+    window.addEventListener("px:insights", on);
+    return () => window.removeEventListener("px:insights", on);
+  }, []);
+  useEffect(() => {
+    if (!/^\/insights(\/|$)/.test(pathname ?? "")) setInsights(null);
+  }, [pathname]);
+
   if (!me?.isAdmin) return null;
   if (pathname?.startsWith("/login")) return null;
 
@@ -103,7 +115,26 @@ export default function AdminBar() {
     ].join(" ");
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 rounded-xl shadow-lg border border-gray-700 bg-gray-900 flex items-center gap-1 px-1.5 py-1.5">
+    <div className="fixed bottom-4 right-4 z-50 rounded-xl shadow-lg border border-gray-700 bg-gray-900 flex flex-col items-stretch gap-1 px-1.5 py-1.5">
+      {onInsights && insights?.sample && (
+        <div className="flex items-center gap-1 pb-1 mb-0.5 border-b border-gray-700">
+          <span className="px-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Sample</span>
+          {(["before", "after"] as const).map((w) => (
+            <button
+              key={w}
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("px:insights-when", { detail: w }))}
+              className={[
+                "flex-1 px-3 py-1 rounded-md text-xs font-semibold transition-colors",
+                insights.when === w ? "bg-yellow-400 text-yellow-950" : "text-gray-200 border border-gray-600 hover:bg-gray-800",
+              ].join(" ")}
+            >
+              {w === "before" ? "Before" : "After"}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex items-center gap-1">
       <button type="button" onClick={goAttendee} disabled={busy} className={btn(onAttendee)}>
         Attendee view
       </button>
@@ -119,6 +150,7 @@ export default function AdminBar() {
       >
         ✕
       </button>
+      </div>
     </div>
   );
 }

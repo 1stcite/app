@@ -38,9 +38,22 @@ export default function InsightsPageClient() {
   }, [when, load]);
   const isSample = data?.mode === 'sample';
 
+  // The Before / After switch lives in the admin bar at the bottom of the screen
+  useEffect(() => {
+    const on = (e: Event) => {
+      const w = (e as CustomEvent).detail;
+      if (w === 'before' || w === 'after') setWhen(w);
+    };
+    window.addEventListener('px:insights-when', on);
+    return () => window.removeEventListener('px:insights-when', on);
+  }, []);
+  useEffect(() => {
+    if (data) window.dispatchEvent(new CustomEvent('px:insights', { detail: { sample: data.mode === 'sample', when } }));
+  }, [data, when]);
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-6xl px-4 md:px-8 py-6 space-y-6">
+      <div className="mx-auto max-w-6xl px-4 md:px-8 pt-6 pb-28 space-y-6">
         <Link href="/" className="inline-block text-sm text-blue-600 hover:underline">
           ← Back to the conference
         </Link>
@@ -58,29 +71,14 @@ export default function InsightsPageClient() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {isSample && (
-              <div className="inline-flex rounded-lg bg-gray-200 p-0.5 text-sm font-medium" role="tablist" aria-label="When">
-                {(['before', 'after'] as const).map((w) => (
-                  <button
-                    key={w}
-                    type="button"
-                    role="tab"
-                    aria-selected={when === w}
-                    onClick={() => setWhen(w)}
-                    className={`px-3 py-1.5 rounded-md ${when === w ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
-                  >
-                    {w === 'before' ? 'Before' : 'After'}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
         {isSample && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             <strong>Sample data</strong> for your program&apos;s talks and sessions, as you would see it the morning the
-            conference opens (Before) and a month after it ends (After).
+            conference opens (Before) and a month after it ends (After). Switch between them in the box at the bottom
+            right.
           </div>
         )}
 
