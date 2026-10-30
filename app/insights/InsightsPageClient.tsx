@@ -119,8 +119,7 @@ function Dashboard({ data }: { data: Insights }) {
         <Tile value={fmt(t.people)} label="People who opened a talk" sub={`${fmt(t.deckOpens)} deck opens in all`} />
         <Tile
           value={pct(t.outsideSessionShare)}
-          label="Of deck opens by people not in the room"
-          sub="talks reaching beyond their session"
+          label="Deck opens by people not in the session"
         />
         <Tile value={fmt(t.questions)} label="Questions on slides" sub={`${fmt(t.saves)} talks saved to libraries`} />
       </section>
@@ -128,12 +127,10 @@ function Dashboard({ data }: { data: Insights }) {
       {/* Long tail */}
       <section className="rounded-xl border bg-white p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
-          <h2 className="text-base font-semibold text-gray-900">
-            {lastDay ? `The conference didn't end on ${lastDay}` : 'Activity by day'}
-          </h2>
+          <h2 className="text-base font-semibold text-gray-900">Attendee engagement over time</h2>
           <p className="text-sm text-gray-600">
-            <strong className="text-gray-900">{pct(t.activityAfterShare)}</strong> of activity came after the conference,
-            on {t.daysActiveAfter} of the 30 days that followed
+            After the conference{lastDay ? ` (ended ${lastDay})` : ''}:{' '}
+            <strong className="text-gray-900">{pct(t.activityAfterShare)}</strong> of activity
           </p>
         </div>
         <p className="text-xs text-gray-500 mb-4">Slide views, questions and contact requests per day</p>
@@ -143,7 +140,7 @@ function Dashboard({ data }: { data: Insights }) {
       <div className="grid lg:grid-cols-5 gap-6">
         {/* Top talks */}
         <section className="lg:col-span-3 rounded-xl border bg-white p-5">
-          <h2 className="text-base font-semibold text-gray-900 mb-1">Talks that started conversations</h2>
+          <h2 className="text-base font-semibold text-gray-900 mb-1">Top talks</h2>
           <p className="text-xs text-gray-500 mb-3">Ranked by contact requests, then people reached</p>
           <TopTalks data={data} />
         </section>
