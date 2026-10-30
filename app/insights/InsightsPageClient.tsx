@@ -136,23 +136,24 @@ function Dashboard({ data }: { data: Insights }) {
         <>
           {/* Headline numbers */}
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <Tile value={fmt(t.people)} label="People who opened a talk" sub={`${fmt(t.deckOpens)} deck opens in all`} />
             <Tile
-              value={fmt(t.scheduled)}
-              label="Talks added to schedules"
-              sub={`${fmt(t.stars)} stars · ${fmt(t.saves)} saves`}
+              label="Total talks / posters"
+              value={`${fmt(t.program.talks)} / ${fmt(t.program.posters)}`}
             />
-            <Tile value={fmt(t.questions)} label="Questions on slides" />
-            {phase === 'after' ? (
-              <Tile
-                accent
-                value={fmt(t.followups)}
-                label="Attendees asking presenters to contact them"
-                sub={`across ${fmt(t.talksWithFollowups)} of ${fmt(t.talks)} talks`}
-              />
-            ) : (
-              <Tile accent value={fmt(t.followups)} label="Contact requests to presenters" />
-            )}
+            <Tile
+              label="Uploaded talks / posters"
+              value={`${fmt(t.program.uploadedTalks)} / ${fmt(t.program.uploadedPosters)}`}
+              sub={
+                t.program.talks + t.program.posters
+                  ? `${pct((t.program.uploadedTalks + t.program.uploadedPosters) / (t.program.talks + t.program.posters))} of the program`
+                  : undefined
+              }
+            />
+            <Tile label="Viewers / talks viewed" value={`${fmt(t.people)} / ${fmt(t.deckOpens)}`} />
+            <Tile
+              label="Comments: general / private / contacts"
+              value={`${fmt(t.commentsPublic)} / ${fmt(t.commentsPrivate)} / ${fmt(t.followups)}`}
+            />
           </section>
 
           {/* Over time */}

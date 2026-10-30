@@ -32,7 +32,8 @@ export type InsightsTalk = {
   done: boolean; // its session has ended as of asOf
   viewers: number; // distinct people who opened the deck
   outsideSession: number; // of those, people who weren't in the room (didn't mark attending)
-  questions: number;
+  questions: number; // all questions and comments to the presenter
+  privateNotes: number; // of those, private notes only the presenter sees
   followups: number; // contact requests
   saves: number;
   stars: number;
@@ -69,6 +70,9 @@ export type Insights = {
   totals: {
     talks: number;
     talksDone: number;
+    program: { talks: number; posters: number; uploadedTalks: number; uploadedPosters: number };
+    commentsPublic: number;
+    commentsPrivate: number;
     people: number; // distinct people who opened at least one deck
     deckOpens: number;
     outsideSessionShare: number; // 0..1 of deck opens by people not in the room
@@ -111,7 +115,16 @@ function at(date?: string, time?: string): number | null {
   return Number.isNaN(ms) ? null : ms;
 }
 
-type PosterRow = { id: string; title: string; author: string; sessionId?: string; talkStart?: string; talkEnd?: string };
+type PosterRow = {
+  id: string;
+  title: string;
+  author: string;
+  sessionId?: string;
+  talkStart?: string;
+  talkEnd?: string;
+  isPoster: boolean;
+  awaiting: boolean; // on the program, no slides yet
+};
 type SessionRow = { id: string; name: string; date?: string; startTime?: string; endTime?: string };
 
 /** `withSlidesOnly`: live numbers skip program slots that have no slides yet;
@@ -128,7 +141,7 @@ async function loadConference(sourceId: string, withSlidesOnly = false) {
           excludeFromStats: { $ne: true },
           ...(withSlidesOnly ? { awaitingSlides: { $ne: true } } : {}),
         },
-        { projection: { id: 1, title: 1, author: 1, sessionId: 1, talkStart: 1, talkEnd: 1 } }
+        { projection: { id: 1, title: 1, author: 1, sessionId: 1, talkStart: 1, talkEnd: 1, talkType: 1, awaitingSlides: 1 } }
       )
       .toArray(),
     db
@@ -147,6 +160,8 @@ async function loadConference(sourceId: string, withSlidesOnly = false) {
     sessionId: x.sessionId ? String(x.sessionId) : undefined,
     talkStart: x.talkStart ? String(x.talkStart) : undefined,
     talkEnd: x.talkEnd ? String(x.talkEnd) : undefined,
+    isPoster: x.talkType === "poster",
+    awaiting: Boolean(x.awaitingSlides),
   }));
   const s: SessionRow[] = sessions.map((x) => ({
     id: String(x.id),
@@ -205,6 +220,17 @@ function dayAxis(clock: Clock) {
   return out;
 }
 
+function programCounts(posters: PosterRow[], uploaded: (p: PosterRow) => boolean) {
+  const talks = posters.filter((p) => !p.isPoster);
+  const posterRows = posters.filter((p) => p.isPoster);
+  return {
+    talks: talks.length,
+    posters: posterRows.length,
+    uploadedTalks: talks.filter(uploaded).length,
+    uploadedPosters: posterRows.filter(uploaded).length,
+  };
+}
+
 function assemble(
   mode: Insights["mode"],
   conferenceName: string,
@@ -213,7 +239,8 @@ function assemble(
   sessionsAll: SessionRow[],
   sessionOf: Map<string, string | undefined>,
   people: number,
-  days: InsightsDay[]
+  days: InsightsDay[],
+  program: Insights["totals"]["program"]
 ): Insights {
   const sum = (list: InsightsTalk[], f: (t: InsightsTalk) => number) => list.reduce((a, t) => a + f(t), 0);
   const deckOpens = sum(talks, (t) => t.viewers);
@@ -270,6 +297,9 @@ function assemble(
     totals: {
       talks: talks.length,
       talksDone: done.length,
+      program,
+      commentsPublic: sum(talks, (t) => t.questions - t.privateNotes),
+      commentsPrivate: sum(talks, (t) => t.privateNotes),
       people,
       deckOpens,
       outsideSessionShare: deckOpens ? outside / deckOpens : 0,
@@ -338,12 +368,18 @@ export async function sampleInsights(
   // views, questions and contact requests mostly come later.
   const pre = { views: preShare, questions: preShare * 0.7, contacts: preShare * 0.3, saves: 0.4, stars: 0.8, scheduled: 0.85 };
   const f = (k: keyof typeof pre) => (when === "before" ? pre[k] : 1);
+  // About 70% of presenters have uploaded by opening day, 85% a month later.
+  // Talks without slides still collect stars and schedules from the program.
+  const uploadedBy = (p: PosterRow, w: "before" | "after") => seeded(`${p.id}:up`) < (w === "before" ? 0.7 : 0.85);
+  const uploaded = (p: PosterRow) => uploadedBy(p, when);
   const talks: InsightsTalk[] = posters.map((p) => {
     const r = (k: string) => seeded(`${p.id}:${k}`);
+    const up = uploaded(p) ? 1 : 0;
     const viewers = Math.round(35 + Math.pow(r("v"), 1.8) * 260);
     const stars = Math.round(viewers * (0.15 + r("st") * 0.3));
     const times = talkTimes(p, sessionById, clock);
-    const seen = Math.round(viewers * f("views"));
+    const seen = Math.round(viewers * f("views") * up);
+    const questions = Math.round(viewers * (0.01 + r("q") * 0.05) * f("questions") * up);
     return {
       id: p.id,
       title: p.title,
@@ -353,15 +389,18 @@ export async function sampleInsights(
       done: when === "after",
       viewers: seen,
       outsideSession: Math.round(seen * (0.45 + r("o") * 0.3)),
-      questions: Math.round(viewers * (0.01 + r("q") * 0.05) * f("questions")),
-      followups: Math.round(viewers * (0.01 + Math.pow(r("f"), 2) * 0.07) * f("contacts")),
-      saves: Math.round(viewers * (0.08 + r("s") * 0.17) * f("saves")),
+      questions,
+      privateNotes: Math.round(questions * (0.3 + r("pn") * 0.25)),
+      followups: Math.round(viewers * (0.01 + Math.pow(r("f"), 2) * 0.07) * f("contacts") * up),
+      saves: Math.round(viewers * (0.08 + r("s") * 0.17) * f("saves") * up),
       stars: Math.round(stars * f("stars")),
       scheduled: Math.round(stars * (0.35 + r("sc") * 0.45) * f("scheduled")),
     };
   });
 
-  const lifetimeOpens = posters.reduce((a, p) => a + Math.round(35 + Math.pow(seeded(`${p.id}:v`), 1.8) * 260), 0);
+  const lifetimeOpens = posters
+    .filter((p) => uploadedBy(p, "after"))
+    .reduce((a, p) => a + Math.round(35 + Math.pow(seeded(`${p.id}:v`), 1.8) * 260), 0);
   const deckOpens = talks.reduce((a, t) => a + t.viewers, 0);
   const people = Math.min(640, Math.round(deckOpens / 6.5));
 
@@ -375,14 +414,14 @@ export async function sampleInsights(
   });
 
   const sessionOf = new Map(posters.map((p) => [p.id, p.sessionId]));
-  return assemble("sample", conferenceName, clock, talks, sessions, sessionOf, people, days);
+  return assemble("sample", conferenceName, clock, talks, sessions, sessionOf, people, days, programCounts(posters, uploaded));
 }
 
 /* ── Live: recorded events up to asOf ───────────────────────────────── */
 
 export async function liveInsights(sourceId: string, conferenceName: string, asOfIn: Date): Promise<Insights> {
   const db = await getDb();
-  const { posters, sessions } = await loadConference(sourceId, true);
+  const [{ posters, sessions }, whole] = await Promise.all([loadConference(sourceId, true), loadConference(sourceId)]);
   const ids = posters.map((p) => p.id);
   const sessionById = new Map(sessions.map((s) => [s.id, s]));
   const clock = clockFor(sessions, asOfIn);
@@ -397,7 +436,7 @@ export async function liveInsights(sourceId: string, conferenceName: string, asO
     return new Map(rows.map((r) => [String(r._id), Number(r.n)]));
   };
 
-  const [viewerRows, attendRows, questions, followups, saves, stars, distinct] = await Promise.all([
+  const [viewerRows, attendRows, questions, privateNotes, followups, saves, stars, distinct] = await Promise.all([
     db
       .collection("views")
       .aggregate([
@@ -410,6 +449,7 @@ export async function liveInsights(sourceId: string, conferenceName: string, asO
       .find({ posterId: { $in: ids }, ...upTo("createdAt") }, { projection: { posterId: 1, userId: 1 } })
       .toArray(),
     countBy("comments", { visibilityType: { $ne: "note" }, parentId: { $exists: false }, ...upTo("timestamp") }),
+    countBy("comments", { visibilityType: "question", parentId: { $exists: false }, ...upTo("timestamp") }),
     countBy("followups", { withdrawnAt: { $exists: false }, ...upTo("createdAt") }),
     countBy("library", upTo("createdAt")),
     countBy("stars", upTo("createdAt")),
@@ -447,6 +487,7 @@ export async function liveInsights(sourceId: string, conferenceName: string, asO
       viewers: viewers.get(p.id) ?? 0,
       outsideSession: outside.get(p.id) ?? 0,
       questions: questions.get(p.id) ?? 0,
+      privateNotes: privateNotes.get(p.id) ?? 0,
       followups: followups.get(p.id) ?? 0,
       saves: saves.get(p.id) ?? 0,
       stars: stars.get(p.id) ?? 0,
@@ -482,5 +523,5 @@ export async function liveInsights(sourceId: string, conferenceName: string, asO
   }));
 
   const sessionOf = new Map(posters.map((p) => [p.id, p.sessionId]));
-  return assemble("live", conferenceName, clock, talks, sessions, sessionOf, Number(distinct[0]?.n ?? 0), days);
+  return assemble("live", conferenceName, clock, talks, sessions, sessionOf, Number(distinct[0]?.n ?? 0), days, programCounts(whole.posters, (p) => !p.awaiting));
 }
