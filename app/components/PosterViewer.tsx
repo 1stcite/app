@@ -19,7 +19,6 @@ import { sessionTimingAt, type SessionLike } from '@/app/lib/sessionTiming';
 import { StarIcon, ChairIcon, DiscIcon } from '@/app/components/EngagementIcons';
 import { useAttend } from '@/app/lib/useAttend';
 import { useLibrary } from '@/app/lib/useLibrary';
-import FollowUpButton from '@/app/components/FollowUpButton';
 import ViewSwitch from '@/app/components/ViewSwitch';
 import SlideNotes from '@/app/components/SlideNotes';
 
@@ -544,7 +543,7 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
 
   async function addComment(targetPage: number, text: string, visibilityType: VisibilityType) {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed) return false;
 
     const res = await fetch('/api/comments', {
       method: 'POST',
@@ -559,16 +558,17 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
 
     if (res.status === 401) {
       alert('Please log in to comment.');
-      return;
+      return false;
     }
 
     if (!res.ok) {
       alert('Failed to save comment');
-      return;
+      return false;
     }
 
     const saved = await res.json();
     setComments((prev) => [...prev, { ...saved, timestamp: new Date(saved.timestamp) }]);
+    return true;
   }
 
   //Set up isMobileLandscape indicator variable
@@ -802,15 +802,6 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
                     <ViewSwitch current="attendee" presenterHref={`/presenter/${posterId}`} />
                   </span>
                 )}
-                {!isPresenter && (
-                  <span className="ml-1.5">
-                    <FollowUpButton
-                      posterId={posterId}
-                      presenterName={poster.presenterName}
-                      signedIn={Boolean(sessionUserId)}
-                    />
-                  </span>
-                )}
               </div>
 
               {!sessionUserId && !loadingComments && (
@@ -868,21 +859,9 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
       <DiscIcon filled={librarySaved} color="#2563eb" />
     </button>
   </div>
-  {(canEdit || !isPresenter) && (
-    <div className="w-full flex items-center justify-between gap-2">
-  {canEdit ? (
-    <ViewSwitch current="attendee" presenterHref={`/presenter/${posterId}`} compact />
-  ) : <span />}
-  {!isPresenter && (
-    <div>
-      <FollowUpButton
-        posterId={posterId}
-        presenterName={poster.presenterName}
-        signedIn={Boolean(sessionUserId)}
-        compact
-      />
-    </div>
-  )}
+  {canEdit && (
+    <div className="w-full">
+      <ViewSwitch current="attendee" presenterHref={`/presenter/${posterId}`} compact />
     </div>
   )}
 </div>
@@ -1026,10 +1005,21 @@ export default function PosterViewer({ posterId }: { posterId: string }) {
             page={composerPage}
             numPages={numPages}
             initialText={composerInitialText}
+            posterId={posterId}
+            presenterName={poster?.presenterName}
+            allowContact={!isPresenter}
             onClose={() => setComposerOpen(false)}
-            onSubmit={async ({ text, visibilityType }) => {
-              await addComment(composerPage, text, visibilityType);
-              setComposerOpen(false);
+            onSubmit={async ({ text, visibilityType, contactEmail }) => {
+              const ok = await addComment(composerPage, text, visibilityType);
+              if (ok && contactEmail) {
+                // Share contact details with the presenter alongside the question
+                await fetch('/api/followups', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ posterId, email: contactEmail, note: text }),
+                }).catch(() => {});
+              }
+              if (ok) setComposerOpen(false);
             }}
           />
         )}

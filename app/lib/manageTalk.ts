@@ -5,6 +5,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
 import type { WithId, Document } from "mongodb";
 import { getDb } from "@/app/lib/db";
 import { publicPoster } from "@/app/lib/presenter";
@@ -43,9 +44,16 @@ export async function manageData(poster: WithId<Document>, opts: { forOrganizer?
       role: undefined,
       note: undefined,
     }));
+    // Private notes to the presenter stay private: organizers see that they exist, not what they say
+    report.questions = report.questions.map((q) =>
+      q.kind === "question" && !q.byPresenter
+        ? { ...q, author: "Attendee", text: "Private note to the presenter", contactEmail: undefined }
+        : { ...q, contactEmail: undefined }
+    );
   }
   const pub = publicPoster(poster);
   return NextResponse.json({
+    viewer: opts.forOrganizer ? "organizer" : "presenter",
     talk: {
       id: pub.id,
       title: pub.title,
@@ -113,6 +121,42 @@ export async function applyManagePatch(
       unset.deletedAt = "";
       unset.takenDownBy = "";
       break;
+    }
+    case "intro": {
+      // The presenter asks the organizer to introduce them to someone who
+      // asked a question but didn't share contact details.
+      if (by !== "presenter") {
+        return NextResponse.json({ error: "Only the presenter can request an introduction." }, { status: 403 });
+      }
+      const commentId = String(body.commentId ?? "");
+      if (!ObjectId.isValid(commentId)) return NextResponse.json({ error: "Question not found." }, { status: 400 });
+      const db = await getDb();
+      const c = await db.collection("comments").findOne({ _id: new ObjectId(commentId), posterId: poster.id });
+      if (!c || !c.userId) return NextResponse.json({ error: "Question not found." }, { status: 404 });
+      if (String(c.userId) === String(poster.presenterUserId)) {
+        return NextResponse.json({ error: "That's your own post." }, { status: 400 });
+      }
+      const now = new Date();
+      await db.collection("intros").updateOne(
+        { posterId: poster.id, attendeeUserId: c.userId },
+        {
+          $set: {
+            posterId: poster.id,
+            source: poster.source ?? null,
+            talkTitle: String(poster.title ?? ""),
+            presenterName: String(poster.presenterName ?? poster.author ?? ""),
+            presenterEmail: String(poster.presenterEmail ?? ""),
+            attendeeUserId: c.userId,
+            attendeeName: String(c.author ?? "Attendee"),
+            page: Number(c.page ?? 0),
+            updatedAt: now,
+          },
+          $setOnInsert: { createdAt: now },
+          $unset: { doneAt: "" },
+        },
+        { upsert: true }
+      );
+      return NextResponse.json({ ok: true });
     }
     case "extend": {
       if (!poster.liveUntil) {

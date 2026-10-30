@@ -26,10 +26,9 @@ export default function SlideNotes({
   const [text, setText] = useState(note);
   const [status, setStatus] = useState<'idle' | 'dirty' | 'saving' | 'saved'>('idle');
 
-  // Show / hide, remembered on this device. Readers default to shown; presenters
-  // default to shown too, but a slide with no notes starts as a one-line
-  // "Add notes" bar so presenters who don't use notes aren't cluttered.
-  const prefKey = isPresenter ? 'px_notes_open_presenter' : 'px_notes_open_reader';
+  // Show / hide, remembered on this device. Collapsed by default for everyone,
+  // so a long note never pushes the comments out of view.
+  const prefKey = isPresenter ? 'px_notes_open_presenter_v2' : 'px_notes_open_reader_v2';
   const [pref, setPref] = useState<boolean | null>(null);
   useEffect(() => {
     try {
@@ -37,7 +36,7 @@ export default function SlideNotes({
       if (v !== null) setPref(v === '1');
     } catch {}
   }, [prefKey]);
-  const open = pref ?? (isPresenter ? Boolean(note.trim()) : true);
+  const open = pref ?? false;
   function toggleOpen() {
     const next = !open;
     setPref(next);
@@ -83,8 +82,12 @@ export default function SlideNotes({
   useEffect(() => {
     const el = taRef.current;
     if (!el) return;
+    // Grow with the text up to a cap, then scroll inside, so the comments below stay close
+    const cap = Math.round(window.innerHeight * (size === 'full' ? 0.35 : 0.4));
     el.style.height = 'auto';
-    el.style.height = `${Math.max(el.scrollHeight, size === 'full' ? 160 : 96)}px`;
+    const want = Math.max(el.scrollHeight, size === 'full' ? 160 : 96);
+    el.style.height = `${Math.min(want, cap)}px`;
+    el.style.overflowY = want > cap ? 'auto' : 'hidden';
   }, [text, size, open]);
 
   // Save on leaving the page
@@ -108,6 +111,9 @@ export default function SlideNotes({
 
   const label = isPresenter ? `Your notes for slide ${page}` : 'From the presenter';
   const textSize = size === 'full' ? 'text-[15px]' : 'text-sm';
+  // When open, long notes scroll inside the box rather than burying the comments
+  const maxH = size === 'full' ? 'max-h-[35vh]' : 'max-h-[40vh]';
+  const preview = trimmed.replace(/\s+/g, ' ');
   const statusLabel =
     status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : status === 'dirty' ? 'Editing…' : 'Visible to attendees';
 
@@ -120,24 +126,32 @@ export default function SlideNotes({
         aria-expanded={open}
         className="w-full flex items-center justify-between gap-3 px-4 py-2 text-left"
       >
-        <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-700">
+        <span className="min-w-0 flex items-center gap-2">
           <svg
-            className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-90' : ''}`}
+            className={`h-3.5 w-3.5 shrink-0 text-amber-700 transition-transform ${open ? 'rotate-90' : ''}`}
             viewBox="0 0 20 20"
             fill="currentColor"
             aria-hidden
           >
             <path d="M7 5l6 5-6 5V5z" />
           </svg>
-          {isPresenter && !trimmed && !open ? `Add notes for slide ${page}` : label}
+          <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-amber-700">
+            {isPresenter && !trimmed && !open ? `Add notes for slide ${page}` : label}
+          </span>
+          {!open && preview && (
+            <span className="min-w-0 truncate text-xs text-gray-500">{preview}</span>
+          )}
         </span>
-        <span className="text-xs text-gray-500">
-          {open ? (isPresenter ? statusLabel : 'Hide') : 'Show'}
+        <span className="shrink-0 rounded-full border border-amber-300 bg-white px-2 py-0.5 text-xs font-medium text-amber-800">
+          {open ? 'Hide' : isPresenter && !trimmed ? 'Add' : 'Show'}
         </span>
       </button>
 
       {open && (
-        <div className="px-4 pb-3">
+        <div className={`px-4 pb-3 ${isPresenter ? '' : `${maxH} overflow-y-auto`}`}>
+          {isPresenter && (
+            <p className="mb-1 text-xs text-gray-500">{statusLabel}</p>
+          )}
           {isPresenter ? (
             <textarea
               ref={taRef}

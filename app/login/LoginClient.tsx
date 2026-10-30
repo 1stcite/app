@@ -42,7 +42,11 @@ export default function LoginClient() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-xl shadow-sm border p-6 space-y-5">
         <div className="flex items-center gap-3">
-          {conf.logo && <img src={conf.logo} alt="" className="h-10 w-auto object-contain" />}
+          {conf.logo && (
+            <a href="/" title="Back to the conference">
+              <img src={conf.logo} alt="" className="h-10 w-auto object-contain" />
+            </a>
+          )}
           <div>
             <h1 className="text-xl font-semibold text-gray-900">{conf.name}</h1>
             <p className="text-sm text-gray-500">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import SlideNotes from './SlideNotes';
 
 export type Comment = {
@@ -166,13 +166,43 @@ export default function CommentsPanel({
   const repliesFor = (parentId: string) =>
     replies.filter((r) => r.parentId === parentId);
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const showNotes = !hideNotes && !!onSaveNote && (!!isPresenter || !!(slideNote && slideNote.trim()));
+
+  // Jump past the presenter notes to the comments
+  function goToComments() {
+    const sc = scrollRef.current;
+    const list = listRef.current;
+    if (!sc || !list) return;
+    if (sc.scrollHeight > sc.clientHeight) {
+      sc.scrollTo({ top: Math.max(0, list.offsetTop - 8), behavior: 'smooth' });
+    } else {
+      list.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
   return (
     <div className="h-full min-h-0 flex flex-col">
       {/* Header */}
       <div className="shrink-0 border-b bg-white px-3 py-2 flex items-center justify-between">
-        <div className="text-sm font-semibold text-gray-800">
-          Comments <span className="text-gray-500 font-normal">({topLevel.length})</span>
-        </div>
+        {showNotes ? (
+          <button
+            type="button"
+            onClick={goToComments}
+            className="flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:underline"
+            title="Skip past the presenter's notes to the comments"
+          >
+            Comments <span className="text-gray-500 font-normal">({topLevel.length})</span>
+            <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+              <path d="M10 14l-5-6h10l-5 6z" />
+            </svg>
+          </button>
+        ) : (
+          <div className="text-sm font-semibold text-gray-800">
+            Comments <span className="text-gray-500 font-normal">({topLevel.length})</span>
+          </div>
+        )}
         <button
           type="button"
           onClick={onOpenAdd}
@@ -184,11 +214,12 @@ export default function CommentsPanel({
 
       {/* Scroll area — presenter notes appear as first item, then comments */}
       <div
-        className="flex-1 min-h-0 overflow-y-auto px-3 py-2"
+        ref={scrollRef}
+        className="relative flex-1 min-h-0 overflow-y-auto px-3 py-2"
         style={{ scrollbarGutter: 'stable', overflowAnchor: 'none' }}
       >
         {/* Presenter notes (shown here on phones; on desktop they sit under the slide) */}
-        {!hideNotes && onSaveNote && (isPresenter || (slideNote && slideNote.trim())) && (
+        {showNotes && onSaveNote && (
           <div className="mb-3">
             <SlideNotes
               page={page}
@@ -200,6 +231,7 @@ export default function CommentsPanel({
           </div>
         )}
 
+        <div ref={listRef} />
         {loading ? (
           <div className="text-sm text-gray-600">Loading…</div>
         ) : topLevel.length === 0 ? (

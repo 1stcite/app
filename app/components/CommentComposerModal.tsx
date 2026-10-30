@@ -11,6 +11,9 @@ export default function CommentComposerModal({
   numPages,
   mode,
   initialText,
+  posterId,
+  presenterName,
+  allowContact = false,
   onClose,
   onSubmit,
 }: {
@@ -19,21 +22,61 @@ export default function CommentComposerModal({
   numPages: number;
   mode: 'add' | 'edit';
   initialText?: string;
+  posterId?: string;
+  presenterName?: string;
+  /** Offer "contact me" on questions to the presenter (not for the presenter themselves). */
+  allowContact?: boolean;
   onClose: () => void;
-  onSubmit: (payload: { text: string; visibilityType: VisibilityType }) => Promise<void> | void;
+  onSubmit: (payload: {
+    text: string;
+    visibilityType: VisibilityType;
+    contactEmail?: string;
+  }) => Promise<void> | void;
 }) {
   
   const [draft, setDraft] = useState(initialText ?? '');
   const [visibilityType, setVisibilityType] = useState<VisibilityType>('public');
+  const [contactMe, setContactMe] = useState(false);
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
- 
-  
+
+  const who = presenterName || 'the presenter';
+  const showContact = allowContact && mode === 'add' && visibilityType === 'question';
+
   useEffect(() => {
     if (!open) return;
     setDraft(initialText ?? '');
+    setError(null);
+    setContactMe(false);
     if (mode === 'add') setVisibilityType('public');
     setTimeout(() => textareaRef.current?.focus(), 0);
   }, [open, page, mode, initialText]);
+
+  // Pre-fill the email this person last shared with a presenter
+  useEffect(() => {
+    if (!open || !allowContact || !posterId || email) return;
+    fetch(`/api/followups?posterId=${encodeURIComponent(posterId)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => {
+        if (j?.prefill?.email) setEmail(j.prefill.email);
+      })
+      .catch(() => {});
+  }, [open, allowContact, posterId, email]);
+
+  function submit() {
+    const text = draft.trim();
+    if (!text) return;
+    if (showContact && contactMe) {
+      const e = email.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+        setError('Enter your email so ' + who + ' can reach you.');
+        return;
+      }
+      return onSubmit({ text, visibilityType, contactEmail: e });
+    }
+    return onSubmit({ text, visibilityType });
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -41,12 +84,12 @@ export default function CommentComposerModal({
       if (e.key === 'Escape') onClose();
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
-        if (draft.trim()) onSubmit({ text: draft.trim(), visibilityType });
+        submit();
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, draft, visibilityType, onClose, onSubmit]);
+  });
 
   if (!open) return null;
 
@@ -84,7 +127,7 @@ focus:ring-blue-500/30
 "
             >
               <option value="note">Note (only me)</option>
-              <option value="question">Question (me + presenter)</option>
+              <option value="question">Private to {who}</option>
               <option value="public">Public (everyone)</option>
             </select>
           </div>
@@ -110,9 +153,41 @@ focus:ring-blue-500/30
     resize-none
   "
   rows={3}
-  placeholder="Write a comment..."
+  placeholder={visibilityType === 'question' ? `Write to ${who}...` : 'Write a comment...'}
 />
-     
+
+          {showContact && (
+            <div className="mt-3 rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+              <label className="flex items-start gap-2 text-sm text-gray-900">
+                <input
+                  type="checkbox"
+                  checked={contactMe}
+                  onChange={(e) => setContactMe(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  Ask {who} to contact me
+                  <span className="block text-xs text-gray-600">
+                    Your email goes only to {who}, never to other attendees.
+                  </span>
+                </span>
+              </label>
+              {contactMe && (
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  autoComplete="email"
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                />
+              )}
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-2 text-sm text-red-600">{error}</div>
+          )}
 
           <div className="mt-3 flex items-center justify-between gap-2">
             <div className="text-xs text-gray-700">
@@ -120,7 +195,7 @@ focus:ring-blue-500/30
             </div>
 
             <button
-              onClick={() => onSubmit({ text: draft.trim(), visibilityType })}
+              onClick={submit}
               disabled={!draft.trim()}
               className="px-4 py-2 bg-green-600 text-white rounded disabled:bg-gray-300"
             >
