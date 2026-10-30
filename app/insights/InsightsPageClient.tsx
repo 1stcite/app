@@ -74,9 +74,6 @@ export default function InsightsPageClient() {
                 ))}
               </div>
             )}
-            <Link href="/admin/presenters" className="text-sm text-blue-600 hover:underline whitespace-nowrap">
-              Presenters &amp; access →
-            </Link>
           </div>
         </div>
 

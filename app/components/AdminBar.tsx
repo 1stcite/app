@@ -11,9 +11,9 @@ type Me = {
 };
 
 /**
- * Floating bar for organizers: Attendee view · Admin · Insights.
- * "Attendee view" previews the site as attendees see it; Admin or Insights
- * returns to the organizer view.
+ * Floating bar for organizers: Attendee view · Admin insights.
+ * Attendee view opens the presentations page as attendees see it;
+ * Admin insights opens the organizer dashboard.
  */
 export default function AdminBar() {
   const pathname = usePathname();
@@ -53,7 +53,6 @@ export default function AdminBar() {
   if (!me?.isAdmin) return null;
   if (pathname?.startsWith("/login")) return null;
 
-  const inAttendeeMode = me.viewMode === "attendee";
 
   async function setViewMode(next: "admin" | "attendee") {
     if (!me || me.viewMode === next) return true;
@@ -71,13 +70,10 @@ export default function AdminBar() {
     }
   }
 
+  /** The presentations page, as attendees see it. */
   async function goAttendee() {
-    if (inAttendeeMode) return;
     if (!(await setViewMode("attendee"))) return;
-    // Organizer-only pages have no attendee version: go to the conference
-    const organizerOnly = /^\/(insights|admin|upload|edit)(\/|$)/.test(window.location.pathname);
-    if (organizerOnly) window.location.href = "/";
-    else window.location.reload();
+    window.location.href = "/";
   }
 
   async function goOrganizer(path: string) {
@@ -98,8 +94,8 @@ export default function AdminBar() {
     );
   }
 
-  const onAdmin = !inAttendeeMode && /^\/admin(\/|$)/.test(pathname ?? "");
-  const onInsights = !inAttendeeMode && /^\/insights(\/|$)/.test(pathname ?? "");
+  const onAttendee = !/^\/insights(\/|$)/.test(pathname ?? "");
+  const onInsights = !onAttendee;
   const btn = (active: boolean) =>
     [
       "px-3 py-1 rounded-md text-xs font-medium transition-colors disabled:opacity-50",
@@ -108,14 +104,11 @@ export default function AdminBar() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50 rounded-xl shadow-lg border border-gray-700 bg-gray-900 flex items-center gap-1 px-1.5 py-1.5">
-      <button type="button" onClick={goAttendee} disabled={busy} className={btn(inAttendeeMode)} title="See the site as attendees do">
+      <button type="button" onClick={goAttendee} disabled={busy} className={btn(onAttendee)}>
         Attendee view
       </button>
-      <button type="button" onClick={() => goOrganizer("/admin")} disabled={busy} className={btn(onAdmin)}>
-        Admin
-      </button>
       <button type="button" onClick={() => goOrganizer("/insights")} disabled={busy} className={btn(onInsights)}>
-        Insights
+        Admin insights
       </button>
       <button
         type="button"
