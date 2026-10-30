@@ -86,7 +86,7 @@ async function loadConference(sourceId: string, withSlidesOnly = false) {
     db
       .collection("posters")
       .find(
-        { source: sourceId, deletedAt: { $exists: false }, ...(withSlidesOnly ? { awaitingSlides: { $ne: true } } : {}) },
+        { source: sourceId, deletedAt: { $exists: false }, excludeFromStats: { $ne: true }, ...(withSlidesOnly ? { awaitingSlides: { $ne: true } } : {}) },
         { projection: { id: 1, title: 1, author: 1, sessionId: 1, fileUrl: 1 } }
       )
       .toArray(),

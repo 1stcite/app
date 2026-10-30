@@ -22,6 +22,7 @@ type Row = {
   selfUploaded: boolean;
   status: "live" | "taken down" | "expired" | "awaiting slides";
   takenDownBy?: string;
+  excluded: boolean;
   liveUntil: string | null;
   viewers: number;
   questions: number;
@@ -82,6 +83,7 @@ export async function GET(req: NextRequest) {
           ? "expired"
           : "live",
     takenDownBy: p.deletedAt ? String(p.takenDownBy ?? "organizer") : undefined,
+    excluded: Boolean(p.excludeFromStats),
     liveUntil: p.liveUntil ? new Date(p.liveUntil).toISOString() : null,
     viewers: viewers.get(String(p.id)) ?? 0,
     questions: questions.get(String(p.id)) ?? 0,
@@ -90,7 +92,8 @@ export async function GET(req: NextRequest) {
     saved: saved.get(String(p.id)) ?? 0,
   }));
 
-  const live = rows.filter((r) => r.status === "live");
+  // Totals leave out talks the organizers marked as tests or demos
+  const live = rows.filter((r) => r.status === "live" && !r.excluded);
   const distinct = await db
     .collection("views")
     .aggregate([

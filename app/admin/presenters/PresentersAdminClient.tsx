@@ -27,6 +27,7 @@ type Row = {
   selfUploaded: boolean;
   status: "live" | "taken down" | "expired" | "awaiting slides";
   takenDownBy?: string;
+  excluded?: boolean;
   liveUntil: string | null;
   viewers: number;
   questions: number;
@@ -249,6 +250,15 @@ export default function PresentersAdminClient() {
     });
     const j = await r.json().catch(() => ({}));
     if (r.ok && form) setIssued((m) => ({ ...m, [posterId]: shareLink(form.subdomain, j.manageUrl, {}) }));
+  }
+
+  async function setExcluded(posterId: string, excluded: boolean) {
+    await fetch(`/api/posters/${posterId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ excludeFromStats: excluded }),
+    }).catch(() => {});
+    if (form) loadReport(form.sourceId);
   }
 
   async function setTakenDown(posterId: string, down: boolean) {
@@ -547,6 +557,7 @@ export default function PresentersAdminClient() {
                         <td className="py-2 pr-3 whitespace-nowrap text-gray-700">
                           {r.status}
                           {r.takenDownBy === "presenter" && <div className="text-xs text-gray-500">by presenter</div>}
+                          {r.excluded && <div className="text-xs text-amber-700">test talk, not counted</div>}
                         </td>
                         <td className="py-2 pr-3 text-right tabular-nums">{r.viewers}</td>
                         <td className="py-2 pr-3 text-right tabular-nums">{r.questions}</td>
@@ -556,6 +567,15 @@ export default function PresentersAdminClient() {
                           {r.selfUploaded && (
                             <button onClick={() => issueLink(r.id)} className="text-xs text-blue-600 hover:underline">
                               New presenter link
+                            </button>
+                          )}
+                          {r.status !== "awaiting slides" && (
+                            <button
+                              onClick={() => setExcluded(r.id, !r.excluded)}
+                              className="text-xs text-gray-600 hover:underline"
+                              title="Test and demo talks stay on the site but are left out of the numbers and insights"
+                            >
+                              {r.excluded ? "Count in stats" : "Mark as test"}
                             </button>
                           )}
                           {r.status === "awaiting slides" && (
