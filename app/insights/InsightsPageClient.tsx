@@ -101,7 +101,7 @@ function Dashboard({ data }: { data: Insights }) {
   if (data.mode === 'live' && t.people === 0 && t.questions === 0 && t.followups === 0) {
     return (
       <div className="rounded-xl border bg-white p-8 text-center text-gray-600">
-        No attendee activity yet. This fills in as people open talks, ask questions and request follow-ups.
+        No attendee activity yet. This fills in as people open talks, ask questions and ask presenters to contact them.
       </div>
     );
   }
@@ -113,7 +113,7 @@ function Dashboard({ data }: { data: Insights }) {
         <Tile
           accent
           value={fmt(t.followups)}
-          label="Follow-up requests to presenters"
+          label="Attendees asking presenters to contact them"
           sub={`across ${fmt(t.talksWithFollowups)} of ${fmt(t.talks)} talks`}
         />
         <Tile value={fmt(t.people)} label="People who opened a talk" sub={`${fmt(t.deckOpens)} deck opens in all`} />
@@ -136,7 +136,7 @@ function Dashboard({ data }: { data: Insights }) {
             on {t.daysActiveAfter} of the 30 days that followed
           </p>
         </div>
-        <p className="text-xs text-gray-500 mb-4">Slide views, questions and follow-up requests per day</p>
+        <p className="text-xs text-gray-500 mb-4">Slide views, questions and contact requests per day</p>
         <DayChart days={data.days} />
       </section>
 
@@ -144,20 +144,20 @@ function Dashboard({ data }: { data: Insights }) {
         {/* Top talks */}
         <section className="lg:col-span-3 rounded-xl border bg-white p-5">
           <h2 className="text-base font-semibold text-gray-900 mb-1">Talks that started conversations</h2>
-          <p className="text-xs text-gray-500 mb-3">Ranked by follow-up requests, then people reached</p>
+          <p className="text-xs text-gray-500 mb-3">Ranked by contact requests, then people reached</p>
           <TopTalks data={data} />
         </section>
 
         {/* Sessions */}
         <section className="lg:col-span-2 rounded-xl border bg-white p-5">
           <h2 className="text-base font-semibold text-gray-900 mb-1">Reach by session</h2>
-          <p className="text-xs text-gray-500 mb-3">Deck opens per session, with questions and follow-ups</p>
+          <p className="text-xs text-gray-500 mb-3">Deck opens per session, with questions and contact requests</p>
           <Sessions data={data} />
         </section>
       </div>
 
       <p className="text-xs text-gray-500">
-        Counts only. Names and contact details of attendees who ask questions or request follow-ups go to the
+        Counts only. Names and contact details of attendees who ask questions or ask to be contacted go to the
         presenters, not to organizers.
       </p>
     </>
@@ -265,7 +265,7 @@ function TopTalks({ data }: { data: Insights }) {
             <th className="py-2 pr-3">Talk</th>
             <th className="py-2 pr-3 text-right">People</th>
             <th className="py-2 pr-3 text-right">Questions</th>
-            <th className="py-2 pr-3 w-40">Follow-ups</th>
+            <th className="py-2 pr-3 w-40">Contact requests</th>
           </tr>
         </thead>
         <tbody>
@@ -283,7 +283,7 @@ function TopTalks({ data }: { data: Insights }) {
               <td className="py-2 pr-3 text-right tabular-nums text-gray-800">{fmt(r.viewers)}</td>
               <td className="py-2 pr-3 text-right tabular-nums text-gray-800">{fmt(r.questions)}</td>
               <td className="py-2 pr-3">
-                <div className="flex items-center gap-2" title={`${r.followups} follow-up requests`}>
+                <div className="flex items-center gap-2" title={`${r.followups} contact requests`}>
                   <div className="h-2.5 flex-1 rounded-full bg-gray-100 overflow-hidden">
                     <div className="h-full rounded-full" style={{ width: `${(r.followups / maxF) * 100}%`, background: VIOLET }} />
                   </div>
@@ -305,7 +305,7 @@ function Sessions({ data }: { data: Insights }) {
   return (
     <ul className="space-y-3">
       {rows.map((s) => (
-        <li key={s.name} title={`${s.name}: ${s.viewers} deck opens, ${s.questions} questions, ${s.followups} follow-ups`}>
+        <li key={s.name} title={`${s.name}: ${s.viewers} deck opens, ${s.questions} questions, ${s.followups} contact requests`}>
           <div className="flex items-baseline justify-between gap-2 text-sm">
             <span className="text-gray-900 line-clamp-1">{s.name}</span>
             <span className="tabular-nums text-gray-800 shrink-0">{fmt(s.viewers)}</span>
@@ -314,7 +314,7 @@ function Sessions({ data }: { data: Insights }) {
             <div className="h-full rounded-full" style={{ width: `${(s.viewers / max) * 100}%`, background: BLUE }} />
           </div>
           <p className="mt-0.5 text-xs text-gray-500">
-            {s.talks} talk{s.talks === 1 ? '' : 's'} · {fmt(s.questions)} questions · {fmt(s.followups)} follow-ups
+            {s.talks} talk{s.talks === 1 ? '' : 's'} · {fmt(s.questions)} questions · {fmt(s.followups)} contact requests
           </p>
         </li>
       ))}
