@@ -16,6 +16,7 @@ type Conference = {
   presenterUploadsOpen?: boolean;
   endDate?: string;
   liveDaysAfter?: number;
+  demoInsights?: boolean;
 };
 
 type Row = {
@@ -229,6 +230,7 @@ export default function PresentersAdminClient() {
           presenterUploadsOpen: form.presenterUploadsOpen !== false,
           endDate: form.endDate ?? "",
           liveDaysAfter: form.liveDaysAfter ?? 30,
+          demoInsights: form.demoInsights !== false,
         }),
       });
       if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || "Save failed");
@@ -342,6 +344,22 @@ export default function PresentersAdminClient() {
                 </div>
               </div>
               <p className="text-xs text-gray-500">Applies to talks uploaded from now on. Presenters can extend their own.</p>
+            </div>
+
+            <div className="space-y-3">
+              <h2 className="font-semibold text-gray-900">Organizer insights</h2>
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={form.demoInsights !== false}
+                  onChange={(e) => set("demoInsights", e.target.checked)}
+                />
+                <span>
+                  Demo: show sample data (Before / After)
+                  <span className="block text-xs text-gray-500">Turn off for a real conference to show live data.</span>
+                </span>
+              </label>
             </div>
 
             <div className="space-y-3">

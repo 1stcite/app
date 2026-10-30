@@ -288,98 +288,89 @@ function assemble(
   };
 }
 
-/* ── Sample: lifetime totals per talk, released over time ───────────── */
+/* ── Sample: a demo of the two moments that matter ──────────────────── */
 
-const ramp = (t: number, a: number, b: number) => (b <= a ? (t >= b ? 1 : 0) : Math.min(1, Math.max(0, (t - a) / (b - a))));
-const decay = (x: number, tau: number) => (x <= 0 ? 0 : 1 - Math.exp(-x / tau));
-
-/** Share of a talk's lifetime activity of each kind that has happened by time t. */
-function released(kind: "views" | "questions" | "contacts" | "saves" | "stars" | "scheduled", t: number, start: number, end: number, confStart: number) {
-  const pre = (w: number, from = confStart - 14 * DAY) => w * ramp(t, from, start);
-  const bump = (w: number) => w * ramp(t, start, end + 2 * HOUR); // in the room and right after
-  const tail = (w: number, tauDays: number) => w * decay(t - end - 2 * HOUR, tauDays * DAY);
-  switch (kind) {
-    case "views":
-      return pre(0.15) + bump(0.4) + tail(0.45, 7);
-    case "questions":
-      return pre(0.1) + bump(0.45) + tail(0.45, 5);
-    case "contacts":
-      return pre(0.05) + bump(0.4) + tail(0.55, 6);
-    case "saves":
-      return pre(0.35) + bump(0.3) + tail(0.35, 5);
-    case "stars":
-      return 0.75 * ramp(t, confStart - 21 * DAY, confStart) + 0.2 * ramp(t, confStart, start) + 0.05 * ramp(t, end, end + 3 * DAY);
-    case "scheduled": // nobody schedules a talk after it's over
-      return 0.8 * ramp(t, confStart - 21 * DAY, confStart) + 0.2 * ramp(t, confStart, start);
+/**
+ * Relative daily engagement around a conference: builds over the two weeks
+ * before, peaks on conference days, and tails off over the month after,
+ * with the days right before and after still busy. Post-event engagement
+ * outweighs pre-event. (The real day-of peak may be sharper; this keeps
+ * the before and after visible.)
+ */
+function shape(dayFromStart: number, confDays: number): number {
+  const k = dayFromStart;
+  if (k < 0) {
+    if (k === -1) return 0.45;
+    if (k === -2) return 0.3;
+    return 0.03 + 0.12 * ((14 + k) / 11); // -14 .. -3: slow build
   }
+  if (k < confDays) return 1;
+  const a = k - confDays + 1; // days after the last conference day
+  if (a === 1) return 0.62;
+  if (a === 2) return 0.48;
+  if (a === 3) return 0.38;
+  return 0.04 + 0.34 * Math.exp(-(a - 3) / 7);
 }
 
-export async function sampleInsights(sourceId: string, conferenceName: string, asOfIn: Date): Promise<Insights> {
+export async function sampleInsights(
+  sourceId: string,
+  conferenceName: string,
+  when: "before" | "after"
+): Promise<Insights> {
   const { posters, sessions } = await loadConference(sourceId);
   const sessionById = new Map(sessions.map((s) => [s.id, s]));
-  let clock = clockFor(sessions, asOfIn);
-  // "After" shows the whole follow-up window, not the hour after the last session
-  if (clock.phase === "after" && clock.end !== null) clock = { ...clock, asOf: Math.max(clock.asOf, clock.end + 30 * DAY) };
-  const confStart = clock.start ?? clock.asOf - 7 * DAY;
+  const base = clockFor(sessions, new Date());
+  const startDay = base.startDay ? Date.parse(`${base.startDay}T00:00:00Z`) : Date.now();
+  const endDay = base.endDay ? Date.parse(`${base.endDay}T00:00:00Z`) : startDay;
+  const confDays = Math.max(1, Math.round((endDay - startDay) / DAY) + 1);
+  // Before: the morning the conference opens. After: the end of the 30-day follow-up window.
+  const asOf = when === "before" ? startDay : endDay + 31 * DAY;
+  const clock: Clock = { ...base, asOf, phase: when };
 
-  // Lifetime totals: ~600 attendees; each talk reaches a skewed share of them
-  const life = posters.map((p) => {
+  // Share of all engagement that happens before the conference opens
+  const axis = dayAxis(clock);
+  const weights = axis.map(({ t }) => shape(Math.round((t - startDay) / DAY), confDays));
+  const total = weights.reduce((a, w) => a + w, 0);
+  const preShare = axis.reduce((a, { t }, i) => a + (t < startDay ? weights[i] : 0), 0) / total;
+
+  // Lifetime totals: ~600 attendees; each talk reaches a skewed share of them.
+  // Before the conference, interest (stars, schedules) is mostly in place;
+  // views, questions and contact requests mostly come later.
+  const pre = { views: preShare, questions: preShare * 0.7, contacts: preShare * 0.3, saves: 0.4, stars: 0.8, scheduled: 0.85 };
+  const f = (k: keyof typeof pre) => (when === "before" ? pre[k] : 1);
+  const talks: InsightsTalk[] = posters.map((p) => {
     const r = (k: string) => seeded(`${p.id}:${k}`);
     const viewers = Math.round(35 + Math.pow(r("v"), 1.8) * 260);
     const stars = Math.round(viewers * (0.15 + r("st") * 0.3));
+    const times = talkTimes(p, sessionById, clock);
+    const seen = Math.round(viewers * f("views"));
     return {
-      p,
-      times: talkTimes(p, sessionById, clock),
-      viewers,
-      outsideRatio: 0.45 + r("o") * 0.3,
-      questions: Math.round(viewers * (0.01 + r("q") * 0.05)),
-      contacts: Math.round(viewers * (0.01 + Math.pow(r("f"), 2) * 0.07)),
-      saves: Math.round(viewers * (0.08 + r("s") * 0.17)),
-      stars,
-      scheduled: Math.round(stars * (0.35 + r("sc") * 0.45)),
+      id: p.id,
+      title: p.title,
+      author: p.author,
+      sessionName: (p.sessionId && sessionById.get(p.sessionId)?.name) || "",
+      startsAt: times.scheduled ? new Date(times.start).toISOString() : null,
+      done: when === "after",
+      viewers: seen,
+      outsideSession: Math.round(seen * (0.45 + r("o") * 0.3)),
+      questions: Math.round(viewers * (0.01 + r("q") * 0.05) * f("questions")),
+      followups: Math.round(viewers * (0.01 + Math.pow(r("f"), 2) * 0.07) * f("contacts")),
+      saves: Math.round(viewers * (0.08 + r("s") * 0.17) * f("saves")),
+      stars: Math.round(stars * f("stars")),
+      scheduled: Math.round(stars * (0.35 + r("sc") * 0.45) * f("scheduled")),
     };
   });
 
-  const asOf = clock.asOf;
-  const talks: InsightsTalk[] = life.map((x) => {
-    const { start, end } = x.times;
-    const f = (k: Parameters<typeof released>[0]) => released(k, asOf, start, end, confStart);
-    const viewers = Math.round(x.viewers * f("views"));
-    return {
-      id: x.p.id,
-      title: x.p.title,
-      author: x.p.author,
-      sessionName: (x.p.sessionId && sessionById.get(x.p.sessionId)?.name) || "",
-      startsAt: x.times.scheduled ? new Date(start).toISOString() : null,
-      done: end <= asOf,
-      viewers,
-      outsideSession: Math.round(viewers * x.outsideRatio),
-      questions: Math.round(x.questions * f("questions")),
-      followups: Math.round(x.contacts * f("contacts")),
-      saves: Math.round(x.saves * f("saves")),
-      stars: Math.round(x.stars * f("stars")),
-      scheduled: Math.round(x.scheduled * f("scheduled")),
-    };
-  });
-
+  const lifetimeOpens = posters.reduce((a, p) => a + Math.round(35 + Math.pow(seeded(`${p.id}:v`), 1.8) * 260), 0);
   const deckOpens = talks.reduce((a, t) => a + t.viewers, 0);
   const people = Math.min(640, Math.round(deckOpens / 6.5));
 
-  // Daily activity: slide views (about five per deck opened), questions and contact requests
-  const activityBy = (t: number) =>
-    life.reduce((a, x) => {
-      const { start, end } = x.times;
-      return (
-        a +
-        x.viewers * 5 * released("views", t, start, end, confStart) +
-        x.questions * released("questions", t, start, end, confStart) +
-        x.contacts * released("contacts", t, start, end, confStart)
-      );
-    }, 0);
-  const days: InsightsDay[] = dayAxis(clock).map(({ t, phase }) => {
-    const future = t > asOf;
-    const noise = 0.85 + seeded(sourceId + isoDay(new Date(t))) * 0.3;
-    const a = future ? 0 : Math.max(0, (activityBy(Math.min(t + DAY, asOf)) - activityBy(t)) * noise);
+  // Daily activity (slide views, questions, contact requests), spread by the shape above
+  const lifetimeActivity = lifetimeOpens * 5.3;
+  const days: InsightsDay[] = axis.map(({ t, phase }, i) => {
+    const future = t >= asOf;
+    const noise = 0.88 + seeded(sourceId + isoDay(new Date(t))) * 0.24;
+    const a = future ? 0 : (lifetimeActivity * weights[i] * noise) / total;
     return { date: isoDay(new Date(t)), label: dayLabel(new Date(t)), phase, activity: Math.round(a), future };
   });
 

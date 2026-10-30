@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Footer from '@/app/components/Footer';
 import { useConference } from '@/app/lib/conferenceContext';
 import type { Insights, InsightsDay, InsightsSession, InsightsTalk } from '@/app/lib/insights';
-import { useDemoClock } from '@/app/lib/demoClock';
 
 // One hue for magnitude; a lighter step of the same hue for context
 const BLUE = '#2563eb';
@@ -19,13 +18,13 @@ const fmtDate = (iso: string | null) =>
 
 export default function InsightsPageClient() {
   const conf = useConference();
-  const [mode, setMode] = useState<'sample' | 'live'>('sample');
+  const [when, setWhen] = useState<'before' | 'after'>('before');
   const [data, setData] = useState<Insights | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (m: 'sample' | 'live') => {
+  const load = useCallback(async (w: 'before' | 'after') => {
     setError(null);
-    const r = await fetch(`/api/admin/insights?mode=${m}`, { cache: 'no-store' });
+    const r = await fetch(`/api/admin/insights?when=${w}`, { cache: 'no-store' });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) {
       setError(j?.error || 'Could not load insights.');
@@ -34,12 +33,10 @@ export default function InsightsPageClient() {
     setData(j);
   }, []);
 
-  // Follow the admin clock (Live / Before / During / After)
-  const clock = useDemoClock();
-  const clockKey = clock.mode === 'live' ? 'live' : `${clock.mode}|${clock.now.getTime()}`;
   useEffect(() => {
-    load(mode);
-  }, [mode, load, clockKey]);
+    load(when);
+  }, [when, load]);
+  const isSample = data?.mode === 'sample';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -61,31 +58,32 @@ export default function InsightsPageClient() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="inline-flex rounded-lg bg-gray-200 p-0.5 text-sm font-medium" role="tablist" aria-label="Data source">
-              {(['sample', 'live'] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  role="tab"
-                  aria-selected={mode === m}
-                  onClick={() => setMode(m)}
-                  className={`px-3 py-1.5 rounded-md ${mode === m ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
-                >
-                  {m === 'sample' ? 'Sample data' : 'Live data'}
-                </button>
-              ))}
-            </div>
+            {isSample && (
+              <div className="inline-flex rounded-lg bg-gray-200 p-0.5 text-sm font-medium" role="tablist" aria-label="When">
+                {(['before', 'after'] as const).map((w) => (
+                  <button
+                    key={w}
+                    type="button"
+                    role="tab"
+                    aria-selected={when === w}
+                    onClick={() => setWhen(w)}
+                    className={`px-3 py-1.5 rounded-md ${when === w ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
+                  >
+                    {w === 'before' ? 'Before' : 'After'}
+                  </button>
+                ))}
+              </div>
+            )}
             <Link href="/admin/presenters" className="text-sm text-blue-600 hover:underline whitespace-nowrap">
               Presenters &amp; access →
             </Link>
           </div>
         </div>
 
-        {mode === 'sample' && (
+        {isSample && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            <strong>Sample data.</strong> Generated from your program&apos;s real talks and sessions to show what you
-            would see at each stage. Use Before, During and After in the admin bar to move the clock. Switch to{' '}
-            <em>Live data</em> for actual activity.
+            <strong>Sample data</strong> for your program&apos;s talks and sessions, as you would see it the morning the
+            conference opens (Before) and a month after it ends (After).
           </div>
         )}
 
@@ -115,8 +113,8 @@ function Dashboard({ data }: { data: Insights }) {
 
   return (
     <>
-      {/* Where we are */}
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      {/* Where we are (live data; the demo toggle already says it) */}
+      {data.mode === 'live' && <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="rounded-full bg-gray-900 text-white px-3 py-1 text-xs font-semibold">{PHASE_LABEL[phase]}</span>
         <span className="text-sm text-gray-600">
           {phase === 'after'
@@ -127,7 +125,7 @@ function Dashboard({ data }: { data: Insights }) {
           {phase === 'during' && ` · ${t.talksDone} of ${t.talks} talks given`}
           {phase === 'before' && firstDay && ` · conference starts ${firstDay}`}
         </span>
-      </div>
+      </div>}
 
       {nothingYet ? (
         <div className="rounded-xl border bg-white p-8 text-center text-gray-600">
@@ -168,7 +166,7 @@ function Dashboard({ data }: { data: Insights }) {
               )}
             </div>
             <p className="text-xs text-gray-500 mb-4">Slide views, questions and contact requests per day</p>
-            <DayChart days={data.days} />
+            <DayChart days={data.days} showNow={data.mode === 'live'} />
           </section>
 
           {phase === 'before' && (
@@ -240,16 +238,16 @@ function Dashboard({ data }: { data: Insights }) {
 function Tile({ value, label, sub, accent }: { value: string; label: string; sub?: string; accent?: boolean }) {
   return (
     <div className={`rounded-xl border bg-white p-4 ${accent ? 'border-violet-200' : ''}`}>
-      <p className="text-3xl font-semibold tabular-nums" style={{ color: accent ? VIOLET : '#111827' }}>
+      <p className="text-sm font-semibold text-gray-900">{label}</p>
+      <p className="mt-1 text-3xl font-semibold tabular-nums" style={{ color: accent ? VIOLET : '#111827' }}>
         {value}
       </p>
-      <p className="mt-1 text-sm text-gray-700">{label}</p>
       {sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
     </div>
   );
 }
 
-function DayChart({ days }: { days: InsightsDay[] }) {
+function DayChart({ days, showNow }: { days: InsightsDay[]; showNow: boolean }) {
   const [hover, setHover] = useState<number | null>(null);
   const max = Math.max(1, ...days.map((d) => d.activity));
   const H = 180;
@@ -283,7 +281,7 @@ function DayChart({ days }: { days: InsightsDay[] }) {
           </div>
         )}
         {/* now marker */}
-        {nowIdx >= 0 && nowIdx < days.length - 1 && (
+        {showNow && nowIdx >= 0 && nowIdx < days.length - 1 && (
           <div
             className="absolute inset-y-0 border-l-2 border-dashed border-gray-400"
             style={{ left: `${((nowIdx + 1) / days.length) * 100}%` }}
