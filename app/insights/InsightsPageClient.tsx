@@ -149,7 +149,7 @@ function Dashboard({ data }: { data: Insights }) {
                   : undefined
               }
             />
-            <Tile label="Viewers / talks viewed" value={`${fmt(t.people)} / ${fmt(t.deckOpens)}`} />
+            <Tile label="Viewers / views" value={`${fmt(t.people)} / ${fmt(t.deckOpens)}`} />
             <Tile
               label="Comments: general / private / contacts"
               value={`${fmt(t.commentsPublic)} / ${fmt(t.commentsPrivate)} / ${fmt(t.followups)}`}

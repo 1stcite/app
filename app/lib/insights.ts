@@ -414,7 +414,47 @@ export async function sampleInsights(
   });
 
   const sessionOf = new Map(posters.map((p) => [p.id, p.sessionId]));
-  return assemble("sample", conferenceName, clock, talks, sessions, sessionOf, people, days, programCounts(posters, uploaded));
+  const result = assemble("sample", conferenceName, clock, talks, sessions, sessionOf, people, days, programCounts(posters, uploaded));
+  return atConferenceScale(result, sourceId, posters.length, when);
+}
+
+/**
+ * The demo program may hold only a handful of sessions. Headline numbers and
+ * the day chart are shown at the size of a full conference (about 100 talks,
+ * 50 posters, 1,000+ attendees); the talk and session tables keep the real
+ * program's talks.
+ */
+function atConferenceScale(r: Insights, sourceId: string, n: number, when: "before" | "after"): Insights {
+  const talks = 90 + Math.round(seeded(`${sourceId}:talks`) * 30);
+  const posters = 40 + Math.round(seeded(`${sourceId}:posters`) * 25);
+  const k = (talks + posters) / Math.max(1, n);
+  const up = (count: number, share: number, salt: string) => Math.round(count * (share + (seeded(`${sourceId}:${salt}`) - 0.5) * 0.06));
+  const t = r.totals;
+  const scale = (x: number) => Math.round(x * k);
+  const deckOpens = scale(t.deckOpens);
+  return {
+    ...r,
+    totals: {
+      ...t,
+      program: {
+        talks,
+        posters,
+        uploadedTalks: up(talks, when === "before" ? 0.72 : 0.86, "ut"),
+        uploadedPosters: up(posters, when === "before" ? 0.6 : 0.78, "up"),
+      },
+      people: Math.min(1150, Math.round(deckOpens / 5.5)),
+      deckOpens,
+      questions: scale(t.questions),
+      commentsPublic: scale(t.commentsPublic),
+      commentsPrivate: scale(t.commentsPrivate),
+      followups: scale(t.followups),
+      talksWithFollowups: Math.min(talks + posters, scale(t.talksWithFollowups)),
+      saves: scale(t.saves),
+      stars: scale(t.stars),
+      scheduled: scale(t.scheduled),
+    },
+    days: r.days.map((d) => ({ ...d, activity: scale(d.activity) })),
+  };
 }
 
 /* ── Live: recorded events up to asOf ───────────────────────────────── */
