@@ -128,13 +128,28 @@ export async function DELETE(req: NextRequest) {
       filter.userId = user._id;
     }
 
-    const result = await db.collection("comments").deleteOne(filter);
+    const doc = await db.collection("comments").findOneAndDelete(filter);
 
-    if (result.deletedCount === 0) {
+    if (!doc) {
       return NextResponse.json(
         { error: "Comment not found (or not yours)" },
         { status: 404 }
       );
+    }
+
+    // Deleting your last private note to a presenter also withdraws the email you shared with it
+    if (doc.visibilityType === "question" && doc.userId && String(doc.userId) === String(user._id)) {
+      const remaining = await db.collection("comments").countDocuments({
+        posterId: doc.posterId,
+        userId: doc.userId,
+        visibilityType: "question",
+        parentId: { $exists: false },
+      });
+      if (remaining === 0) {
+        await db
+          .collection("followups")
+          .updateOne({ posterId: doc.posterId, userId: doc.userId }, { $set: { withdrawnAt: new Date() } });
+      }
     }
 
     return NextResponse.json({ success: true });

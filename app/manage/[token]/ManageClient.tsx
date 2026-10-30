@@ -42,6 +42,7 @@ export default function ManageClient({ access }: { access: ManageAccess }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [isOrganizer, setIsOrganizer] = useState(false);
 
   const [editTitle, setEditTitle] = useState("");
   const [editAbstract, setEditAbstract] = useState("");
@@ -58,6 +59,7 @@ export default function ManageClient({ access }: { access: ManageAccess }) {
     }
     setTalk(j.talk);
     setReport(j.report);
+    setIsOrganizer(j.viewer === "organizer");
     // Fill the edit form once, so background refreshes don't overwrite typing
     if (!formFilled.current) {
       setEditTitle(j.talk.title);
@@ -140,13 +142,13 @@ export default function ManageClient({ access }: { access: ManageAccess }) {
   function downloadFollowups() {
     if (!report || !talk) return;
     const rows = [
-      ["Name", "Organization", "Role", "Email", "Note", "Requested"],
+      ["Name", "Organization", "Role", "Email", "Note", "Sent"],
       ...report.followups.map((f) => [f.name, f.organization, f.role, f.email, f.note, f.at]),
     ];
     const csv = rows.map((r) => r.map(csvCell).join(",")).join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    a.download = `${talk.title.slice(0, 40).replace(/[^\w]+/g, "-")}-follow-ups.csv`;
+    a.download = `${talk.title.slice(0, 40).replace(/[^\w]+/g, "-")}-contacts.csv`;
     a.click();
   }
 
@@ -165,10 +167,16 @@ export default function ManageClient({ access }: { access: ManageAccess }) {
     return <main className="min-h-screen bg-gray-50 p-8 text-gray-500">Loading your talk…</main>;
   }
 
-  const maxViewers = Math.max(1, ...report.slides.map((s) => s.viewers));
+  const maxViews = Math.max(1, ...report.slides.map((s) => s.views));
   const live = !talk.takenDown;
-  const questionCount = report.questions.length;
-  const unanswered = report.questions.filter((q) => q.replies === 0 && !q.byPresenter).length;
+  // Private notes to the presenter vs. comments everyone can see
+  const notes = report.questions.filter((q) => q.kind === "question" && !q.byPresenter);
+  const publicQs = report.questions.filter((q) => !(q.kind === "question" && !q.byPresenter));
+  const contactOnly = report.followups.filter((f) => !f.withNote); // contact requests sent without a note
+  const noteCount = notes.length + contactOnly.length;
+  const wantContact = report.followups.length;
+  const questionCount = publicQs.length;
+  const unanswered = publicQs.filter((q) => q.replies === 0 && !q.byPresenter).length;
 
   return (
     <main className="min-h-screen bg-gray-50 pb-16">
@@ -265,76 +273,124 @@ export default function ManageClient({ access }: { access: ManageAccess }) {
 
         {/* Headline numbers */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Stat label="Follow-up requests" value={report.followups.length} accent />
+          <Stat
+            label="Notes for you"
+            value={noteCount}
+            sub={wantContact ? `${wantContact} asked you to contact them` : undefined}
+            accent
+          />
           <Stat label="People who opened the deck" value={report.viewers} />
-          <Stat label="Questions and comments" value={questionCount} sub={unanswered ? `${unanswered} unanswered` : undefined} />
+          <Stat label="Public questions and comments" value={questionCount} sub={unanswered ? `${unanswered} unanswered` : undefined} />
           <Stat
             label="Interested · attending · saved"
             value={`${report.interested.length} · ${report.attending.length} · ${report.saved.length}`}
           />
         </div>
 
-        {/* Follow-ups */}
+        {/* Notes for you */}
         <Section
-          title="Who wants to follow up"
+          title="Notes for you"
           action={
-            report.followups.length > 0 ? (
+            wantContact > 0 && !isOrganizer ? (
               <button onClick={downloadFollowups} className="text-sm text-blue-600 hover:underline">
-                Download CSV
+                Download contacts
               </button>
             ) : null
           }
         >
-          {report.followups.length === 0 ? (
+          {noteCount === 0 ? (
             <Empty>
-              No requests yet. Attendees can tap &ldquo;Follow up&rdquo; on your deck to share their contact details
-              with you.
+              No notes yet. Attendees can send you a private note from any slide and tick &ldquo;Ask the presenter to
+              contact me&rdquo; to include their email.
             </Empty>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b">
-                    <th className="py-2 pr-3">Name</th>
-                    <th className="py-2 pr-3">Organization</th>
-                    <th className="py-2 pr-3">Note</th>
-                    <th className="py-2 pr-3 whitespace-nowrap">Requested</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.followups.map((f) => (
-                    <tr key={f.id} className="border-b last:border-0 align-top">
-                      <td className="py-2 pr-3">
-                        <div className="font-medium text-gray-900">{f.name}</div>
-                        {f.email ? (
-                          <a href={`mailto:${f.email}?subject=${encodeURIComponent(talk.title)}`} className="text-blue-600 hover:underline break-all">
-                            {f.email}
-                          </a>
+            <ul className="divide-y">
+              {notes.map((q) => (
+                <li key={q.id} className="py-3 flex gap-3">
+                  <span className="shrink-0 w-14 text-xs font-medium text-gray-500 pt-0.5">Slide {q.page}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-900 whitespace-pre-wrap">{q.text}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {q.author} · {fmtDateTime(q.at)}
+                      {q.replies > 0 && ` · ${q.replies} repl${q.replies === 1 ? "y" : "ies"}`}
+                    </p>
+                    {!isOrganizer && (
+                      <div className="mt-1.5 text-sm">
+                        {q.contactEmail ? (
+                          <span className="inline-flex flex-wrap items-center gap-x-2">
+                            <span className="rounded bg-violet-50 px-1.5 py-0.5 text-xs font-medium text-violet-700">
+                              Wants you to contact them
+                            </span>
+                            <a
+                              href={`mailto:${q.contactEmail}?subject=${encodeURIComponent(talk.title)}`}
+                              className="text-blue-600 hover:underline break-all"
+                            >
+                              {q.contactEmail}
+                            </a>
+                          </span>
+                        ) : q.introRequested ? (
+                          <span className="text-xs text-gray-500">
+                            Introduction requested. The organizers will connect you.
+                          </span>
                         ) : (
-                          <span className="text-xs text-gray-500">Contact details visible to the presenter only</span>
+                          <button
+                            onClick={() =>
+                              patch(
+                                { action: "intro", commentId: q.id },
+                                "intro",
+                                `Sent. The organizers will introduce you to ${q.author}.`
+                              )
+                            }
+                            disabled={!!busy}
+                            className="text-xs text-blue-600 hover:underline disabled:opacity-60"
+                          >
+                            Ask the organizers to introduce you
+                          </button>
                         )}
-                      </td>
-                      <td className="py-2 pr-3 text-gray-700">
-                        {f.organization}
-                        {f.role && <div className="text-gray-500">{f.role}</div>}
-                      </td>
-                      <td className="py-2 pr-3 text-gray-700">{f.note}</td>
-                      <td className="py-2 pr-3 text-gray-500 whitespace-nowrap">{fmtDateTime(f.at)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </div>
+                    )}
+                  </div>
+                  {live && !isOrganizer && (
+                    <button onClick={() => goAnswer(q.page)} className="shrink-0 text-sm text-blue-600 hover:underline">
+                      Reply
+                    </button>
+                  )}
+                </li>
+              ))}
+              {contactOnly.map((f) => (
+                <li key={f.id} className="py-3 flex gap-3">
+                  <span className="shrink-0 w-14 text-xs font-medium text-gray-500 pt-0.5">Contact</span>
+                  <div className="flex-1 min-w-0">
+                    {f.note && <p className="text-sm text-gray-900 whitespace-pre-wrap">{f.note}</p>}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {f.name}
+                      {f.organization && `, ${f.organization}`}
+                      {f.role && ` (${f.role})`} · {fmtDateTime(f.at)}
+                    </p>
+                    {f.email && (
+                      <div className="mt-1.5 text-sm">
+                        <span className="rounded bg-violet-50 px-1.5 py-0.5 text-xs font-medium text-violet-700 mr-2">
+                          Wants you to contact them
+                        </span>
+                        <a href={`mailto:${f.email}?subject=${encodeURIComponent(talk.title)}`} className="text-blue-600 hover:underline break-all">
+                          {f.email}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </Section>
 
         {/* Questions */}
-        <Section title="Questions on your slides">
+        <Section title="Public questions and comments">
           {questionCount === 0 ? (
-            <Empty>No questions yet.</Empty>
+            <Empty>No public questions yet.</Empty>
           ) : (
             <ul className="divide-y">
-              {report.questions.map((q) => (
+              {publicQs.map((q) => (
                 <li key={q.id} className="py-3 flex gap-3">
                   <span className="shrink-0 w-14 text-xs font-medium text-gray-500 pt-0.5">Slide {q.page}</span>
                   <div className="flex-1 min-w-0">
@@ -342,7 +398,6 @@ export default function ManageClient({ access }: { access: ManageAccess }) {
                     <p className="text-xs text-gray-500 mt-1">
                       {q.author}
                       {q.byPresenter && " (you)"} · {fmtDateTime(q.at)}
-                      {q.kind === "question" && !q.byPresenter && " · private to you"}
                       {!q.byPresenter && (
                         <>
                           {" · "}
@@ -369,16 +424,21 @@ export default function ManageClient({ access }: { access: ManageAccess }) {
           ) : (
             <>
               <p className="text-xs text-gray-500 mb-3">
-                Views for each slide.
+                Views of each slide, including people coming back to it.
               </p>
               <div className="space-y-1.5">
                 {report.slides.map((s) => (
                   <div key={s.page} className="flex items-center gap-3 text-xs">
                     <span className="w-14 shrink-0 text-gray-500">Slide {s.page}</span>
                     <div className="flex-1 h-3 rounded bg-gray-100 overflow-hidden">
-                      <div className="h-full rounded bg-blue-500" style={{ width: `${(s.viewers / maxViewers) * 100}%` }} />
+                      <div className="h-full rounded bg-blue-500" style={{ width: `${(s.views / maxViews) * 100}%` }} />
                     </div>
-                    <span className="w-10 text-right tabular-nums text-gray-700">{s.viewers}</span>
+                    <span
+                      className="w-10 text-right tabular-nums text-gray-700"
+                      title={`${s.views} views by ${s.viewers} ${s.viewers === 1 ? "person" : "people"}`}
+                    >
+                      {s.views}
+                    </span>
                     <span className="w-24 text-right text-gray-500">
                       {s.questions > 0 ? `${s.questions} question${s.questions === 1 ? "" : "s"}` : ""}
                     </span>

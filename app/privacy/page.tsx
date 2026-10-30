@@ -7,7 +7,7 @@ export default function PrivacyPage() {
     <LegalPage title="Privacy" updated="October 29, 2026">
       <p>
         1stCite helps conferences keep their talks available after the session: attendees can read a deck they
-        missed, ask a question on a specific slide, and ask a presenter to follow up. This page explains what we
+        missed, ask a question on a specific slide, and ask a presenter to get in touch. This page explains what we
         collect to do that, who sees it, and how to have it removed. The short version: we collect very little, we
         don&apos;t sell or advertise with it, and contact details you share go only to the person you shared them with.
       </p>
@@ -19,8 +19,8 @@ export default function PrivacyPage() {
           you mark as interested, attending or saved; and which slides you view.
         </li>
         <li>
-          <strong>Follow-up requests:</strong> if you ask a presenter to follow up, the email, organization, role and
-          note you enter.
+          <strong>Contact requests:</strong> if you send a presenter a private note and ask them to contact you, the
+          email you enter.
         </li>
         <li>
           <strong>Presenters:</strong> your name, company, email, the slide deck you upload, its title and summary, and
@@ -76,8 +76,10 @@ export default function PrivacyPage() {
         </tbody>
       </table>
       <p>
-        Organizers see totals: how many people opened talks, how many questions and follow-up requests there were.
-        They don&apos;t see attendee names or contact details through 1stCite.
+        Organizers see totals: how many people opened talks, how many questions and contact requests there were.
+        They don&apos;t see attendee contact details or private notes through 1stCite. If a presenter asks the
+        organizers to introduce them to someone who sent a private note, the organizers see that person&apos;s
+        sign-in name and the talk, but not the note.
       </p>
 
       <h2>Cookies and storage</h2>
@@ -111,7 +113,7 @@ export default function PrivacyPage() {
           talk down or extend it at any time; organizers can take any talk down.
         </li>
         <li>Sign-in sessions expire after 12 hours for attendees and 14 days for presenters.</li>
-        <li>You can withdraw a follow-up request or delete your own comments at any time.</li>
+        <li>You can delete your own comments and notes at any time. Deleting a note to a presenter also withdraws the email you shared with it.</li>
       </ul>
 
       <h2>Your choices</h2>

@@ -76,6 +76,17 @@ function shareLink(subdomain: string, path: string, params: Record<string, strin
   return `${base}${path}${q ? `?${q}` : ""}`;
 }
 
+type Intro = {
+  id: string;
+  posterId: string;
+  talkTitle: string;
+  presenterName: string;
+  presenterEmail: string;
+  attendeeName: string;
+  requestedAt: string | null;
+  doneAt: string | null;
+};
+
 export default function PresentersAdminClient() {
   const [confs, setConfs] = useState<Conference[]>([]);
   const [sub, setSub] = useState("");
@@ -84,6 +95,7 @@ export default function PresentersAdminClient() {
   const [msg, setMsg] = useState<string | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [issued, setIssued] = useState<Record<string, string>>({});
+  const [intros, setIntros] = useState<Intro[]>([]);
 
   useEffect(() => {
     fetch("/api/conference?all=1")
@@ -111,9 +123,26 @@ export default function PresentersAdminClient() {
     if (r.ok) setReport(await r.json());
   }, []);
 
+  const loadIntros = useCallback(async (sourceId: string) => {
+    const r = await fetch(`/api/admin/intros?sourceId=${encodeURIComponent(sourceId)}`, { cache: "no-store" });
+    if (r.ok) setIntros((await r.json()).intros ?? []);
+  }, []);
+
   useEffect(() => {
-    if (form?.sourceId) loadReport(form.sourceId);
-  }, [form?.sourceId, loadReport]);
+    if (form?.sourceId) {
+      loadReport(form.sourceId);
+      loadIntros(form.sourceId);
+    }
+  }, [form?.sourceId, loadReport, loadIntros]);
+
+  async function markIntro(id: string, done: boolean) {
+    setIntros((list) => list.map((i) => (i.id === id ? { ...i, doneAt: done ? new Date().toISOString() : null } : i)));
+    await fetch("/api/admin/intros", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id, done }),
+    }).catch(() => {});
+  }
 
   function set<K extends keyof Conference>(k: K, v: Conference[K]) {
     setForm((f) => (f ? { ...f, [k]: v } : f));
@@ -279,6 +308,51 @@ export default function PresentersAdminClient() {
           </div>
         </section>
 
+        {/* Introduction requests */}
+        {form && (
+          <section className="rounded-xl border bg-white p-5 space-y-3">
+            <div>
+              <h2 className="font-semibold text-gray-900">Introduction requests</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Presenters asking you to connect them with an attendee who sent them a note without sharing an email.
+                Names are as the attendee entered them when signing in; match them to your registration list.
+              </p>
+            </div>
+            {intros.length === 0 ? (
+              <p className="text-sm text-gray-500">None yet.</p>
+            ) : (
+              <ul className="divide-y">
+                {intros.map((i) => (
+                  <li key={i.id} className={`py-3 flex flex-wrap items-start gap-3 ${i.doneAt ? "opacity-60" : ""}`}>
+                    <div className="flex-1 min-w-[220px] text-sm">
+                      <p className="text-gray-900">
+                        <span className="font-medium">{i.presenterName || "Presenter"}</span> would like to meet{" "}
+                        <span className="font-medium">{i.attendeeName}</span>
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        <a href={`/view/${i.posterId}`} className="hover:underline">{i.talkTitle}</a>
+                        {i.presenterEmail && (
+                          <>
+                            {" · "}
+                            <a href={`mailto:${i.presenterEmail}`} className="text-blue-600 hover:underline">{i.presenterEmail}</a>
+                          </>
+                        )}
+                        {i.requestedAt && <> · {new Date(i.requestedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</>}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => markIntro(i.id, !i.doneAt)}
+                      className={`text-xs ${i.doneAt ? "text-gray-500" : "text-emerald-700"} hover:underline`}
+                    >
+                      {i.doneAt ? "Introduced · undo" : "Mark introduced"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
         {/* Report */}
         {report && (
           <section className="rounded-xl border bg-white p-5 space-y-4">
@@ -288,7 +362,7 @@ export default function PresentersAdminClient() {
               <Tile label="People who opened a deck" value={report.totals.distinctViewers} />
               <Tile label="Deck opens (people × talks)" value={report.totals.deckOpens} />
               <Tile label="Questions" value={report.totals.questions} />
-              <Tile label="Follow-up requests" value={report.totals.followups} />
+              <Tile label="Asked to be contacted" value={report.totals.followups} />
             </div>
             <p className="text-xs text-gray-500">
               Counts only. Names and contact details of attendees go to presenters, not organizers.
@@ -301,7 +375,7 @@ export default function PresentersAdminClient() {
                     <th className="py-2 pr-3">Status</th>
                     <th className="py-2 pr-3 text-right">Viewers</th>
                     <th className="py-2 pr-3 text-right">Questions</th>
-                    <th className="py-2 pr-3 text-right">Follow-ups</th>
+                    <th className="py-2 pr-3 text-right">Contact requests</th>
                     <th className="py-2 pr-3 text-right">Interested</th>
                     <th className="py-2 pr-3"></th>
                   </tr>

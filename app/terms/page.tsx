@@ -40,7 +40,7 @@ export default function TermsPage() {
           see the talk.
         </li>
         <li>
-          When you request a follow-up, your details go to that presenter. Use it for genuine professional contact.
+          When you ask a presenter to contact you, your email goes to that presenter. Use it for genuine professional contact.
         </li>
       </ul>
 

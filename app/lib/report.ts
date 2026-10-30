@@ -8,6 +8,7 @@
  *   library    saved (disc)
  *   comments   slide-anchored questions and comments
  *   followups  follow-up requests with contact details
+ *   intros     presenter asked the organizer for an introduction to an attendee
  */
 
 import { ObjectId } from "mongodb";
@@ -19,7 +20,7 @@ export type PresenterReport = {
   generatedAt: string;
   viewers: number; // distinct people (or anonymous devices) who opened the deck
   signedInViewers: number;
-  slides: { page: number; viewers: number; questions: number }[];
+  slides: { page: number; views: number; viewers: number; questions: number }[];
   interested: PersonRef[];
   attending: PersonRef[];
   saved: PersonRef[];
@@ -32,6 +33,12 @@ export type PresenterReport = {
     kind: "public" | "question";
     replies: number;
     byPresenter: boolean;
+    /** The asker shared their email with the presenter (see followups). */
+    contactShared: boolean;
+    /** Their email, when they asked the presenter to contact them. */
+    contactEmail?: string;
+    /** The presenter asked the organizer to introduce them to the asker. */
+    introRequested: boolean;
   }[];
   followups: {
     id: string;
@@ -41,6 +48,8 @@ export type PresenterReport = {
     role?: string;
     note?: string;
     at: string;
+    /** Sent along with a private note (shown with that note rather than on its own). */
+    withNote: boolean;
   }[];
 };
 
@@ -83,8 +92,9 @@ export async function buildPresenterReport(
       .collection("views")
       .aggregate([
         { $match: { posterId } },
-        { $group: { _id: { page: "$page", v: "$viewerKey" } } },
-        { $group: { _id: "$_id.page", viewers: { $sum: 1 } } },
+        // Views counts repeat visits (each doc's count); viewers is distinct people
+        { $group: { _id: { page: "$page", v: "$viewerKey" }, n: { $sum: { $ifNull: ["$count", 1] } } } },
+        { $group: { _id: "$_id.page", viewers: { $sum: 1 }, views: { $sum: "$n" } } },
         { $sort: { _id: 1 } },
       ])
       .toArray(),
@@ -118,7 +128,8 @@ export async function buildPresenterReport(
     questionsBySlide.set(p, (questionsBySlide.get(p) ?? 0) + 1);
   }
 
-  const viewsBySlide = new Map<number, number>(perSlide.map((r) => [Number(r._id), Number(r.viewers)]));
+  const viewersBySlide = new Map<number, number>(perSlide.map((r) => [Number(r._id), Number(r.viewers)]));
+  const viewsBySlide = new Map<number, number>(perSlide.map((r) => [Number(r._id), Number(r.views)]));
   const maxPage = Math.max(
     numPagesHint,
     ...viewsBySlide.keys(),
@@ -127,16 +138,23 @@ export async function buildPresenterReport(
   );
   const slides = Array.from({ length: maxPage }, (_, i) => ({
     page: i + 1,
-    viewers: viewsBySlide.get(i + 1) ?? 0,
+    views: viewsBySlide.get(i + 1) ?? 0,
+    viewers: viewersBySlide.get(i + 1) ?? 0,
     questions: questionsBySlide.get(i + 1) ?? 0,
   }));
 
-  const [interested, attending, saved, followupDocs] = await Promise.all([
+  const [interested, attending, saved, followupDocs, introDocs] = await Promise.all([
     namesFor("stars", posterId),
     namesFor("attend", posterId),
     namesFor("library", posterId),
     db.collection("followups").find({ posterId, withdrawnAt: { $exists: false } }).sort({ createdAt: -1 }).toArray(),
+    db.collection("intros").find({ posterId }, { projection: { attendeeUserId: 1 } }).toArray(),
   ]);
+  const noteAuthors = new Set(
+    topLevel.filter((c) => c.visibilityType === "question" && !isPresenter(c)).map((c) => String(c.userId))
+  );
+  const contactEmailByUser = new Map(followupDocs.map((f) => [String(f.userId), String(f.email ?? "")]));
+  const introUsers = new Set(introDocs.map((d) => String(d.attendeeUserId)));
 
   return {
     generatedAt: new Date().toISOString(),
@@ -155,6 +173,9 @@ export async function buildPresenterReport(
       kind: c.visibilityType === "question" ? "question" : "public",
       replies: replyCount.get(String(c._id)) ?? 0,
       byPresenter: isPresenter(c),
+      contactShared: c.userId != null && contactEmailByUser.has(String(c.userId)),
+      contactEmail: c.userId != null ? contactEmailByUser.get(String(c.userId)) || undefined : undefined,
+      introRequested: c.userId != null && introUsers.has(String(c.userId)),
     })),
     followups: followupDocs.map((f) => ({
       id: String(f._id),
@@ -164,6 +185,7 @@ export async function buildPresenterReport(
       role: f.role ? String(f.role) : undefined,
       note: f.note ? String(f.note) : undefined,
       at: iso(f.createdAt) ?? "",
+      withNote: noteAuthors.has(String(f.userId)),
     })),
   };
 }
