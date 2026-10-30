@@ -67,7 +67,8 @@ export async function PATCH(
 
   if (!result) return NextResponse.json({ error: "Poster not found" }, { status: 404 });
   if (update.fileUrl && update.fileUrl !== existing.fileUrl) {
-    await db.collection("posters").updateOne({ id }, { $unset: { numPages: "" } });
+    // An organizer adding slides to a program slot fills it
+    await db.collection("posters").updateOne({ id }, { $unset: { numPages: "", awaitingSlides: "" } });
     reindexPdfInBackground(id, String(update.fileUrl));
   } else if (update.abstract !== undefined) {
     await rebuildTextContent(id);

@@ -78,12 +78,17 @@ function dayLabel(d: Date) {
 type PosterRow = { id: string; title: string; author: string; sessionId?: string; fileUrl?: string };
 type SessionRow = { id: string; name: string; date?: string };
 
-async function loadConference(sourceId: string) {
+/** `withSlidesOnly`: live numbers skip program slots that have no slides yet;
+ *  the sample dashboard uses the whole program. */
+async function loadConference(sourceId: string, withSlidesOnly = false) {
   const db = await getDb();
   const [posters, sessions] = await Promise.all([
     db
       .collection("posters")
-      .find({ source: sourceId, deletedAt: { $exists: false } }, { projection: { id: 1, title: 1, author: 1, sessionId: 1, fileUrl: 1 } })
+      .find(
+        { source: sourceId, deletedAt: { $exists: false }, ...(withSlidesOnly ? { awaitingSlides: { $ne: true } } : {}) },
+        { projection: { id: 1, title: 1, author: 1, sessionId: 1, fileUrl: 1 } }
+      )
       .toArray(),
     db
       .collection("sessions")
@@ -232,7 +237,7 @@ export async function sampleInsights(sourceId: string, conferenceName: string): 
 /** Real numbers from recorded events. */
 export async function liveInsights(sourceId: string, conferenceName: string): Promise<Insights> {
   const db = await getDb();
-  const { posters, sessions } = await loadConference(sourceId);
+  const { posters, sessions } = await loadConference(sourceId, true);
   const ids = posters.map((p) => p.id);
   const sessionName = new Map(sessions.map((s) => [s.id, s.name]));
   const window = conferenceWindow(sessions);

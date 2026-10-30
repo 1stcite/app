@@ -1,8 +1,18 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { uploadPdf, MAX_PDF_MB } from "@/app/lib/uploadPdf";
+
+/** A talk on the program that has no slides yet. */
+export type Slot = {
+  id: string;
+  title: string;
+  speaker: string;
+  organization: string;
+  session: string;
+  when: string;
+};
 
 type Props = {
   conferenceName: string;
@@ -10,19 +20,46 @@ type Props = {
   open: boolean;
   codeRequired: boolean;
   liveUntilLabel: string | null;
+  slots: Slot[];
 };
 
 type Stage = "form" | "uploading" | "saving" | "done";
 
-export default function PresentClient({ conferenceName, logo, open, codeRequired, liveUntilLabel }: Props) {
+export default function PresentClient({ conferenceName, logo, open, codeRequired, liveUntilLabel, slots }: Props) {
   const sp = useSearchParams();
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Which talk on the program these slides are for (from ?talk= or picked below)
+  const initialSlot = slots.find((x) => x.id === sp.get("talk")) ?? null;
+  const [slot, setSlot] = useState<Slot | null>(initialSlot);
+  const [notListed, setNotListed] = useState(false);
+  const [find, setFind] = useState("");
+  const matches = useMemo(() => {
+    const q = find.trim().toLowerCase();
+    if (!q) return [];
+    const words = q.split(/\s+/);
+    return slots
+      .filter((x) => {
+        const hay = `${x.title} ${x.speaker} ${x.organization} ${x.session}`.toLowerCase();
+        return words.every((w) => hay.includes(w));
+      })
+      .slice(0, 12);
+  }, [find, slots]);
+  const choosing = slots.length > 0 && !slot && !notListed;
+
+  function pickSlot(x: Slot) {
+    setSlot(x);
+    setTitle(x.title);
+    if (!name) setName(x.speaker);
+    if (!organization) setOrganization(x.organization);
+    window.scrollTo({ top: 0 });
+  }
+
   const [presenterCode, setPresenterCode] = useState(sp.get("code") ?? "");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialSlot?.speaker ?? "");
   const [email, setEmail] = useState("");
-  const [organization, setOrganization] = useState("");
-  const [title, setTitle] = useState("");
+  const [organization, setOrganization] = useState(initialSlot?.organization ?? "");
+  const [title, setTitle] = useState(initialSlot?.title ?? "");
   const [abstract, setAbstract] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [consent, setConsent] = useState(false);
@@ -40,7 +77,7 @@ export default function PresentClient({ conferenceName, logo, open, codeRequired
   function pickFile(f: File | undefined) {
     if (!f) return;
     setFile(f);
-    if (!title) setTitle(f.name.replace(/\.pdf$/i, "").replace(/[-_]+/g, " ").trim());
+    if (!title && !slot) setTitle(f.name.replace(/\.pdf$/i, "").replace(/[-_]+/g, " ").trim());
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -58,7 +95,10 @@ export default function PresentClient({ conferenceName, logo, open, codeRequired
       const r = await fetch("/api/present", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ presenterCode, name, email, organization, title, abstract, fileUrl, consent }),
+        body: JSON.stringify({
+          presenterCode, name, email, organization, title, abstract, fileUrl, consent,
+          ...(slot ? { talkId: slot.id } : {}),
+        }),
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j?.error || "Something went wrong saving your talk.");
@@ -192,6 +232,79 @@ export default function PresentClient({ conferenceName, logo, open, codeRequired
           </ul>
         </div>
 
+        {sp.get("talk") && !initialSlot && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-sm text-amber-900">
+            Slides for that talk are already posted. If it&apos;s yours, use your presenter link or ask the organizers
+            for a new one.
+          </div>
+        )}
+        {choosing ? (
+          <div className="bg-white border rounded-xl p-5 space-y-3">
+            <div>
+              <h2 className="font-semibold text-gray-900">Find your talk on the program</h2>
+              <p className="text-sm text-gray-600 mt-1">Search by your name, your company or the talk title.</p>
+            </div>
+            <input
+              value={find}
+              onChange={(e) => setFind(e.target.value)}
+              placeholder="e.g. your last name"
+              autoFocus
+              className="input"
+            />
+            {find.trim() && (
+              matches.length === 0 ? (
+                <p className="text-sm text-gray-500">No match among talks still waiting for slides.</p>
+              ) : (
+                <ul className="divide-y border rounded-lg">
+                  {matches.map((x) => (
+                    <li key={x.id}>
+                      <button
+                        type="button"
+                        onClick={() => pickSlot(x)}
+                        className="w-full text-left px-3 py-2.5 hover:bg-blue-50"
+                      >
+                        <span className="block text-sm font-medium text-gray-900">{x.title}</span>
+                        <span className="block text-xs text-gray-600 mt-0.5">
+                          {[x.speaker, x.organization].filter(Boolean).join(", ")}
+                          {(x.session || x.when) && (
+                            <span className="text-gray-400"> · {[x.session, x.when].filter(Boolean).join(", ")}</span>
+                          )}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )
+            )}
+            <button type="button" onClick={() => setNotListed(true)} className="text-sm text-blue-600 hover:underline">
+              My talk isn&apos;t listed
+            </button>
+          </div>
+        ) : (
+        <>
+        {slot && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Adding slides to</p>
+              <p className="text-sm font-medium text-gray-900 mt-0.5">{slot.title}</p>
+              {(slot.session || slot.when) && (
+                <p className="text-xs text-gray-600 mt-0.5">{[slot.session, slot.when].filter(Boolean).join(", ")}</p>
+              )}
+            </div>
+            {slots.length > 1 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSlot(null);
+                  setNotListed(false);
+                }}
+                className="shrink-0 text-sm text-blue-600 hover:underline"
+              >
+                Change
+              </button>
+            )}
+          </div>
+        )}
         <form onSubmit={onSubmit} className="bg-white border rounded-xl p-5 space-y-4">
           {codeRequired && (
             <Field label="Presenter code" hint="From your acceptance email">
@@ -290,6 +403,8 @@ export default function PresentClient({ conferenceName, logo, open, codeRequired
             {stage === "uploading" ? `Uploading… ${progress}%` : stage === "saving" ? "Publishing…" : "Publish my talk"}
           </button>
         </form>
+        </>
+        )}
       </div>
     </main>
   );
