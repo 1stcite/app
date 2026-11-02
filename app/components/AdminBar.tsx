@@ -52,7 +52,7 @@ export default function AdminBar() {
 
   // The insights page reports whether it's showing demo data; the Before /
   // After switch then sits right here with the other buttons.
-  const [insights, setInsights] = useState<{ sample: boolean; when: "before" | "after" } | null>(null);
+  const [insights, setInsights] = useState<{ sample: boolean; when: "before" | "during" | "after" } | null>(null);
   useEffect(() => {
     const on = (e: Event) => setInsights((e as CustomEvent).detail);
     window.addEventListener("px:insights", on);
@@ -119,7 +119,7 @@ export default function AdminBar() {
       {onInsights && insights?.sample && (
         <div className="flex items-center gap-1 pb-1 mb-0.5 border-b border-gray-700">
           <span className="px-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Sample</span>
-          {(["before", "after"] as const).map((w) => (
+          {(["before", "during", "after"] as const).map((w) => (
             <button
               key={w}
               type="button"
@@ -129,7 +129,7 @@ export default function AdminBar() {
                 insights.when === w ? "bg-yellow-400 text-yellow-950" : "text-gray-200 border border-gray-600 hover:bg-gray-800",
               ].join(" ")}
             >
-              {w === "before" ? "Before" : "After"}
+              {w === "before" ? "Before" : w === "during" ? "During" : "After"}
             </button>
           ))}
         </div>

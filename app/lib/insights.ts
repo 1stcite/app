@@ -61,6 +61,29 @@ export type InsightsDay = {
   future: boolean; // after asOf: nothing to show yet
 };
 
+/** One hour of a conference day (waking hours only), for the During view. */
+export type InsightsHour = {
+  t: string; // ISO start of the hour (session wall-clock time)
+  day: string; // YYYY-MM-DD
+  hour: number; // 0-23
+  activity: number;
+  inSession: boolean; // a session was running during this hour
+  future: boolean;
+};
+
+/** How much a talk got people talking, measured around its session. */
+export type InsightsBuzz = {
+  id: string;
+  title: string;
+  author: string;
+  sessionName: string;
+  startsAt: string | null;
+  viewersAfter: number; // people who opened it in the 24 hours after the talk
+  wordOfMouth: number; // of those, people who hadn't scheduled it (they heard about it)
+  lift: number; // activity in the 3 hours after the talk ÷ the 3 hours before
+  questions: number;
+};
+
 export type Insights = {
   mode: "sample" | "live";
   phase: Phase;
@@ -90,7 +113,34 @@ export type Insights = {
   /** Talks still to come, by interest (schedules, stars, saves). */
   upcomingTalks: InsightsTalk[];
   sessions: InsightsSession[];
+  /** During the conference: hour-by-hour activity and buzz by talk. */
+  hours?: InsightsHour[];
+  buzz?: InsightsBuzz[];
 };
+
+/** Waking hours shown for each conference day. */
+const FIRST_HOUR = 7;
+const LAST_HOUR = 22;
+
+function hourAxis(clock: Clock, sessions: SessionRow[]): { t: number; day: string; hour: number; inSession: boolean }[] {
+  if (!clock.startDay || !clock.endDay) return [];
+  const spans = sessions
+    .map((s) => [at(s.date, s.startTime), at(s.date, s.endTime)] as const)
+    .filter((x): x is readonly [number, number] => x[0] !== null && x[1] !== null);
+  const out: { t: number; day: string; hour: number; inSession: boolean }[] = [];
+  for (let d = Date.parse(`${clock.startDay}T00:00:00Z`); d <= Date.parse(`${clock.endDay}T00:00:00Z`); d += DAY) {
+    for (let h = FIRST_HOUR; h <= LAST_HOUR; h++) {
+      const t = d + h * HOUR;
+      out.push({
+        t,
+        day: isoDay(new Date(d)),
+        hour: h,
+        inSession: spans.some(([a, b]) => a < t + HOUR && b > t),
+      });
+    }
+  }
+  return out;
+}
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -345,7 +395,7 @@ function shape(dayFromStart: number, confDays: number): number {
 export async function sampleInsights(
   sourceId: string,
   conferenceName: string,
-  when: "before" | "after"
+  when: Phase
 ): Promise<Insights> {
   const { posters, sessions } = await loadConference(sourceId);
   const sessionById = new Map(sessions.map((s) => [s.id, s]));
@@ -353,8 +403,9 @@ export async function sampleInsights(
   const startDay = base.startDay ? Date.parse(`${base.startDay}T00:00:00Z`) : Date.now();
   const endDay = base.endDay ? Date.parse(`${base.endDay}T00:00:00Z`) : startDay;
   const confDays = Math.max(1, Math.round((endDay - startDay) / DAY) + 1);
-  // Before: the morning the conference opens. After: the end of the 30-day follow-up window.
-  const asOf = when === "before" ? startDay : endDay + 31 * DAY;
+  // Before: the morning the conference opens. During: the night the conference
+  // closes. After: the end of the 30-day follow-up window.
+  const asOf = when === "before" ? startDay : when === "during" ? endDay + DAY : endDay + 31 * DAY;
   const clock: Clock = { ...base, asOf, phase: when };
 
   // Share of all engagement that happens before the conference opens
@@ -362,15 +413,25 @@ export async function sampleInsights(
   const weights = axis.map(({ t }) => shape(Math.round((t - startDay) / DAY), confDays));
   const total = weights.reduce((a, w) => a + w, 0);
   const preShare = axis.reduce((a, { t }, i) => a + (t < startDay ? weights[i] : 0), 0) / total;
+  const confShare = axis.reduce((a, { t }, i) => a + (t >= startDay && t <= endDay ? weights[i] : 0), 0) / total;
 
   // Lifetime totals: ~600 attendees; each talk reaches a skewed share of them.
   // Before the conference, interest (stars, schedules) is mostly in place;
   // views, questions and contact requests mostly come later.
   const pre = { views: preShare, questions: preShare * 0.7, contacts: preShare * 0.3, saves: 0.4, stars: 0.8, scheduled: 0.85 };
-  const f = (k: keyof typeof pre) => (when === "before" ? pre[k] : 1);
-  // About 70% of presenters have uploaded by opening day, 85% a month later.
-  // Talks without slides still collect stars and schedules from the program.
-  const uploadedBy = (p: PosterRow, w: "before" | "after") => seeded(`${p.id}:up`) < (w === "before" ? 0.7 : 0.85);
+  const byClose = {
+    views: preShare + confShare,
+    questions: preShare * 0.7 + confShare,
+    contacts: preShare * 0.3 + confShare * 0.8,
+    saves: 0.65,
+    stars: 0.95,
+    scheduled: 1,
+  };
+  const f = (k: keyof typeof pre) => (when === "before" ? pre[k] : when === "during" ? byClose[k] : 1);
+  // About 70% of presenters have uploaded by opening day, 78% by the close,
+  // 85% a month later. Talks without slides still collect stars and
+  // schedules from the program.
+  const uploadedBy = (p: PosterRow, w: Phase) => seeded(`${p.id}:up`) < (w === "before" ? 0.7 : w === "during" ? 0.78 : 0.85);
   const uploaded = (p: PosterRow) => uploadedBy(p, when);
   const talks: InsightsTalk[] = posters.map((p) => {
     const r = (k: string) => seeded(`${p.id}:${k}`);
@@ -386,7 +447,7 @@ export async function sampleInsights(
       author: p.author,
       sessionName: (p.sessionId && sessionById.get(p.sessionId)?.name) || "",
       startsAt: times.scheduled ? new Date(times.start).toISOString() : null,
-      done: when === "after",
+      done: when !== "before",
       viewers: seen,
       outsideSession: Math.round(seen * (0.45 + r("o") * 0.3)),
       questions,
@@ -415,7 +476,78 @@ export async function sampleInsights(
 
   const sessionOf = new Map(posters.map((p) => [p.id, p.sessionId]));
   const result = assemble("sample", conferenceName, clock, talks, sessions, sessionOf, people, days, programCounts(posters, uploaded));
+  if (when === "during") {
+    const confActivity = days.filter((d) => d.phase === "during").reduce((a, d) => a + d.activity, 0);
+    Object.assign(result, sampleBuzz(posters, sessions, sessionById, clock, talks, uploaded, confActivity));
+  }
   return atConferenceScale(result, sourceId, posters.length, when);
+}
+
+/**
+ * Buzz around each talk: a little steady interest through the conference,
+ * activity in the room, then a spike after the talk that fades over a few
+ * hours. How big the spike is varies by talk; that is the buzz.
+ */
+function sampleBuzz(
+  posters: PosterRow[],
+  sessions: SessionRow[],
+  sessionById: Map<string, SessionRow>,
+  clock: Clock,
+  talks: InsightsTalk[],
+  uploaded: (p: PosterRow) => boolean,
+  confActivity: number
+): { hours: InsightsHour[]; buzz: InsightsBuzz[] } {
+  const axis = hourAxis(clock, sessions);
+  const talkById = new Map(talks.map((t) => [t.id, t]));
+  const curves = posters
+    .filter(uploaded)
+    .map((p) => {
+      const r = (k: string) => seeded(`${p.id}:${k}`);
+      const { start, end } = talkTimes(p, sessionById, clock);
+      const interest = 0.4 + r("v"); // steady background interest
+      const buzz = 0.25 + 2.2 * Math.pow(r("bz"), 2); // how much the talk gets people talking
+      const level = (t: number) => {
+        const base = interest * 0.25;
+        if (t < start) return base;
+        if (t < end) return base + interest * 0.6; // in the room
+        return base + interest * buzz * 2.4 * Math.exp(-(t - end) / (2.5 * HOUR));
+      };
+      return { p, start, end, buzz, level };
+    });
+
+  const raw = axis.map(({ t }) => curves.reduce((a, c) => a + c.level(t + HOUR / 2), 0));
+  const rawTotal = raw.reduce((a, x) => a + x, 0) || 1;
+  const hours: InsightsHour[] = axis.map((h, i) => ({
+    t: new Date(h.t).toISOString(),
+    day: h.day,
+    hour: h.hour,
+    inSession: h.inSession,
+    activity: Math.round((raw[i] / rawTotal) * confActivity * (0.92 + seeded(`${h.t}`) * 0.16)),
+    future: false,
+  }));
+
+  const sum = (c: (typeof curves)[number], from: number, to: number) => {
+    let a = 0;
+    for (let t = from; t < to; t += HOUR / 4) a += c.level(t);
+    return a;
+  };
+  const buzz: InsightsBuzz[] = curves.map((c) => {
+    const t = talkById.get(c.p.id)!;
+    const viewersAfter = Math.round(t.viewers * (0.18 + 0.32 * Math.min(1, c.buzz / 1.6)));
+    return {
+      id: c.p.id,
+      title: c.p.title,
+      author: c.p.author,
+      sessionName: t.sessionName,
+      startsAt: t.startsAt,
+      viewersAfter,
+      wordOfMouth: Math.round(viewersAfter * (0.4 + seeded(`${c.p.id}:wm`) * 0.3) * Math.min(1.3, 0.6 + c.buzz / 3)),
+      lift: Math.round((sum(c, c.end, c.end + 3 * HOUR) / Math.max(1e-6, sum(c, c.start - 3 * HOUR, c.start))) * 10) / 10,
+      questions: t.questions,
+    };
+  });
+  buzz.sort((a, b) => b.wordOfMouth - a.wordOfMouth || b.lift - a.lift);
+  return { hours, buzz: buzz.slice(0, 12) };
 }
 
 /**
@@ -424,7 +556,7 @@ export async function sampleInsights(
  * 50 posters, 1,000+ attendees); the talk and session tables keep the real
  * program's talks.
  */
-function atConferenceScale(r: Insights, sourceId: string, n: number, when: "before" | "after"): Insights {
+function atConferenceScale(r: Insights, sourceId: string, n: number, when: Phase): Insights {
   const talks = 90 + Math.round(seeded(`${sourceId}:talks`) * 30);
   const posters = 40 + Math.round(seeded(`${sourceId}:posters`) * 25);
   const k = (talks + posters) / Math.max(1, n);
@@ -439,8 +571,8 @@ function atConferenceScale(r: Insights, sourceId: string, n: number, when: "befo
       program: {
         talks,
         posters,
-        uploadedTalks: up(talks, when === "before" ? 0.72 : 0.86, "ut"),
-        uploadedPosters: up(posters, when === "before" ? 0.6 : 0.78, "up"),
+        uploadedTalks: up(talks, when === "before" ? 0.72 : when === "during" ? 0.8 : 0.86, "ut"),
+        uploadedPosters: up(posters, when === "before" ? 0.6 : when === "during" ? 0.7 : 0.78, "up"),
       },
       people: Math.min(1150, Math.round(deckOpens / 5.5)),
       deckOpens,
@@ -454,6 +586,7 @@ function atConferenceScale(r: Insights, sourceId: string, n: number, when: "befo
       scheduled: scale(t.scheduled),
     },
     days: r.days.map((d) => ({ ...d, activity: scale(d.activity) })),
+    ...(r.hours ? { hours: r.hours.map((h) => ({ ...h, activity: scale(h.activity) })) } : {}),
   };
 }
 
@@ -543,9 +676,12 @@ export async function liveInsights(sourceId: string, conferenceName: string, asO
     perDay.set(k, (perDay.get(k) ?? 0) + n);
   };
   const [viewDocs, commentDocs, followDocs] = await Promise.all([
-    db.collection("views").find({ posterId: { $in: ids } }, { projection: { firstAt: 1, lastAt: 1 } }).toArray(),
-    db.collection("comments").find({ posterId: { $in: ids } }, { projection: { timestamp: 1 } }).toArray(),
-    db.collection("followups").find({ posterId: { $in: ids } }, { projection: { createdAt: 1 } }).toArray(),
+    db
+      .collection("views")
+      .find({ posterId: { $in: ids } }, { projection: { posterId: 1, viewerKey: 1, userId: 1, firstAt: 1, lastAt: 1 } })
+      .toArray(),
+    db.collection("comments").find({ posterId: { $in: ids } }, { projection: { posterId: 1, timestamp: 1 } }).toArray(),
+    db.collection("followups").find({ posterId: { $in: ids } }, { projection: { posterId: 1, createdAt: 1 } }).toArray(),
   ]);
   for (const v of viewDocs) {
     add(v.firstAt);
@@ -563,5 +699,60 @@ export async function liveInsights(sourceId: string, conferenceName: string, asO
   }));
 
   const sessionOf = new Map(posters.map((p) => [p.id, p.sessionId]));
-  return assemble("live", conferenceName, clock, talks, sessions, sessionOf, Number(distinct[0]?.n ?? 0), days, programCounts(whole.posters, (p) => !p.awaiting));
+  const result = assemble("live", conferenceName, clock, talks, sessions, sessionOf, Number(distinct[0]?.n ?? 0), days, programCounts(whole.posters, (p) => !p.awaiting));
+  if (clock.phase === "before") return result;
+
+  // During: hour-by-hour activity and buzz by talk, from the same events
+  type Ev = { posterId: string; t: number };
+  const events: Ev[] = [];
+  const push = (pid: unknown, d: unknown) => {
+    if (d instanceof Date && d.getTime() <= clock.asOf) events.push({ posterId: String(pid), t: d.getTime() });
+  };
+  for (const v of viewDocs) push(v.posterId, v.firstAt);
+  for (const c of commentDocs) push(c.posterId, c.timestamp);
+  for (const f of followDocs) push(f.posterId, f.createdAt);
+
+  const hours: InsightsHour[] = hourAxis(clock, sessions).map((h) => ({
+    t: new Date(h.t).toISOString(),
+    day: h.day,
+    hour: h.hour,
+    inSession: h.inSession,
+    activity: events.filter((e) => e.t >= h.t && e.t < h.t + HOUR).length,
+    future: h.t > clock.asOf,
+  }));
+
+  const talkById = new Map(talks.map((t) => [t.id, t]));
+  const buzz: InsightsBuzz[] = posters
+    .map((p) => {
+      const times = talkTimes(p, sessionById, clock);
+      if (!times.scheduled || times.end > clock.asOf) return null;
+      const mine = events.filter((e) => e.posterId === p.id);
+      const count = (a: number, b: number) => mine.filter((e) => e.t >= a && e.t < b).length;
+      const after = viewDocs.filter(
+        (v) =>
+          String(v.posterId) === p.id &&
+          v.firstAt instanceof Date &&
+          v.firstAt.getTime() >= times.end &&
+          v.firstAt.getTime() < times.end + DAY &&
+          v.firstAt.getTime() <= clock.asOf
+      );
+      const t = talkById.get(p.id)!;
+      return {
+        id: p.id,
+        title: p.title,
+        author: p.author,
+        sessionName: t.sessionName,
+        startsAt: t.startsAt,
+        viewersAfter: after.length,
+        wordOfMouth: after.filter((v) => !(v.userId && attended.has(`${p.id}|${String(v.userId)}`))).length,
+        // +1 on both sides so a quiet hour before the talk doesn't divide by zero
+        lift: Math.round(((count(times.end, times.end + 3 * HOUR) + 1) / (count(times.start - 3 * HOUR, times.start) + 1)) * 10) / 10,
+        questions: t.questions,
+      } as InsightsBuzz;
+    })
+    .filter((x): x is InsightsBuzz => x !== null)
+    .sort((a, b) => b.wordOfMouth - a.wordOfMouth || b.lift - a.lift)
+    .slice(0, 12);
+
+  return { ...result, hours, buzz };
 }

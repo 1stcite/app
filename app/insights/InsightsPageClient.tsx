@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Footer from '@/app/components/Footer';
 import { useConference } from '@/app/lib/conferenceContext';
-import type { Insights, InsightsDay, InsightsSession, InsightsTalk } from '@/app/lib/insights';
+import type { Insights, InsightsBuzz, InsightsDay, InsightsHour, InsightsSession, InsightsTalk } from '@/app/lib/insights';
 
 // One hue for magnitude; a lighter step of the same hue for context
 const BLUE = '#2563eb';
@@ -18,11 +18,11 @@ const fmtDate = (iso: string | null) =>
 
 export default function InsightsPageClient() {
   const conf = useConference();
-  const [when, setWhen] = useState<'before' | 'after'>('before');
+  const [when, setWhen] = useState<'before' | 'during' | 'after'>('before');
   const [data, setData] = useState<Insights | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (w: 'before' | 'after') => {
+  const load = useCallback(async (w: 'before' | 'during' | 'after') => {
     setError(null);
     const r = await fetch(`/api/admin/insights?when=${w}`, { cache: 'no-store' });
     const j = await r.json().catch(() => ({}));
@@ -42,7 +42,7 @@ export default function InsightsPageClient() {
   useEffect(() => {
     const on = (e: Event) => {
       const w = (e as CustomEvent).detail;
-      if (w === 'before' || w === 'after') setWhen(w);
+      if (w === 'before' || w === 'during' || w === 'after') setWhen(w);
     };
     window.addEventListener('px:insights-when', on);
     return () => window.removeEventListener('px:insights-when', on);
@@ -77,7 +77,7 @@ export default function InsightsPageClient() {
         {isSample && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             <strong>Sample data</strong> for your program&apos;s talks and sessions, as you would see it the morning the
-            conference opens (Before) and a month after it ends (After). Switch between them in the box at the bottom
+            conference opens (Before), as it closes (During) and a month after it ends (After). Switch between them in the box at the bottom
             right.
           </div>
         )}
@@ -151,7 +151,17 @@ function Dashboard({ data }: { data: Insights }) {
             />
           </section>
 
-          {/* Over time */}
+          {/* Over time: by hour during the conference, by day otherwise */}
+          {phase === 'during' && data.hours && data.hours.length > 0 ? (
+            <section className="rounded-xl border bg-white p-5">
+              <h2 className="text-base font-semibold text-gray-900 mb-1">Engagement by hour during the conference</h2>
+              <p className="text-xs text-gray-500 mb-4">
+                Slide views, questions and contact requests each hour. Shaded hours had sessions running; the peaks
+                after them are talks getting people talking.
+              </p>
+              <HourChart hours={data.hours} />
+            </section>
+          ) : (
           <section className="rounded-xl border bg-white p-5">
             <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
               <h2 className="text-base font-semibold text-gray-900">Attendee engagement over time</h2>
@@ -164,6 +174,7 @@ function Dashboard({ data }: { data: Insights }) {
             <p className="text-xs text-gray-500 mb-4">Slide views, questions and contact requests per day</p>
             <DayChart days={data.days} showNow={data.mode === 'live'} />
           </section>
+          )}
 
           {phase === 'before' && (
             <div className="grid lg:grid-cols-5 gap-6">
@@ -182,25 +193,23 @@ function Dashboard({ data }: { data: Insights }) {
 
           {phase === 'during' && (
             <>
-              <div className="grid lg:grid-cols-2 gap-6">
-                <section className="rounded-xl border bg-white p-5">
-                  <h2 className="text-base font-semibold text-gray-900 mb-1">Talks given so far</h2>
-                  <p className="text-xs text-gray-500 mb-3">Ranked by contact requests, then people reached</p>
-                  <EngagementTable rows={data.topTalks} empty="No talks have finished yet." />
-                </section>
+              <section className="rounded-xl border bg-white p-5">
+                <h2 className="text-base font-semibold text-gray-900 mb-1">Buzz by talk</h2>
+                <p className="text-xs text-gray-500 mb-3">
+                  <strong className="font-medium text-gray-700">Word of mouth:</strong> people who opened the talk in the
+                  24 hours after it without having scheduled it.{' '}
+                  <strong className="font-medium text-gray-700">Lift:</strong> activity in the 3 hours after the talk
+                  compared with the 3 hours before.
+                </p>
+                <BuzzTable rows={data.buzz ?? []} />
+              </section>
+              {data.upcomingTalks.length > 0 && (
                 <section className="rounded-xl border bg-white p-5">
                   <h2 className="text-base font-semibold text-gray-900 mb-1">Coming up: most anticipated</h2>
                   <p className="text-xs text-gray-500 mb-3">Ranked by schedules, stars and saves</p>
                   <InterestTable rows={data.upcomingTalks} />
                 </section>
-              </div>
-              <section className="rounded-xl border bg-white p-5">
-                <h2 className="text-base font-semibold text-gray-900 mb-1">Sessions</h2>
-                <p className="text-xs text-gray-500 mb-3">
-                  Finished sessions by deck opens; upcoming sessions by people who scheduled them
-                </p>
-                <Sessions rows={data.sessions} metric="auto" />
-              </section>
+              )}
             </>
           )}
 
@@ -328,6 +337,113 @@ function DayChart({ days, showNow }: { days: InsightsDay[]; showNow: boolean }) 
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+const hourLabel = (h: number) => `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
+const dayName = (iso: string) =>
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+function HourChart({ hours }: { hours: InsightsHour[] }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const max = Math.max(1, ...hours.map((h) => h.activity));
+  const H = 170;
+  const days = [...new Set(hours.map((h) => h.day))];
+  return (
+    <div className="relative">
+      <div className="flex gap-3" onMouseLeave={() => setHover(null)}>
+        {days.map((day) => {
+          const list = hours.map((h, i) => ({ h, i })).filter((x) => x.h.day === day);
+          return (
+            <div key={day} className="flex-1 min-w-0">
+              <div className="flex items-end gap-[2px]" style={{ height: H }}>
+                {list.map(({ h, i }) => (
+                  <div
+                    key={h.t}
+                    className={`relative flex-1 h-full flex items-end rounded-sm ${h.inSession ? 'bg-blue-50' : ''}`}
+                    onMouseEnter={() => setHover(i)}
+                    tabIndex={0}
+                    aria-label={`${dayName(h.day)} ${hourLabel(h.hour)}: ${h.activity} actions`}
+                  >
+                    <div
+                      className="w-full rounded-t-[3px]"
+                      style={{
+                        height: `${Math.max(h.activity > 0 ? 2 : 0, (h.activity / max) * (H - 8))}px`,
+                        background: h.future ? 'transparent' : BLUE,
+                        opacity: hover === null || hover === i ? 1 : 0.55,
+                      }}
+                    />
+                    {hover === i && (
+                      <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 rounded-md border bg-white px-2 py-1 text-xs shadow-sm whitespace-nowrap">
+                        <span className="font-medium text-gray-900">
+                          {dayName(h.day)}, {hourLabel(h.hour)}
+                        </span>
+                        <span className="text-gray-600">{h.future ? ' · not yet' : ` · ${fmt(h.activity)} actions`}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-1 border-t border-gray-200 pt-1 flex justify-between text-[11px] text-gray-500">
+                <span>{hourLabel(list[0]?.h.hour ?? 7)}</span>
+                <span className="font-medium text-gray-700">{dayName(day)}</span>
+                <span>{hourLabel(list[list.length - 1]?.h.hour ?? 22)}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-2 flex items-center gap-2 text-[11px] text-gray-500">
+        <span className="inline-block h-2.5 w-4 rounded-sm bg-blue-50 border border-blue-100" /> Sessions running
+      </p>
+    </div>
+  );
+}
+
+function BuzzTable({ rows }: { rows: InsightsBuzz[] }) {
+  const max = Math.max(1, ...rows.map((r) => r.wordOfMouth));
+  if (rows.length === 0) return <p className="text-sm text-gray-500">No talks have finished yet.</p>;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b">
+            <th className="py-2 pr-3">Talk</th>
+            <th className="py-2 pr-3 text-right">People after</th>
+            <th className="py-2 pr-3 w-40">Word of mouth</th>
+            <th className="py-2 pr-3 text-right">Lift</th>
+            <th className="py-2 pr-3 text-right">Questions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.id} className="border-b last:border-0 align-top">
+              <td className="py-2 pr-3">
+                <a href={`/view/${r.id}`} className="font-medium text-gray-900 hover:underline line-clamp-2">
+                  {r.title}
+                </a>
+                <div className="text-xs text-gray-500 line-clamp-1">
+                  {r.author}
+                  {r.sessionName && <> · {r.sessionName}</>}
+                  {r.startsAt && <> · {fmtWhen(r.startsAt)}</>}
+                </div>
+              </td>
+              <td className="py-2 pr-3 text-right tabular-nums text-gray-800">{fmt(r.viewersAfter)}</td>
+              <td className="py-2 pr-3">
+                <div className="flex items-center gap-2" title={`${r.wordOfMouth} people opened it afterward without having scheduled it`}>
+                  <div className="h-2.5 flex-1 rounded-full bg-gray-100 overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${(r.wordOfMouth / max) * 100}%`, background: VIOLET }} />
+                  </div>
+                  <span className="w-8 text-right tabular-nums text-gray-800">{fmt(r.wordOfMouth)}</span>
+                </div>
+              </td>
+              <td className="py-2 pr-3 text-right tabular-nums text-gray-800">×{r.lift.toFixed(1)}</td>
+              <td className="py-2 pr-3 text-right tabular-nums text-gray-800">{fmt(r.questions)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
