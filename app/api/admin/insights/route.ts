@@ -2,7 +2,7 @@
  * Organizer insights for the current conference (subdomain). Admin only.
  *
  * Demo conferences (the default) show sample data:
- *   GET /api/admin/insights?when=before|after
+ *   GET /api/admin/insights?when=before|during|after
  * Real conferences (demoInsights off) show live data as of now.
  */
 
@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
   if (conf.demoInsights === false) {
     return NextResponse.json(await liveInsights(conf.sourceId, conf.name, new Date()));
   }
-  const when = req.nextUrl.searchParams.get("when") === "before" ? "before" : "after";
+  const w = req.nextUrl.searchParams.get("when");
+  const when = w === "before" || w === "during" ? w : "after";
   return NextResponse.json(await sampleInsights(conf.sourceId, conf.name, when));
 }
